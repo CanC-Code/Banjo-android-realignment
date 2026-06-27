@@ -6,6 +6,7 @@
 #include <android/log.h>
 #include <stdio.h>
 #include <string.h>
+#include <cerrno>
 #include "rare_decompression.h"
 
 #define LOG_TAG "BKA_OTR"
