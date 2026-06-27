@@ -302,6 +302,9 @@ def apply_android_memory_routing(content, filename):
 
     header = """#ifndef BKA_SAFE_BASE_INCLUDED
 #define BKA_SAFE_BASE_INCLUDED
+
+#include <stdint.h>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -313,6 +316,7 @@ extern void InitN64Registers(void);
 #ifdef __cplusplus
 }
 #endif
+
 static inline unsigned int* BKA_GetSafeRegBase(void) {
     if (gN64_Reg_Base) return gN64_Reg_Base;
     InitN64Registers();
@@ -324,14 +328,22 @@ static inline unsigned int* BKA_GetSafePifBase(void) {
     return gN64_PIF_Base ? gN64_PIF_Base : (unsigned int*)0;
 }
 #endif
+
 #define BKA_GET_REG_BASE() BKA_GetSafeRegBase()
 #define BKA_GET_PIF_BASE() BKA_GetSafePifBase()
 #define BKA_MASK32(a) ((unsigned long)(a) & 0xFFFFFFFF)
+
+/* CRITICAL FIX: Casts MUST be uintptr_t or unsigned long to prevent 64-bit pointer truncation on Android.
+ * Added physical and virtual RDRAM bounds checking to ensure engine data is mapped to gN64_RDRAM.
+ */
 #define BKA_TRANSLATE_ADDR(addr) ( \\
-    (BKA_MASK32(addr) >= 0x04000000 && BKA_MASK32(addr) < 0x05000000) ? ((unsigned int)((unsigned char*)BKA_GET_REG_BASE() + (BKA_MASK32(addr) - 0x04000000))) : \\
-    (BKA_MASK32(addr) >= 0x1FC00000 && BKA_MASK32(addr) < 0x1FC01000) ? ((unsigned int)((unsigned char*)BKA_GET_PIF_BASE() + (BKA_MASK32(addr) - 0x1FC00000))) : \\
-    (BKA_MASK32(addr) >= 0xA4000000 && BKA_MASK32(addr) < 0xA5000000) ? ((unsigned int)((unsigned char*)BKA_GET_REG_BASE() + (BKA_MASK32(addr) - 0xA4000000))) : \\
-    (BKA_MASK32(addr) >= 0xBFC00000 && BKA_MASK32(addr) < 0xBFC01000) ? ((unsigned int)((unsigned char*)BKA_GET_PIF_BASE() + (BKA_MASK32(addr) - 0xBFC00000))) : \\
+    (BKA_MASK32(addr) < 0x00800000) ? ((unsigned long)((unsigned char*)gN64_RDRAM + BKA_MASK32(addr))) : \\
+    (BKA_MASK32(addr) >= 0x80000000 && BKA_MASK32(addr) < 0x80800000) ? ((unsigned long)((unsigned char*)gN64_RDRAM + (BKA_MASK32(addr) - 0x80000000))) : \\
+    (BKA_MASK32(addr) >= 0xA0000000 && BKA_MASK32(addr) < 0xA0800000) ? ((unsigned long)((unsigned char*)gN64_RDRAM + (BKA_MASK32(addr) - 0xA0000000))) : \\
+    (BKA_MASK32(addr) >= 0x04000000 && BKA_MASK32(addr) < 0x05000000) ? ((unsigned long)((unsigned char*)BKA_GET_REG_BASE() + (BKA_MASK32(addr) - 0x04000000))) : \\
+    (BKA_MASK32(addr) >= 0x1FC00000 && BKA_MASK32(addr) < 0x1FC01000) ? ((unsigned long)((unsigned char*)BKA_GET_PIF_BASE() + (BKA_MASK32(addr) - 0x1FC00000))) : \\
+    (BKA_MASK32(addr) >= 0xA4000000 && BKA_MASK32(addr) < 0xA5000000) ? ((unsigned long)((unsigned char*)BKA_GET_REG_BASE() + (BKA_MASK32(addr) - 0xA4000000))) : \\
+    (BKA_MASK32(addr) >= 0xBFC00000 && BKA_MASK32(addr) < 0xBFC01000) ? ((unsigned long)((unsigned char*)BKA_GET_PIF_BASE() + (BKA_MASK32(addr) - 0xBFC00000))) : \\
     (unsigned long)(addr) \\
 )\n\n"""
     
@@ -355,15 +367,15 @@ static inline unsigned int* BKA_GetSafePifBase(void) {
         content = re.sub(r'#define\s+OS_PHYSICAL_TO_K1\s*\(\s*x\s*\).*', r'#define OS_PHYSICAL_TO_K1(x) (BKA_TRANSLATE_ADDR(x))', content)
         content = re.sub(r'#define\s+OS_PHYSICAL_TO_K0\s*\(\s*x\s*\).*', r'#define OS_PHYSICAL_TO_K0(x) (BKA_TRANSLATE_ADDR(x))', content)
         
-        # Reverse Translations (Corrected regex for OS_K0_TO_PHYSICAL)
+        # Reverse Translations (Corrected regex for OS_K0_TO_PHYSICAL and casting)
         content = re.sub(r'#define\s+OS_K1_TO_PHYSICAL\s*\(\s*x\s*\).*', r'#define OS_K1_TO_PHYSICAL(x) ((unsigned int)((unsigned char *)(x) - gN64_RDRAM))', content)
         content = re.sub(r'#define\s+OS_K0_TO_PHYSICAL\s*\(\s*x\s*\).*', r'#define OS_K0_TO_PHYSICAL(x) ((unsigned int)((unsigned char *)(x) - gN64_RDRAM))', content)
 
     if filename == "R4300.h":
-        content = re.sub(r'#define\s+PHYS_TO_K1\s*\(\s*x\s*\).*', r'#define PHYS_TO_K1(x) (((unsigned int)(x) >= 0x04000000 && (unsigned int)(x) < 0x05000000) ? ((unsigned int)BKA_GET_REG_BASE() + ((unsigned int)(x) - 0x04000000)) : ((unsigned int)(x) | 0xA0000000))', content)
-        content = re.sub(r'#define\s+PHYS_TO_K0\s*\(\s*x\s*\).*', r'#define PHYS_TO_K0(x) (((unsigned int)(x) >= 0x04000000 && (unsigned int)(x) < 0x05000000) ? ((unsigned int)BKA_GET_REG_BASE() + ((unsigned int)(x) - 0x04000000)) : ((unsigned int)(x) | 0x80000000))', content)
-        content = re.sub(r'#define\s+K1_TO_PHYS\s*\(\s*x\s*\).*', r'#define K1_TO_PHYS(x) (BKA_GET_REG_BASE() && ((unsigned int)(x) >= (unsigned int)BKA_GET_REG_BASE() && (unsigned int)(x) < (unsigned int)BKA_GET_REG_BASE() + 0x1000000) ? ((unsigned int)(x) - (unsigned int)BKA_GET_REG_BASE() + 0x04000000) : ((unsigned int)(x) & 0x1FFFFFFF))', content)
-        content = re.sub(r'#define\s+K0_TO_PHYS\s*\(\s*x\s*\).*', r'#define K0_TO_PHYS(x) (BKA_GET_REG_BASE() && ((unsigned int)(x) >= (unsigned int)BKA_GET_REG_BASE() && (unsigned int)(x) < (unsigned int)BKA_GET_REG_BASE() + 0x1000000) ? ((unsigned int)(x) - (unsigned int)BKA_GET_REG_BASE() + 0x04000000) : ((unsigned int)(x) & 0x1FFFFFFF))', content)
+        content = re.sub(r'#define\s+PHYS_TO_K1\s*\(\s*x\s*\).*', r'#define PHYS_TO_K1(x) (((unsigned long)(x) >= 0x04000000 && (unsigned long)(x) < 0x05000000) ? ((unsigned long)BKA_GET_REG_BASE() + ((unsigned long)(x) - 0x04000000)) : ((unsigned long)(x) | 0xA0000000))', content)
+        content = re.sub(r'#define\s+PHYS_TO_K0\s*\(\s*x\s*\).*', r'#define PHYS_TO_K0(x) (((unsigned long)(x) >= 0x04000000 && (unsigned long)(x) < 0x05000000) ? ((unsigned long)BKA_GET_REG_BASE() + ((unsigned long)(x) - 0x04000000)) : ((unsigned long)(x) | 0x80000000))', content)
+        content = re.sub(r'#define\s+K1_TO_PHYS\s*\(\s*x\s*\).*', r'#define K1_TO_PHYS(x) (BKA_GET_REG_BASE() && ((unsigned long)(x) >= (unsigned long)BKA_GET_REG_BASE() && (unsigned long)(x) < (unsigned long)BKA_GET_REG_BASE() + 0x1000000) ? ((unsigned long)(x) - (unsigned long)BKA_GET_REG_BASE() + 0x04000000) : ((unsigned long)(x) & 0x1FFFFFFF))', content)
+        content = re.sub(r'#define\s+K0_TO_PHYS\s*\(\s*x\s*\).*', r'#define K0_TO_PHYS(x) (BKA_GET_REG_BASE() && ((unsigned long)(x) >= (unsigned long)BKA_GET_REG_BASE() && (unsigned long)(x) < (unsigned long)BKA_GET_REG_BASE() + 0x1000000) ? ((unsigned long)(x) - (unsigned long)BKA_GET_REG_BASE() + 0x04000000) : ((unsigned long)(x) & 0x1FFFFFFF))', content)
 
     return content
 # =======================================================
