@@ -39,7 +39,7 @@ jobs:
 
       - name: 🛡️ Apply Surgical Linker Patch
         run: |
-          # Ensure NDK llvm-objcopy is in the path
+          # Ensure NDK llvm-objcopy is in the path for the patch script
           export PATH=$PATH:$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
           python3 scripts/patch_linker_wraps.py
 
@@ -51,8 +51,8 @@ jobs:
       - name: 🐘 Build Verification APK
         run: |
           cd Android
-          # Clean build ensures the linker sees the renamed symbols in the .o files
-          ./gradlew clean assembleDebug \
+          # Using the global 'gradle' command as per your original working workflow
+          gradle assembleDebug \
             -Pandroid.externalNativeBuild.cmake.arguments="-DEXCLUDE_GAME_SRC=OFF" \
             --stacktrace
 
