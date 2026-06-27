@@ -294,7 +294,10 @@ def fix_linkage_conflicts(content):
 
 # === NEW: Android Memory Routing injected exactly as needed ===
 def apply_android_memory_routing(content, filename):
+    # GUARD: Prevent double-translation or processing files with manual memory logic
     if "BKA_TRANSLATE_ADDR" in content or not filename.endswith(('.c', '.cpp', '.h', '.hpp')):
+        return content
+    if "gN64_Reg_Base" in content and "BKA_SAFE_BASE_INCLUDED" not in content:
         return content
 
     header = """#ifndef BKA_SAFE_BASE_INCLUDED
@@ -305,6 +308,7 @@ extern "C" {
 extern void* calloc(unsigned long, unsigned long);
 extern unsigned int* gN64_Reg_Base;
 extern unsigned int* gN64_PIF_Base;
+extern unsigned char* gN64_RDRAM;
 extern void InitN64Registers(void);
 #ifdef __cplusplus
 }
@@ -332,7 +336,7 @@ static inline unsigned int* BKA_GetSafePifBase(void) {
 )\n\n"""
     
     # Quick check to avoid regex overhead on non-relevant files
-    has_memory_access = re.search(r'\b(HW_REG|IO_READ|IO_WRITE|OS_PHYSICAL_TO_K1|PHYS_TO_K1|OS_PHYSICAL_TO_K0|PHYS_TO_K0)\b', content)
+    has_memory_access = re.search(r'\b(HW_REG|IO_READ|IO_WRITE|OS_PHYSICAL_TO_K1|PHYS_TO_K1|OS_PHYSICAL_TO_K0|PHYS_TO_K0|OS_K0_TO_PHYSICAL)\b', content)
     has_hardcoded_ptrs = re.search(r'\(\s*(volatile\s+[us]\d+|v?[us]\d+)\s*\*\s*\)\s*(0x[0-9a-fA-F]+)', content)
     
     if not (has_memory_access or has_hardcoded_ptrs):
@@ -347,10 +351,13 @@ static inline unsigned int* BKA_GetSafePifBase(void) {
     content = re.sub(r'#define\s+IO_WRITE\s*\(\s*addr\s*,\s*data\s*\)\s*\(.*?\)', r'#define IO_WRITE(addr, data) (*((volatile u32 *)BKA_TRANSLATE_ADDR(addr)) = (u32)(data))', content)
 
     if filename == "os_convert.h":
-        content = re.sub(r'#define\s+OS_PHYSICAL_TO_K1\s*\(\s*x\s*\).*', r'#define OS_PHYSICAL_TO_K1(x) ((void *)(((unsigned int)(x) >= 0x04000000 && (unsigned int)(x) < 0x05000000) ? ((unsigned char*)BKA_GET_REG_BASE() + ((unsigned int)(x) - 0x04000000)) : ((unsigned int)(x) | 0xA0000000)))', content)
-        content = re.sub(r'#define\s+OS_PHYSICAL_TO_K0\s*\(\s*x\s*\).*', r'#define OS_PHYSICAL_TO_K0(x) ((void *)(((unsigned int)(x) >= 0x04000000 && (unsigned int)(x) < 0x05000000) ? ((unsigned char*)BKA_GET_REG_BASE() + ((unsigned int)(x) - 0x04000000)) : ((unsigned int)(x) | 0x80000000)))', content)
-        content = re.sub(r'#define\s+OS_K1_TO_PHYS\s*\(\s*x\s*\).*', r'#define OS_K1_TO_PHYS(x) (BKA_GET_REG_BASE() && ((unsigned int)(x) >= (unsigned int)BKA_GET_REG_BASE() && (unsigned int)(x) < (unsigned int)BKA_GET_REG_BASE() + 0x1000000) ? ((unsigned int)(x) - (unsigned int)BKA_GET_REG_BASE() + 0x04000000) : ((unsigned int)(x) & 0x1FFFFFFF))', content)
-        content = re.sub(r'#define\s+OS_K0_TO_PHYS\s*\(\s*x\s*\).*', r'#define OS_K0_TO_PHYS(x) (BKA_GET_REG_BASE() && ((unsigned int)(x) >= (unsigned int)BKA_GET_REG_BASE() && (unsigned int)(x) < (unsigned int)BKA_GET_REG_BASE() + 0x1000000) ? ((unsigned int)(x) - (unsigned int)BKA_GET_REG_BASE() + 0x04000000) : ((unsigned int)(x) & 0x1FFFFFFF))', content)
+        # Forward Translations
+        content = re.sub(r'#define\s+OS_PHYSICAL_TO_K1\s*\(\s*x\s*\).*', r'#define OS_PHYSICAL_TO_K1(x) (BKA_TRANSLATE_ADDR(x))', content)
+        content = re.sub(r'#define\s+OS_PHYSICAL_TO_K0\s*\(\s*x\s*\).*', r'#define OS_PHYSICAL_TO_K0(x) (BKA_TRANSLATE_ADDR(x))', content)
+        
+        # Reverse Translations (Corrected regex for OS_K0_TO_PHYSICAL)
+        content = re.sub(r'#define\s+OS_K1_TO_PHYSICAL\s*\(\s*x\s*\).*', r'#define OS_K1_TO_PHYSICAL(x) ((unsigned int)((unsigned char *)(x) - gN64_RDRAM))', content)
+        content = re.sub(r'#define\s+OS_K0_TO_PHYSICAL\s*\(\s*x\s*\).*', r'#define OS_K0_TO_PHYSICAL(x) ((unsigned int)((unsigned char *)(x) - gN64_RDRAM))', content)
 
     if filename == "R4300.h":
         content = re.sub(r'#define\s+PHYS_TO_K1\s*\(\s*x\s*\).*', r'#define PHYS_TO_K1(x) (((unsigned int)(x) >= 0x04000000 && (unsigned int)(x) < 0x05000000) ? ((unsigned int)BKA_GET_REG_BASE() + ((unsigned int)(x) - 0x04000000)) : ((unsigned int)(x) | 0xA0000000))', content)
