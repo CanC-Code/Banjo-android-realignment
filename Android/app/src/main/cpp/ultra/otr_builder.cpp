@@ -37,64 +37,57 @@ static void debug_ui(JNIEnv* env, jobject callbackObj, jmethodID progressMid,
     env->DeleteLocalRef(jMsg);
 }
 
+// In-place byte swap for v64 (BADC -> ABCD)
+static void byteswap_v64(uint8_t* data, size_t size) {
+    for (size_t i = 0; i < size; i += 2) {
+        uint8_t temp = data[i];
+        data[i] = data[i+1];
+        data[i+1] = temp;
+    }
+}
+
+// In-place byte swap for n64/Little Endian (DCBA -> ABCD)
+static void byteswap_n64(uint8_t* data, size_t size) {
+    for (size_t i = 0; i < size; i += 4) {
+        uint8_t temp0 = data[i];
+        uint8_t temp1 = data[i+1];
+        data[i] = data[i+3];
+        data[i+1] = data[i+2];
+        data[i+2] = temp1;
+        data[i+3] = temp0;
+    }
+}
+
 /**
- * Write the raw ROM file descriptor contents to <outDir>/rom_base.bin.
+ * Write the normalized raw ROM memory buffer to <outDir>/rom_base.bin.
  *
  * ResourceMgr_Init() maps this file into gN64_ROM_Base at boot. Without it,
  * every HandleDma() call that misses the per-asset cache returns zeroed memory,
  * which corrupts all code segments, audio tables, and uncompressed data —
  * producing the white-screen hang.
  *
- * We write it as the FIRST step so that even if per-asset extraction fails
- * partway through, the fallback DMA path still works correctly.
- *
- * Returns the ROM size in bytes, or 0 on failure.
+ * Returns true on success, false on failure.
  */
-static size_t write_rom_base(int romFd, const char* outDir) {
-    // Determine ROM size via lseek
-    off_t romSize = lseek(romFd, 0, SEEK_END);
-    if (romSize <= 0) {
-        LOGE("write_rom_base: lseek SEEK_END failed (errno=%d)", errno);
-        return 0;
-    }
-    lseek(romFd, 0, SEEK_SET);
-
+static bool write_rom_base_from_memory(const uint8_t* romData, size_t romSize, const char* outDir) {
     char romBasePath[512];
     snprintf(romBasePath, sizeof(romBasePath), "%s/rom_base.bin", outDir);
 
     FILE* out = fopen(romBasePath, "wb");
     if (!out) {
         LOGE("write_rom_base: fopen(%s) failed (errno=%d)", romBasePath, errno);
-        return 0;
+        return false;
     }
 
-    // Stream copy in 1 MiB chunks to avoid a single large malloc
-    const size_t CHUNK = 1024 * 1024;
-    uint8_t* buf = (uint8_t*)malloc(CHUNK);
-    if (!buf) {
-        LOGE("write_rom_base: malloc failed for copy buffer");
-        fclose(out);
-        return 0;
-    }
-
-    size_t total   = 0;
-    ssize_t nread;
-    while ((nread = read(romFd, buf, CHUNK)) > 0) {
-        fwrite(buf, 1, (size_t)nread, out);
-        total += (size_t)nread;
-    }
-
-    free(buf);
+    size_t written = fwrite(romData, 1, romSize, out);
     fclose(out);
 
-    if ((off_t)total != romSize) {
-        LOGE("write_rom_base: wrote %zu bytes but ROM is %lld bytes",
-             total, (long long)romSize);
-        return 0;
+    if (written != romSize) {
+        LOGE("write_rom_base: wrote %zu bytes but ROM is %zu bytes", written, romSize);
+        return false;
     }
 
-    LOGI("write_rom_base: wrote %zu bytes → %s", total, romBasePath);
-    return total;
+    LOGI("write_rom_base: wrote %zu bytes → %s", written, romBasePath);
+    return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -114,37 +107,85 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
                                                "(ILjava/lang/String;)V");
 
     // ------------------------------------------------------------------
-    // STEP 1: Write rom_base.bin BEFORE anything else.
-    //
-    // ResourceMgr_Init() needs this file to exist so it can map the full
-    // ROM into gN64_ROM_Base. This is the DMA fallback for every asset
-    // that is NOT individually extracted below (uncompressed code, audio,
-    // headers, etc.).  Writing it first means a partial extraction still
-    // results in a bootable engine.
+    // STEP 1: Load ROM into memory and normalize endianness
     // ------------------------------------------------------------------
-    debug_ui(env, callback, progressMid, 0, "Copying ROM base...");
+    debug_ui(env, callback, progressMid, 0, "Loading ROM into memory...");
 
-    size_t romSize = write_rom_base((int)romFd, cOutDir);
-    if (romSize == 0) {
-        // Rom base copy failed — extraction cannot proceed safely.
-        debug_ui(env, callback, progressMid, 0, "ERROR: Failed to write rom_base.bin");
+    off_t romSizeOff = lseek((int)romFd, 0, SEEK_END);
+    if (romSizeOff <= 0) {
+        LOGE("Failed to determine ROM size (errno=%d)", errno);
+        debug_ui(env, callback, progressMid, 0, "ERROR: Failed to determine ROM size");
+        env->ReleaseStringUTFChars(outDir,       cOutDir);
+        env->ReleaseStringUTFChars(manifestPath, cManifestPath);
+        return;
+    }
+    size_t romSize = (size_t)romSizeOff;
+    lseek((int)romFd, 0, SEEK_SET);
+
+    uint8_t* romData = (uint8_t*)malloc(romSize);
+    if (!romData) {
+        LOGE("Failed to allocate %zu bytes for ROM", romSize);
+        debug_ui(env, callback, progressMid, 0, "ERROR: Out of memory loading ROM");
         env->ReleaseStringUTFChars(outDir,       cOutDir);
         env->ReleaseStringUTFChars(manifestPath, cManifestPath);
         return;
     }
 
-    // Rewind the fd for per-asset pread() calls below
-    lseek((int)romFd, 0, SEEK_SET);
+    // Read full ROM into buffer
+    size_t totalRead = 0;
+    while (totalRead < romSize) {
+        ssize_t n = read((int)romFd, romData + totalRead, romSize - totalRead);
+        if (n <= 0) break;
+        totalRead += n;
+    }
+
+    if (totalRead != romSize) {
+        LOGE("Failed to read full ROM. Read %zu / %zu bytes", totalRead, romSize);
+        debug_ui(env, callback, progressMid, 0, "ERROR: Failed to read ROM file completely");
+        free(romData);
+        env->ReleaseStringUTFChars(outDir,       cOutDir);
+        env->ReleaseStringUTFChars(manifestPath, cManifestPath);
+        return;
+    }
+
+    // Detect and correct endianness
+    if (romSize >= 4) {
+        if (romData[0] == 0x37 && romData[1] == 0x80 && romData[2] == 0x40 && romData[3] == 0x12) {
+            LOGI("Detected v64 (BADC) ROM. Byte-swapping to z64...");
+            debug_ui(env, callback, progressMid, 5, "Normalizing v64 ROM format...");
+            byteswap_v64(romData, romSize);
+        } else if (romData[0] == 0x40 && romData[1] == 0x12 && romData[2] == 0x37 && romData[3] == 0x80) {
+            LOGI("Detected n64 (DCBA) ROM. Byte-swapping to z64...");
+            debug_ui(env, callback, progressMid, 5, "Normalizing n64 ROM format...");
+            byteswap_n64(romData, romSize);
+        } else if (romData[0] == 0x80 && romData[1] == 0x37 && romData[2] == 0x12 && romData[3] == 0x40) {
+            LOGI("Detected z64 (ABCD) ROM. No swapping needed.");
+        } else {
+            LOGE("Unknown ROM magic %02X %02X %02X %02X. Proceeding without byte-swapping...",
+                 romData[0], romData[1], romData[2], romData[3]);
+        }
+    }
 
     // ------------------------------------------------------------------
-    // STEP 2: Open the manifest
+    // STEP 2: Write normalized rom_base.bin BEFORE anything else.
+    // ------------------------------------------------------------------
+    debug_ui(env, callback, progressMid, 10, "Writing normalized ROM base...");
+    if (!write_rom_base_from_memory(romData, romSize, cOutDir)) {
+        debug_ui(env, callback, progressMid, 0, "ERROR: Failed to write rom_base.bin");
+        free(romData);
+        env->ReleaseStringUTFChars(outDir,       cOutDir);
+        env->ReleaseStringUTFChars(manifestPath, cManifestPath);
+        return;
+    }
+
+    // ------------------------------------------------------------------
+    // STEP 3: Open the manifest
     // ------------------------------------------------------------------
     FILE* mFile = fopen(cManifestPath, "rb");
     if (!mFile) {
-        // Manifest missing is non-fatal: rom_base.bin is already written,
-        // so the DMA fallback path will handle all reads. Log and exit cleanly.
         LOGE("Manifest not found at %s — skipping per-asset extraction", cManifestPath);
         debug_ui(env, callback, progressMid, 100, "Extraction Complete (ROM-only mode)");
+        free(romData);
         env->ReleaseStringUTFChars(outDir,       cOutDir);
         env->ReleaseStringUTFChars(manifestPath, cManifestPath);
         return;
@@ -155,6 +196,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
         LOGE("Manifest header read failed or empty");
         fclose(mFile);
         debug_ui(env, callback, progressMid, 100, "Extraction Complete (ROM-only mode)");
+        free(romData);
         env->ReleaseStringUTFChars(outDir,       cOutDir);
         env->ReleaseStringUTFChars(manifestPath, cManifestPath);
         return;
@@ -163,14 +205,11 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
     LOGI("Processing %u manifest entries", entryCount);
 
     // ------------------------------------------------------------------
-    // STEP 3: Per-asset extraction
+    // STEP 4: Per-asset extraction
     //
-    // For Rare-compressed assets: decompress and write asset_XXXXXXXX.bin.
-    // For uncompressed assets:    write raw bytes as asset_XXXXXXXX.bin.
-    //
-    // Both cases write a file so HandleDma's direct-file-lookup path hits
-    // before falling back to the full ROM buffer — this avoids a memcpy of
-    // the entire ROM on every DMA call for hot assets.
+    // Using the normalized in-memory ROM buffer to prevent thousands
+    // of pread() calls and to ensure the extracted assets have correct
+    // endianness.
     // ------------------------------------------------------------------
     uint32_t extracted   = 0;
     uint32_t compressed  = 0;
@@ -193,29 +232,15 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
             readSize = (uint32_t)(romSize - entry.offset);
         }
 
-        uint8_t* buffer = (uint8_t*)malloc(readSize);
-        if (!buffer) {
-            LOGE("malloc failed for entry %u ('%s') size=%u", i, entry.name, readSize);
-            failed++;
-            continue;
-        }
-
-        ssize_t got = pread((int)romFd, buffer, readSize, (off_t)entry.offset);
-        if (got <= 0) {
-            LOGE("pread failed for entry %u ('%s') offset=0x%08X", i, entry.name, entry.offset);
-            free(buffer);
-            failed++;
-            continue;
-        }
+        uint8_t* assetBuffer = romData + entry.offset;
 
         char outPath[512];
         snprintf(outPath, sizeof(outPath), "%s/asset_%08X.bin", cOutDir, entry.offset);
 
         // Check for Rare compression magic: 0x1172
-        if ((size_t)got >= 2 && buffer[0] == 0x11 && buffer[1] == 0x72) {
+        if (readSize >= 2 && assetBuffer[0] == 0x11 && assetBuffer[1] == 0x72) {
             uint32_t outSize = 0;
-            uint8_t* outBuf  = decompress_rare_asset(buffer, (uint32_t)got, &outSize);
-            free(buffer);
+            uint8_t* outBuf  = decompress_rare_asset(assetBuffer, readSize, &outSize);
 
             if (outBuf && outSize > 0) {
                 FILE* out = fopen(outPath, "wb");
@@ -234,30 +259,30 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
                 failed++;
             }
         } else {
-            // Uncompressed — write raw bytes directly.
-            // Previously these were silently discarded, meaning all code
-            // segments, audio tables, and bin assets were never extracted.
+            // Uncompressed — write raw bytes directly from normalized buffer.
             FILE* out = fopen(outPath, "wb");
             if (out) {
-                fwrite(buffer, 1, (size_t)got, out);
+                fwrite(assetBuffer, 1, readSize, out);
                 fclose(out);
                 extracted++;
             } else {
                 LOGE("fopen failed for raw output: %s", outPath);
                 failed++;
             }
-            free(buffer);
         }
 
         // Progress update every 10 entries to avoid flooding the UI thread
         if (i % 10 == 0) {
             char status[64];
             snprintf(status, sizeof(status), "Extracting: %.28s", entry.name);
-            debug_ui(env, callback, progressMid, (int)((i * 99) / entryCount), status);
+            // Map progress from 10% to 99%
+            int progressPercent = 10 + (int)((i * 89) / entryCount);
+            debug_ui(env, callback, progressMid, progressPercent, status);
         }
     }
 
     fclose(mFile);
+    free(romData);
 
     LOGI("Extraction complete: %u extracted (%u compressed), %u failed of %u total",
          extracted, compressed, failed, entryCount);
