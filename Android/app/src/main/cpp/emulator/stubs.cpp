@@ -82,6 +82,23 @@ void* __osViCurr = nullptr;
 OSDevMgr __osPiDevMgr;
 u32 __osEventStateTab[16];
 
+// Required libultra hardware globals (typically written to 0x80000300 during init)
+u32 osTvType = 1;           // 1 = NTSC, 2 = PAL
+u32 osRomType = 0;          // 0 = Cartridge
+u32 osVersion = 0;
+u32 osResetType = 0;
+u32 osMemSize = 0x00800000; // 8MB Expansion Pak
+
+// Intercept low-level boot memory mapping to prevent 0x80000000 segfault
+void __osInitialize_common(void) {
+    LOGI("BKA-HLE: __osInitialize_common intercepted and stubbed (bypassing 0x80000000 raw hardware vector setup).");
+}
+
+void osInitialize(void) {
+    LOGI("BKA-HLE: osInitialize intercepted.");
+    __osInitialize_common();
+}
+
 void __osViInit(void) {
     LOGI("BKA-HLE: __osViInit executed.");
 }
