@@ -55,6 +55,11 @@ Changes vs prior version
 
 16. FIX: Fixed physical address macro regexes to capture both `PHYS` and `PHYSICAL` variants, 
     and updated BKA_Reverse_Addr to return uint32_t to match N64 physical hardware limits.
+
+17. FIX: __osInitialize_common and __osViInit stubs renamed to __wrap_ variants in
+    stubs.cpp so the GNU --wrap linker flag correctly intercepts the recompiled
+    libultra definitions, preventing the 0x80000000 SEGV_MAPERR crash at startup.
+    CMakeLists.txt is patched to add the corresponding -Wl,--wrap= options.
 """
 
 import os
@@ -87,6 +92,25 @@ CONFLICTING_HEADERS = [
 BKA_SAFE_BASE_HEADER_REL = os.path.join(
     "Android", "app", "src", "main", "cpp", "bka_safe_base.h"
 )
+
+# stubs.cpp path (relative to repo root)
+STUBS_CPP_REL = os.path.join(
+    "Android", "app", "src", "main", "cpp", "stubs.cpp"
+)
+
+# CMakeLists.txt path (relative to repo root)
+CMAKE_LISTS_REL = os.path.join(
+    "Android", "app", "src", "main", "cpp", "CMakeLists.txt"
+)
+
+# Functions that must be intercepted via GNU --wrap at link time.
+# The recompiled N64 source provides its own definitions of these symbols;
+# without --wrap the linker silently discards our stubs.cpp no-ops and the
+# recompiled hardware-init code runs, faulting at 0x80000000.
+WRAP_SYMBOLS = [
+    "__osInitialize_common",
+    "__osViInit",
+]
 
 # ---------------------------------------------------------------------------
 # Token replacement table
@@ -553,8 +577,6 @@ def safe_token_replacement(content: str, tokens=COMPILED_TOKENS) -> str:
             # j > 0 segments start with a #define line – leave them alone
             rebuilt.append(dp)
         # Rejoin with the #define markers restored
-        # (_DEFINE_LINE_RE.split removes the matched text, so we need to
-        #  re-insert "#define" at each join point)
         parts[i] = '#define'.join(rebuilt) if len(rebuilt) > 1 else rebuilt[0]
     return ''.join(parts)
 
@@ -728,10 +750,6 @@ _IO_WRITE_RE = re.compile(r'#define\s+IO_WRITE\s*\(\s*addr\s*,\s*data\s*\).*')
 
 
 def _ptr_cast_repl(match):
-    """
-    Evaluates the matched balanced parenthesized string, checking if it includes a hex literal
-    offset, ensuring only valid absolute addresses or pointers arithmetic casts are intercepted.
-    """
     type_cast = match.group(1)
     rhs = match.group(2)
     if re.search(r'0x[0-9a-fA-F]+', rhs, re.IGNORECASE):
@@ -742,7 +760,6 @@ def _ptr_cast_repl(match):
 def apply_android_memory_routing(content: str, filename: str) -> str:
     if not filename.endswith(('.c', '.h', '.cpp', '.hpp', '.cc', '.cxx')):
         return content
-    # Never patch the shared header itself
     if filename == 'bka_safe_base.h':
         return content
 
@@ -751,12 +768,10 @@ def apply_android_memory_routing(content: str, filename: str) -> str:
     in_global_array = False
 
     for line in lines:
-        # Preprocessor blocks do not represent standard variable execution paths
         if line.strip().startswith('#define'):
             patched_lines.append(line)
             continue
 
-        # Scope Detection: Block modifications inside global array initialization maps
         if '=' in line and '{' in line and not any(k in line for k in ['if', 'for', 'while']):
             in_global_array = True
 
@@ -766,18 +781,15 @@ def apply_android_memory_routing(content: str, filename: str) -> str:
                 in_global_array = False
             continue
 
-        # Prevent alterations on trailing structural comma declarations inside lists
         if line.strip().endswith(','):
             patched_lines.append(line)
             continue
 
-        # Apply the dynamic pointer translation safely inside execution logic contexts
         patched_line = _PTR_HEX_RE.sub(_ptr_cast_repl, line)
         patched_lines.append(patched_line)
 
     patched = '\n'.join(patched_lines)
 
-    # Patch hardware-register macros globally
     patched = _HW_REG_RE.sub(
         '#define HW_REG(reg, type) (*((volatile type *)BKA_TRANSLATE_ADDR(reg)))',
         patched,
@@ -791,7 +803,6 @@ def apply_android_memory_routing(content: str, filename: str) -> str:
         patched,
     )
 
-    # Support optional "ICAL" suffix via regex capture groups, avoiding missed files
     def _repl_k_to_phys(m):
         macro_name = m.group(1)
         return f'#define {macro_name}(x) (BKA_Reverse_Addr(BKA_TRANSLATE_ADDR(x)))'
@@ -799,16 +810,15 @@ def apply_android_memory_routing(content: str, filename: str) -> str:
     if filename == 'os_convert.h':
         patched = re.sub(r'#define\s+(OS_PHYSICAL_TO_K[01])\s*\(\s*x\s*\).*',
                          r'#define \1(x) (BKA_TRANSLATE_ADDR(x))', patched)
-        patched = re.sub(r'#define\s+(OS_K[01]_TO_PHYS(?:ICAL)?)\s*\(\s*x\s*\).*', 
+        patched = re.sub(r'#define\s+(OS_K[01]_TO_PHYS(?:ICAL)?)\s*\(\s*x\s*\).*',
                          _repl_k_to_phys, patched)
 
     if filename == 'R4300.h':
         patched = re.sub(r'#define\s+(PHYS_TO_K[01])\s*\(\s*x\s*\).*',
                          r'#define \1(x) (BKA_TRANSLATE_ADDR(x))', patched)
-        patched = re.sub(r'#define\s+(K[01]_TO_PHYS(?:ICAL)?)\s*\(\s*x\s*\).*', 
+        patched = re.sub(r'#define\s+(K[01]_TO_PHYS(?:ICAL)?)\s*\(\s*x\s*\).*',
                          _repl_k_to_phys, patched)
 
-    # Deferred Include System: Bind after target type headers are fully resolved
     if 'BKA_TRANSLATE_ADDR' in patched and not _BKA_INCLUDE_RE.search(patched):
         if 'n64_types.h' in patched:
             patched = re.sub(r'(#\s*include\s*[<"]n64_types\.h[">])', r'\1\n#include "bka_safe_base.h"', patched, count=1)
@@ -818,6 +828,88 @@ def apply_android_memory_routing(content: str, filename: str) -> str:
             patched = _BKA_INCLUDE_LINE + '\n' + patched
 
     return patched
+
+
+# ---------------------------------------------------------------------------
+# Pass: rename __osInitialize_common / __osViInit to __wrap_ in stubs.cpp
+# ---------------------------------------------------------------------------
+
+# Idempotency sentinel — written into stubs.cpp once the pass has run
+_WRAP_SENTINEL = '/* BKA-WRAP: linker --wrap stubs applied */'
+
+
+def apply_wrap_stubs(content: str) -> str:
+    """
+    Rename the two hardware-init stub definitions in stubs.cpp to their
+    __wrap_ equivalents so the GNU --wrap linker flag intercepts every
+    call to the recompiled libultra versions.
+
+    Idempotent: if the sentinel comment is already present the function
+    returns the content unchanged.
+    """
+    if _WRAP_SENTINEL in content:
+        return content  # already processed
+
+    for sym in WRAP_SYMBOLS:
+        # Match the function definition:  void sym(void) {
+        # Uses a word-boundary on the left and allows optional whitespace /
+        # parameter list on the right so it won't match __wrap_sym accidentally.
+        pat = re.compile(
+            r'(?<!\w)(?<!__wrap_)' + re.escape(sym) + r'(?=\s*\()',
+        )
+        content = pat.sub(f'__wrap_{sym}', content)
+
+    # Insert sentinel as a comment on its own line near the top of the file,
+    # just after the last #include so it is visible but unobtrusive.
+    last_inc = max(
+        (m.end() for m in re.finditer(r'^[ \t]*#[ \t]*include[^\n]*\n', content, re.MULTILINE)),
+        default=0,
+    )
+    content = content[:last_inc] + f'\n{_WRAP_SENTINEL}\n' + content[last_inc:]
+    return content
+
+
+# ---------------------------------------------------------------------------
+# Pass: patch CMakeLists.txt to add -Wl,--wrap= link options
+# ---------------------------------------------------------------------------
+
+# Sentinel comment written into CMakeLists.txt once patched
+_CMAKE_WRAP_SENTINEL = '# BKA-WRAP: GNU --wrap link options (auto-patched)'
+
+# The block we inject, formatted for CMake
+def _cmake_wrap_block(target: str) -> str:
+    wrap_flags = '\n'.join(
+        f'    -Wl,--wrap={sym}' for sym in WRAP_SYMBOLS
+    )
+    return (
+        f'\n{_CMAKE_WRAP_SENTINEL}\n'
+        f'target_link_options({target} PRIVATE\n'
+        f'{wrap_flags}\n'
+        f')\n'
+    )
+
+
+def apply_cmake_wrap(content: str) -> str:
+    """
+    Append -Wl,--wrap= options for every symbol in WRAP_SYMBOLS to the
+    CMakeLists.txt that builds libbkawrapper.so.
+
+    The target name is inferred from the first add_library() call that
+    references a SHARED library — almost always 'bkawrapper'.
+
+    Idempotent: if the sentinel is already present the file is unchanged.
+    """
+    if _CMAKE_WRAP_SENTINEL in content:
+        return content  # already patched
+
+    # Discover the shared-library target name
+    target_match = re.search(
+        r'add_library\s*\(\s*([a-zA-Z0-9_\-]+)\s+SHARED\b',
+        content,
+    )
+    target = target_match.group(1) if target_match else 'bkawrapper'
+
+    return content + _cmake_wrap_block(target)
 
 
 # ---------------------------------------------------------------------------
@@ -841,6 +933,50 @@ def write_shared_bka_header(root_path: str) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Wrap-stub and CMake patchers (top-level file writers)
+# ---------------------------------------------------------------------------
+
+def patch_stubs_cpp(root_path: str) -> None:
+    """Rename __osInitialize_common / __osViInit to __wrap_ in stubs.cpp."""
+    path = os.path.join(root_path, STUBS_CPP_REL)
+    if not os.path.exists(path):
+        log.warning("stubs.cpp not found at %s – skipping wrap-stub pass", path)
+        return
+    try:
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            original = f.read()
+        patched = apply_wrap_stubs(original)
+        if patched != original:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(patched)
+            log.info("Patched wrap stubs: %s", path)
+        else:
+            log.info("Wrap stubs unchanged: %s", path)
+    except OSError as exc:
+        log.warning("Cannot patch stubs.cpp %s: %s", path, exc)
+
+
+def patch_cmake_lists(root_path: str) -> None:
+    """Add -Wl,--wrap= link options to CMakeLists.txt."""
+    path = os.path.join(root_path, CMAKE_LISTS_REL)
+    if not os.path.exists(path):
+        log.warning("CMakeLists.txt not found at %s – skipping cmake wrap pass", path)
+        return
+    try:
+        with open(path, 'r', encoding='utf-8', errors='replace') as f:
+            original = f.read()
+        patched = apply_cmake_wrap(original)
+        if patched != original:
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(patched)
+            log.info("Patched CMakeLists.txt: %s", path)
+        else:
+            log.info("CMakeLists.txt unchanged: %s", path)
+    except OSError as exc:
+        log.warning("Cannot patch CMakeLists.txt %s: %s", path, exc)
+
+
+# ---------------------------------------------------------------------------
 # Main sanitization driver
 # ---------------------------------------------------------------------------
 
@@ -852,6 +988,10 @@ def sanitize_codebase(
 
     # ── Step 0: write the shared BKA header ──────────────────────────────
     write_shared_bka_header(root_path)
+
+    # ── Step 0b: patch stubs.cpp and CMakeLists.txt for --wrap ───────────
+    patch_stubs_cpp(root_path)
+    patch_cmake_lists(root_path)
 
     # ── Step 1: discover and rename conflicting legacy headers ───────────
     include_search_dirs = [
@@ -898,6 +1038,13 @@ def sanitize_codebase(
         if filename in SANITIZER_OWN_FILES:
             continue
 
+        # stubs.cpp and CMakeLists.txt were already handled above;
+        # exclude them from the generic per-file loop to avoid double-patching.
+        norm_fp = _norm(os.path.abspath(filepath))
+        norm_stubs = _norm(os.path.abspath(os.path.join(root_path, STUBS_CPP_REL)))
+        if norm_fp == norm_stubs:
+            continue
+
         try:
             with open(filepath, 'r', encoding='utf-8', errors='replace') as f:
                 original = f.read()
@@ -910,14 +1057,12 @@ def sanitize_codebase(
             content    = original
             is_wrapper = is_modern_wrapper(filepath, content)
 
-            # All files: redirect includes + RDRAM expansion
             content = redirect_legacy_includes(
                 content, headers_to_redirect, is_wrapper, filename,
             )
             content = expand_static_rdram(content)
 
             if is_wrapper:
-                # Android-side C++ files: memory routing only
                 content = apply_android_memory_routing(content, filename)
                 if content != original:
                     with open(filepath, 'w', encoding='utf-8') as f:
@@ -925,7 +1070,6 @@ def sanitize_codebase(
                     wrapper_count += 1
                 continue
 
-            # Legacy N64 source / header files
             tokens = BOOL_ONLY_TOKENS if filename in CORE_TYPE_HEADERS else COMPILED_TOKENS
             content = safe_token_replacement(content, tokens)
             content = fix_decompiler_artifacts(content, filename)
