@@ -52,6 +52,9 @@ Changes vs prior version
 15. FIX: Upgraded memory routing regex to properly parse balanced nested parentheses 
     during pointer math casts (e.g. `(type*)(offset + (cast)var)`), preventing C compiler 
     syntax errors like 'expected expression'.
+
+16. FIX: Fixed physical address macro regexes to capture both `PHYS` and `PHYSICAL` variants, 
+    and updated BKA_Reverse_Addr to return uint32_t to match N64 physical hardware limits.
 """
 
 import os
@@ -252,16 +255,16 @@ static inline uintptr_t BKA_Validate_And_Translate(
 #define BKA_TRANSLATE_ADDR(addr) \
     BKA_Validate_And_Translate((uintptr_t)(addr), __FILE__, __LINE__)
 
-static inline uintptr_t BKA_Reverse_Addr(uintptr_t addr)
+static inline uint32_t BKA_Reverse_Addr(uintptr_t addr)
 {
     uint8_t* ram_ptr = __atomic_load_n(&gN64_RDRAM,    __ATOMIC_ACQUIRE);
     uint32_t* reg_ptr = __atomic_load_n(&gN64_Reg_Base, __ATOMIC_ACQUIRE);
-    if (!ram_ptr) return addr;
+    if (!ram_ptr) return (uint32_t)addr;
     uintptr_t ram = (uintptr_t)ram_ptr;
     uintptr_t reg = (uintptr_t)reg_ptr;
-    if (addr >= ram && addr < ram + BKA_RDRAM_ALLOC_SIZE) return addr - ram;
-    if (addr >= reg && addr < reg + 0x01000000u) return (addr - reg) + 0x04000000u;
-    return addr;
+    if (addr >= ram && addr < ram + BKA_RDRAM_ALLOC_SIZE) return (uint32_t)(addr - ram);
+    if (addr >= reg && addr < reg + 0x01000000u) return (uint32_t)((addr - reg) + 0x04000000u);
+    return (uint32_t)addr;
 }
 """
 
@@ -788,25 +791,22 @@ def apply_android_memory_routing(content: str, filename: str) -> str:
         patched,
     )
 
+    # Support optional "ICAL" suffix via regex capture groups, avoiding missed files
+    def _repl_k_to_phys(m):
+        macro_name = m.group(1)
+        return f'#define {macro_name}(x) (BKA_Reverse_Addr(BKA_TRANSLATE_ADDR(x)))'
+
     if filename == 'os_convert.h':
-        patched = re.sub(r'#define\s+OS_PHYSICAL_TO_K1\s*\(\s*x\s*\).*',
-                         '#define OS_PHYSICAL_TO_K1(x) (BKA_TRANSLATE_ADDR(x))', patched)
-        patched = re.sub(r'#define\s+OS_PHYSICAL_TO_K0\s*\(\s*x\s*\).*',
-                         '#define OS_PHYSICAL_TO_K0(x) (BKA_TRANSLATE_ADDR(x))', patched)
-        patched = re.sub(r'#define\s+OS_K1_TO_PHYS\s*\(\s*x\s*\).*',
-                         '#define OS_K1_TO_PHYS(x) (BKA_Reverse_Addr(BKA_TRANSLATE_ADDR(x)))', patched)
-        patched = re.sub(r'#define\s+OS_K0_TO_PHYS\s*\(\s*x\s*\).*',
-                         '#define OS_K0_TO_PHYS(x) (BKA_Reverse_Addr(BKA_TRANSLATE_ADDR(x)))', patched)
+        patched = re.sub(r'#define\s+(OS_PHYSICAL_TO_K[01])\s*\(\s*x\s*\).*',
+                         r'#define \1(x) (BKA_TRANSLATE_ADDR(x))', patched)
+        patched = re.sub(r'#define\s+(OS_K[01]_TO_PHYS(?:ICAL)?)\s*\(\s*x\s*\).*', 
+                         _repl_k_to_phys, patched)
 
     if filename == 'R4300.h':
-        patched = re.sub(r'#define\s+PHYS_TO_K1\s*\(\s*x\s*\).*',
-                         '#define PHYS_TO_K1(x) (BKA_TRANSLATE_ADDR(x))', patched)
-        patched = re.sub(r'#define\s+PHYS_TO_K0\s*\(\s*x\s*\).*',
-                         '#define PHYS_TO_K0(x) (BKA_TRANSLATE_ADDR(x))', patched)
-        patched = re.sub(r'#define\s+K1_TO_PHYS\s*\(\s*x\s*\).*',
-                         '#define K1_TO_PHYS(x) (BKA_Reverse_Addr(BKA_TRANSLATE_ADDR(x)))', patched)
-        patched = re.sub(r'#define\s+K0_TO_PHYS\s*\(\s*x\s*\).*',
-                         '#define K0_TO_PHYS(x) (BKA_Reverse_Addr(BKA_TRANSLATE_ADDR(x)))', patched)
+        patched = re.sub(r'#define\s+(PHYS_TO_K[01])\s*\(\s*x\s*\).*',
+                         r'#define \1(x) (BKA_TRANSLATE_ADDR(x))', patched)
+        patched = re.sub(r'#define\s+(K[01]_TO_PHYS(?:ICAL)?)\s*\(\s*x\s*\).*', 
+                         _repl_k_to_phys, patched)
 
     # Deferred Include System: Bind after target type headers are fully resolved
     if 'BKA_TRANSLATE_ADDR' in patched and not _BKA_INCLUDE_RE.search(patched):
