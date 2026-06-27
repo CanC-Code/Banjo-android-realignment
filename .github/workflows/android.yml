@@ -37,6 +37,18 @@ jobs:
       - name: 🧹 Pre-Patching (Sanitizer)
         run: python3 scripts/sanitize_codebase.py .
 
+
+
+      - name: 🧹 Pre-Patching (Sanitizer)
+        run: python3 scripts/sanitize_codebase.py .
+
+      - name: 🛡️ Apply Linker Wraps (HLE Stubs)
+        run: python3 scripts/patch_linker_wraps.py
+
+
+
+
+
       - name: 🗺️ Generate Asset Manifests
         run: |
           pip3 install pyyaml
