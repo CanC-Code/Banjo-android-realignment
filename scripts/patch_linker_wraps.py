@@ -1,37 +1,41 @@
 """
 patch_linker_wraps.py  –  BKA Linker Sanitizer (HLE Stub Enforcer)
 ==================================================================
-1. Injects __wrap linker flags into the project's main CMakeLists.txt.
-2. Appends necessary HLE stub definitions to the bka_safe_base.h file 
-   to ensure the linker has concrete implementations to redirect to.
+1. Injects __wrap linker flags into CMakeLists.txt using LINKER: syntax.
+2. Appends HLE stub definitions to bka_safe_base.h.
+3. [NEW] Uses objcopy to rename internal symbols in compiled N64 objects
+   to force the linker to route calls to our stubs.
 """
 
 import os
 import re
-import sys
+import subprocess
 
-# Path to the root CMakeLists.txt (adjust if your project structure differs)
+# CONFIGURATION: Set this to the directory containing your recompiled .o files
+# e.g., "Android/app/src/main/cpp/libultra" or your build/obj folder
+TARGET_OBJ_DIR = "Android/app/src/main/cpp/libultra" 
+
 CMAKE_FILE = "Android/app/src/main/cpp/CMakeLists.txt"
 SAFE_BASE_FILE = "Android/app/src/main/cpp/bka_safe_base.h"
 
+# The flags that force the linker to redirect
 WRAP_FLAGS = [
-    "-Wl,--wrap=__osInitialize_common",
-    "-Wl,--wrap=__osViInit"
+    "LINKER:--wrap=__osInitialize_common",
+    "LINKER:--wrap=__osViInit"
 ]
 
 STUB_CODE = """
-/* ── HLE Stubs to prevent libultra crashes ────────────────────────────── */
+/* ── HLE Stubs ───────────────────────────────────────────────────────── */
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 void __wrap___osInitialize_common(void) {
-    // No-op: Prevents execution of N64 hardware initialization 
-    // that targets illegal process-space memory (0x80000000).
+    // Stubbed: Prevents hardware init crash
 }
 
 void __wrap___osViInit(void) {
-    // No-op: Prevents Video Interface init conflicts.
+    // Stubbed: Prevents VI init crash
 }
 
 #ifdef __cplusplus
@@ -39,49 +43,59 @@ void __wrap___osViInit(void) {
 #endif
 """
 
-def patch_cmake():
-    if not os.path.exists(CMAKE_FILE):
-        print(f"Error: {CMAKE_FILE} not found.")
+def patch_object_files():
+    """Rename original symbols in object files to force external resolution."""
+    if not os.path.exists(TARGET_OBJ_DIR):
+        print(f"Warning: Object directory {TARGET_OBJ_DIR} not found. Skipping objcopy.")
         return
 
+    # Assuming llvm-objcopy (NDK standard)
+    for root, _, files in os.walk(TARGET_OBJ_DIR):
+        for file in files:
+            if file.endswith(".o"):
+                path = os.path.join(root, file)
+                # Rename the symbols so they are no longer "found" by internal calls
+                # This breaks the internal link and forces the linker to find the --wrap version
+                subprocess.run([
+                    "llvm-objcopy",
+                    "--redefine-sym", "__osInitialize_common=__original___osInitialize_common",
+                    "--redefine-sym", "__osViInit=__original___osViInit",
+                    path
+                ], check=False)
+    print("Object files patched (symbols renamed).")
+
+def patch_cmake():
     with open(CMAKE_FILE, 'r') as f:
         content = f.read()
 
-    # Avoid duplicate injection
+    # Use the LINKER: prefix for modern CMake
+    flags_block = "\n    " + "\n    ".join(WRAP_FLAGS) + "\n"
+    
     if "--wrap=__osInitialize_common" in content:
         print("CMake already patched.")
-        return
-
-    # Look for the target_link_options block, or inject it after project()
-    pattern = r'(target_link_options\s*\(\s*bkawrapper\s+PRIVATE\s+)'
-    if re.search(pattern, content):
-        new_content = re.sub(pattern, r'\1\n    ' + '\n    '.join(WRAP_FLAGS) + '\n', content)
     else:
-        # Fallback: append if block not found
-        new_content = content + "\ntarget_link_options(bkawrapper PRIVATE\n    " + \
-                      "\n    ".join(WRAP_FLAGS) + "\n)\n"
-
-    with open(CMAKE_FILE, 'w') as f:
-        f.write(new_content)
-    print("CMakeLists.txt updated with linker wrap flags.")
+        pattern = r'(target_link_options\s*\(\s*bkawrapper\s+PRIVATE\s+)'
+        if re.search(pattern, content):
+            new_content = re.sub(pattern, r'\1' + flags_block, content)
+        else:
+            new_content = content + "\ntarget_link_options(bkawrapper PRIVATE" + flags_block + ")\n"
+        
+        with open(CMAKE_FILE, 'w') as f:
+            f.write(new_content)
+        print("CMakeLists.txt updated.")
 
 def patch_safe_base():
-    if not os.path.exists(SAFE_BASE_FILE):
-        print(f"Error: {SAFE_BASE_FILE} not found.")
-        return
-
     with open(SAFE_BASE_FILE, 'r') as f:
         content = f.read()
 
     if "__wrap___osInitialize_common" in content:
         print("bka_safe_base.h already patched.")
-        return
-
-    # Append to end of file
-    with open(SAFE_BASE_FILE, 'a') as f:
-        f.write("\n" + STUB_CODE)
-    print("bka_safe_base.h updated with HLE stubs.")
+    else:
+        with open(SAFE_BASE_FILE, 'a') as f:
+            f.write("\n" + STUB_CODE)
+        print("bka_safe_base.h updated.")
 
 if __name__ == "__main__":
     patch_cmake()
     patch_safe_base()
+    patch_object_files()
