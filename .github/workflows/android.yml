@@ -37,30 +37,22 @@ jobs:
       - name: 🧹 Pre-Patching (Sanitizer)
         run: python3 scripts/sanitize_codebase.py .
 
-
-
-      - name: 🧹 Pre-Patching (Sanitizer)
-        run: python3 scripts/sanitize_codebase.py .
-
-      - name: 🛡️ Apply Linker Wraps (HLE Stubs)
-        run: python3 scripts/patch_linker_wraps.py
-
-
-
-
+      - name: 🛡️ Apply Surgical Linker Patch
+        run: |
+          # Ensure NDK llvm-objcopy is in the path
+          export PATH=$PATH:$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
+          python3 scripts/patch_linker_wraps.py
 
       - name: 🗺️ Generate Asset Manifests
         run: |
           pip3 install pyyaml
-          # The Python script inherently handles the routing to Android/app/src/main/assets/
-          # and generates region-specific manifests (e.g., manifest_us.bin, manifest_pal.bin)
           python3 scripts/generate_manifest.py
 
       - name: 🐘 Build Verification APK
         run: |
           cd Android
-          # Passing EXCLUDE_GAME_SRC=OFF to INCLUDE the game source for functional on-device testing
-          gradle assembleDebug \
+          # Clean build ensures the linker sees the renamed symbols in the .o files
+          ./gradlew clean assembleDebug \
             -Pandroid.externalNativeBuild.cmake.arguments="-DEXCLUDE_GAME_SRC=OFF" \
             --stacktrace
 
