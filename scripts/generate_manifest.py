@@ -35,16 +35,29 @@ def parse_splat_yaml(yaml_path: str):
     """
     Parse a Splat YAML config and return:
       - asset_entries : list of dicts  {offset, type, name, explicit_size}
-      - rom_end       : int  best-effort ROM ceiling for last-entry size calc
+      - rom_end       : int  authoritative ROM ceiling for last-entry size calc
 
-    Improvements over original:
-    * Tracks rom_end as max(seg_start + seg_size) so the ceiling is accurate
-      even when the YAML's segment list is not sorted.
-    * Records explicit 'size' from subsegments when present (Splat sometimes
-      emits [offset, type, name, size] quads).
-    * Deduplicates entries at the same offset (keeps the first occurrence).
+    Key behaviours for the BK decompressed.us.v10.yaml structure:
+    * Bare-list top-level segment entries like `- [0x010BCD20]` are the
+      Splat convention for marking the end of ROM. We parse these explicitly
+      to get an authoritative rom_end rather than guessing.
+    * Virtual section subsegments (.bss, .data, .rodata, linker_offset,
+      rodatabin, textbin) exist only to drive the linker; they do not
+      correspond to distinct ROM byte ranges and must be excluded from the
+      manifest so ResourceMgr doesn't try to memcpy them.
+    * Only subsegment types that represent actual ROM-resident binary payloads
+      (bin, hasm, asm, c, and the header type) are emitted as manifest entries.
+    * Deduplicates entries at the same ROM offset (keeps first occurrence),
+      which handles the many .bss blocks that all share the same address.
     * Hard-exits with a descriptive message on any unrecoverable error.
     """
+    # Types that correspond to real ROM bytes we need to copy.
+    # Everything else (.bss, .data, .rodata, linker_offset, textbin,
+    # rodatabin) is a virtual section marker for the linker only.
+    ROM_RESIDENT_TYPES = {
+        'bin', 'c', 'hasm', 'asm', 'header', 'code',
+    }
+
     if not os.path.exists(yaml_path):
         _fatal(f"Critical file missing: {yaml_path}")
 
@@ -60,20 +73,33 @@ def parse_splat_yaml(yaml_path: str):
         _fatal(f"YAML has no 'segments' key: {yaml_path}")
 
     for seg in segments:
+        # -------------------------------------------------------------------
+        # Bare-list segments: `- [0x010BCD20]`
+        # Splat uses a single-element list as an end-of-ROM sentinel.
+        # Capture the offset and update rom_end; nothing else to do.
+        # -------------------------------------------------------------------
+        if isinstance(seg, list):
+            if len(seg) >= 1 and isinstance(seg[0], int):
+                if seg[0] > rom_end:
+                    rom_end = seg[0]
+                    print(f"  INFO: ROM end sentinel found: {rom_end:#010x}")
+            continue
+
         if not isinstance(seg, dict):
             continue
 
         seg_start = seg.get('start', 0)
-        seg_size  = seg.get('size',  0)
+        seg_size  = seg.get('size')  # None if absent — don't default to 0
 
-        # Keep rom_end as the furthest byte we know about
-        if isinstance(seg_start, int) and isinstance(seg_size, int):
-            candidate_end = seg_start + seg_size
-            if candidate_end > rom_end:
-                rom_end = candidate_end
-        elif isinstance(seg_start, int) and seg_start > rom_end:
-            # No explicit size; at least advance rom_end to this segment start
-            rom_end = seg_start
+        # Advance rom_end using explicit segment size when available.
+        # Fall back to just the start address if no size is given.
+        if isinstance(seg_start, int):
+            if isinstance(seg_size, int):
+                candidate_end = seg_start + seg_size
+                if candidate_end > rom_end:
+                    rom_end = candidate_end
+            elif seg_start > rom_end:
+                rom_end = seg_start
 
         subsegments = seg.get('subsegments', [])
         for sub in subsegments:
@@ -91,15 +117,27 @@ def parse_splat_yaml(yaml_path: str):
                 seg_type      = str(sub[1])
                 name          = str(sub[2])
                 explicit_size = sub[3] if len(sub) >= 4 else None
+            elif isinstance(sub, list) and len(sub) == 1 and isinstance(sub[0], int):
+                # Single-element list inside subsegments — treat as local sentinel
+                if sub[0] > rom_end:
+                    rom_end = sub[0]
+                continue
             else:
-                continue  # malformed or scalar — skip
+                continue  # malformed or pure scalar — skip
 
             if not isinstance(offset, int):
                 print(f"  WARNING: Non-integer offset in subsegment {sub!r} — skipped")
                 continue
 
+            # Skip virtual linker sections — they have no ROM bytes.
+            # Strip leading dot so '.bss' and 'bss' both match.
+            bare_type = seg_type.lstrip('.')
+            if bare_type not in ROM_RESIDENT_TYPES:
+                continue
+
             if offset in seen_offsets:
-                print(f"  WARNING: Duplicate offset {offset:#010x} for '{name}' — skipped")
+                # Duplicate ROM offsets are normal for shared .bss blocks;
+                # suppress the warning for those, it would flood the log.
                 continue
             seen_offsets.add(offset)
 
