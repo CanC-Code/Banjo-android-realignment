@@ -131,8 +131,58 @@ def inject_init_call():
         else:
             print(f"Could not find BKA_StartEngine definition in {ENGINE_SRC_FILE}.")
 
+def patch_rarezip():
+    rarezip_path = "src/done/rarezip.c"
+    if not os.path.exists(rarezip_path):
+        print(f"Warning: {rarezip_path} not found. Skipping dynamic translation patch.")
+        return
+
+    with open(rarezip_path, 'r') as f:
+        content = f.read()
+
+    if "TO_NATIVE_PTR" in content:
+        print(f"{rarezip_path} already patched with translation layer.")
+        return
+
+    # 1. Inject the macro and the gN64_RDRAM extern directly below the includes
+    macro_injection = """#include "rarezip.h"
+
+extern u8* gN64_RDRAM;
+
+#define TO_NATIVE_PTR(n64_addr) \\
+    (((u32)(n64_addr) >= 0x80000000 && (u32)(n64_addr) < 0x80800000) \\
+        ? (gN64_RDRAM + ((u32)(n64_addr) & 0x00FFFFFF)) \\
+        : (n64_addr))
+"""
+    content = content.replace('#include "rarezip.h"', macro_injection)
+
+    # 2. Replace the unsafe func_800005C0 implementation
+    unsafe_func = r"(u32\s+func_800005C0\(u8\*\s+in,\s+u8\*\s+out,\s+struct\s+huft\s+\*arg2\)\s*\{)(.*?)(return\s+wp;\s*\})"
+    safe_func = r"""\1
+    inbuf = TO_NATIVE_PTR(in);
+    D_80007284 = TO_NATIVE_PTR(out); 
+    D_80007290 = arg2;
+    inbuf += 6; // skip 6 byte bk header 
+    wp = 0; //wp
+    inptr = 0; //inptr
+    
+    bkboot_inflate(); //inflate
+    \3"""
+
+    new_content = re.sub(unsafe_func, safe_func, content, flags=re.DOTALL)
+    
+    if new_content != content:
+        with open(rarezip_path, 'w') as f:
+            f.write(new_content)
+        print(f"Dynamically injected TO_NATIVE_PTR into {rarezip_path}.")
+    else:
+        print(f"Failed to find func_800005C0 pattern in {rarezip_path}.")
+
 if __name__ == "__main__":
+    print("Running BKA Wrapper Pre-Build Patches...")
     patch_objects()
     patch_header()
     add_to_cmakelists()
     inject_init_call()
+    patch_rarezip()
+    print("Pre-Build Patches Complete.")
