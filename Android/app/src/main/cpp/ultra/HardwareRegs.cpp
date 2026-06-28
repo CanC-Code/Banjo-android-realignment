@@ -1,5 +1,5 @@
 #include "HardwareRegs.h"
-#include "bka_safe_base.h"
+#include "../bka_safe_base.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
