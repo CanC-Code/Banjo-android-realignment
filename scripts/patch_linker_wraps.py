@@ -78,7 +78,6 @@ def add_to_cmakelists():
             return
 
         # Pattern matches the add_library source list
-        # Using a flexible regex that looks for the closing parenthesis of add_library
         pattern = r"(add_library\(bkawrapper SHARED\s+[\s\S]*?)(\s*\))"
         replacement = rf"\1\n    {NEW_SOURCE}\2"
         
@@ -145,6 +144,7 @@ def patch_rarezip():
 
     # 1. Inject the macro and the gN64_RDRAM extern directly below the includes
     macro_injection = """#include "rarezip.h"
+#include <android/log.h>
 
 extern u8* gN64_RDRAM;
 
@@ -155,13 +155,17 @@ extern u8* gN64_RDRAM;
 """
     content = content.replace('#include "rarezip.h"', macro_injection)
 
-    # 2. Replace the unsafe func_800005C0 implementation
-    # This regex is broad enough to catch the function body even with comments
+    # 2. Replace the unsafe func_800005C0 implementation with logging + translation
     unsafe_func = r"(u32\s+func_800005C0\s*\([^)]+\)\s*\{)(.*?)(return\s+wp;[^\}]*\})"
     safe_func = r"""\1
     inbuf = TO_NATIVE_PTR(in);
     D_80007284 = TO_NATIVE_PTR(out); 
     D_80007290 = (struct huft*)TO_NATIVE_PTR(arg2); 
+    
+    __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG", "INFLATE: in=%p, out=%p, arg2=%p", inbuf, D_80007284, D_80007290);
+    
+    if (gN64_RDRAM == NULL) { __android_log_print(ANDROID_LOG_FATAL, "BKA_DEBUG", "FATAL: gN64_RDRAM is NULL"); abort(); }
+
     inbuf += 6; // skip 6 byte bk header 
     wp = 0; //wp
     inptr = 0; //inptr
@@ -174,7 +178,7 @@ extern u8* gN64_RDRAM;
     if new_content != content:
         with open(rarezip_path, 'w') as f:
             f.write(new_content)
-        print(f"Dynamically injected TO_NATIVE_PTR for in, out, and arg2 into {rarezip_path}.")
+        print(f"Dynamically injected logging and translation into {rarezip_path}.")
     else:
         print(f"Failed to find func_800005C0 pattern in {rarezip_path}.")
 
