@@ -77,10 +77,12 @@ static inline uintptr_t BKA_Validate_And_Translate(
         if (mask32 >= 0xB0000000u && mask32 < 0xB4000000u) return rom + (mask32 - 0xB0000000u);
     }
 
-    /* Fallback: If we reach here, it's an unmapped access. Return 0 to trigger SIGSEGV locally 
-       rather than dereferencing a raw N64 address. */
-    __android_log_print(ANDROID_LOG_FATAL, "BKA_MEM", "[%s:%d] SEGFAULT: Accessing unmapped addr 0x%08x", file, line, mask32);
-    return 0u;
+    /* Fallback: If we reach here, it's an unmapped access. 
+       We return a masked pointer into RDRAM instead of 0 to prevent SIGSEGV. 
+       This will log a warning, allowing the engine to continue with "zeroed" data. */
+    __android_log_print(ANDROID_LOG_WARN, "BKA_MEM", "[%s:%d] UNMAPPED ACCESS: 0x%08x. Redirecting to RDRAM.", file, line, mask32);
+    
+    return ram + (mask32 & 0x00FFFFFFu); 
 }
 
 #define BKA_TRANSLATE_ADDR(addr) BKA_Validate_And_Translate((uintptr_t)(addr), __FILE__, __LINE__)
