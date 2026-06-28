@@ -1,9 +1,17 @@
 #include "HardwareRegs.h"
-#include "bka_safe_base.h" // Ensure this file is in the parent 'cpp' directory
+#include "bka_safe_base.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
 #include <android/log.h>
+
+// Fallback defines to fix CI build identifier errors
+#ifndef BKA_RDRAM_ALLOC_SIZE
+#define BKA_RDRAM_ALLOC_SIZE  (0x1000000u)
+#endif
+#ifndef BKA_ROM_ALLOC_SIZE
+#define BKA_ROM_ALLOC_SIZE    (0x4000000u)
+#endif
 
 #define LOG_TAG "HWRegs"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
@@ -28,7 +36,6 @@ extern "C" {
 
 #define HUFT_POOL_COUNT  4096
 
-// Enforce C linkage for compatibility
 extern "C" {
     uint8_t* gN64_RDRAM    = nullptr;
     uint32_t* gN64_Reg_Base = nullptr;
@@ -40,7 +47,6 @@ static uint32_t s_regFile[0x500 / 4];
 static huft     s_huftPool[HUFT_POOL_COUNT];
 
 extern "C" void InitN64Registers(const char* assetDir) {
-    // 1. Allocate RDRAM (Main memory)
     if (gN64_RDRAM == nullptr) {
         gN64_RDRAM = static_cast<uint8_t*>(calloc(BKA_RDRAM_ALLOC_SIZE, 1));
         if (!gN64_RDRAM) {
@@ -50,7 +56,6 @@ extern "C" void InitN64Registers(const char* assetDir) {
         LOGI("gN64_RDRAM allocated: %p", gN64_RDRAM);
     }
 
-    // 2. Allocate ROM Base
     if (gN64_ROM_Base == nullptr) {
         gN64_ROM_Base = static_cast<uint8_t*>(calloc(BKA_ROM_ALLOC_SIZE, 1));
         if (!gN64_ROM_Base) {
@@ -59,7 +64,6 @@ extern "C" void InitN64Registers(const char* assetDir) {
         }
     }
 
-    // 3. Allocate PIF Base
     if (gN64_PIF_Base == nullptr) {
         gN64_PIF_Base = static_cast<uint32_t*>(calloc(0x1000, 1));
         if (!gN64_PIF_Base) {
@@ -71,15 +75,13 @@ extern "C" void InitN64Registers(const char* assetDir) {
     gN64_Reg_Base = s_regFile;
     memset(s_regFile, 0, sizeof(s_regFile));
 
-    // Wiring inflate.c globals
     inbuf      = gN64_RDRAM;
     D_80007284 = gN64_RDRAM; 
     D_80007290 = s_huftPool;
     inptr      = 0;
 
     memset(s_huftPool, 0, sizeof(s_huftPool));
-
-    LOGI("Hardware regs initialized and wired.");
+    LOGI("Hardware regs initialized.");
 }
 
 extern "C" void HardwareRegs_Shutdown(void) {
@@ -90,7 +92,6 @@ extern "C" void HardwareRegs_Shutdown(void) {
     gN64_Reg_Base = nullptr;
     inbuf         = nullptr;
     D_80007290    = nullptr;
-    LOGI("HardwareRegs_Shutdown complete.");
 }
 
 extern "C" u32 ReadHardwareRegister(u32 addr) {
