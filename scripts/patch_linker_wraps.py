@@ -6,8 +6,11 @@ import re
 BUILD_OBJ_DIR = "Android/app/.cxx"
 SAFE_BASE_FILE = "Android/app/src/main/cpp/bka_safe_base.h"
 CMAKE_FILE = "Android/app/src/main/cpp/CMakeLists.txt"
-ENGINE_SRC_FILE = "Android/app/src/main/cpp/BKA_StartEngine.cpp"
-NEW_SOURCE = "Android/app/src/main/cpp/ultra/HardwareRegs.cpp"
+# Corrected path to where BKA_StartEngine actually lives
+ENGINE_SRC_FILE = "Android/app/src/main/cpp/emulator/stubs.cpp"
+
+# CMake paths must be relative to the CMakeLists.txt location
+CMAKE_INJECT_SOURCE = "ultra/HardwareRegs.cpp"
 
 # Symbols to rename in the object files to force external linking
 RENAME_MAP = {
@@ -37,10 +40,9 @@ void __original___osViInit(void) {
 
 def patch_objects():
     if not os.path.exists(BUILD_OBJ_DIR):
-        print(f"Warning: {BUILD_OBJ_DIR} not found. Skipping objcopy.")
+        print(f"Warning: {BUILD_OBJ_DIR} not found. Skipping objcopy (will run on subsequent builds after .o files are generated).")
         return
 
-    # Prepare llvm-objcopy arguments
     args = []
     for old, new in RENAME_MAP.items():
         args.extend(["--redefine-sym", f"{old}={new}"])
@@ -49,7 +51,6 @@ def patch_objects():
         for file in files:
             if file.endswith(".o"):
                 path = os.path.join(root, file)
-                # Only process if the file actually contains the symbols
                 res = subprocess.run(["nm", path], capture_output=True, text=True)
                 if any(sym in res.stdout for sym in RENAME_MAP):
                     print(f"Surgically patching: {path}")
@@ -75,13 +76,13 @@ def add_to_cmakelists():
 
     with open(CMAKE_FILE, 'r+') as f:
         content = f.read()
-        if NEW_SOURCE in content:
-            print(f"{NEW_SOURCE} already in CMakeLists.txt.")
+        if CMAKE_INJECT_SOURCE in content:
+            print(f"{CMAKE_INJECT_SOURCE} already in CMakeLists.txt.")
             return
 
         # Pattern matches the add_library source list
         pattern = r"(add_library\(bkawrapper SHARED\s+[\s\S]*?)(\s*\))"
-        replacement = rf"\1\n    {NEW_SOURCE}\2"
+        replacement = rf"\1\n    {CMAKE_INJECT_SOURCE}\2"
         
         new_content = re.sub(pattern, replacement, content)
         if new_content != content:
@@ -107,7 +108,6 @@ def inject_init_call():
         print(f"Warning: {ENGINE_SRC_FILE} not found. Skipping init injection.")
         return
 
-    # Ensure header is included so InitHardwareRegs() is declared in scope
     inject_include(ENGINE_SRC_FILE, '#include "HardwareRegs.h"')
 
     with open(ENGINE_SRC_FILE, 'r+') as f:
@@ -118,7 +118,6 @@ def inject_init_call():
             print("InitHardwareRegs() already injected in Engine entry.")
             return
 
-        # Locate BKA_StartEngine function body
         pattern = r"(void\s+BKA_StartEngine[^{]*?\{)"
         replacement = rf"\1\n    {hook}"
         
@@ -144,7 +143,6 @@ def patch_rarezip():
         print(f"{rarezip_path} already patched with translation layer.")
         return
 
-    # 1. Inject the macro and the gN64_RDRAM extern directly below the includes
     macro_injection = """#include "rarezip.h"
 
 extern u8* gN64_RDRAM;
@@ -156,8 +154,8 @@ extern u8* gN64_RDRAM;
 """
     content = content.replace('#include "rarezip.h"', macro_injection)
 
-    # 2. Replace the unsafe func_800005C0 implementation
-    unsafe_func = r"(u32\s+func_800005C0\(u8\*\s+in,\s+u8\*\s+out,\s+struct\s+huft\s+\*arg2\)\s*\{)(.*?)(return\s+wp;\s*\})"
+    # Relaxed regex to account for trailing comments (//return uncompressed size) before the bracket
+    unsafe_func = r"(u32\s+func_800005C0\s*\([^)]+\)\s*\{)(.*?)(return\s+wp;[^\}]*\})"
     safe_func = r"""\1
     inbuf = TO_NATIVE_PTR(in);
     D_80007284 = TO_NATIVE_PTR(out); 
