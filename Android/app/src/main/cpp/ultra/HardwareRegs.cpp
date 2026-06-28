@@ -1,5 +1,5 @@
 #include "HardwareRegs.h"
-#include "../bka_safe_base.h"
+#include "bka_safe_base.h" // Ensure this file is in the parent 'cpp' directory
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -28,7 +28,7 @@ extern "C" {
 
 #define HUFT_POOL_COUNT  4096
 
-// Enforce C linkage for compatibility with legacy C modules
+// Enforce C linkage for compatibility
 extern "C" {
     uint8_t* gN64_RDRAM    = nullptr;
     uint32_t* gN64_Reg_Base = nullptr;
@@ -50,7 +50,7 @@ extern "C" void InitN64Registers(const char* assetDir) {
         LOGI("gN64_RDRAM allocated: %p", gN64_RDRAM);
     }
 
-    // 2. Allocate ROM Base (Dummy buffer to prevent crash on ROM access)
+    // 2. Allocate ROM Base
     if (gN64_ROM_Base == nullptr) {
         gN64_ROM_Base = static_cast<uint8_t*>(calloc(BKA_ROM_ALLOC_SIZE, 1));
         if (!gN64_ROM_Base) {
@@ -59,7 +59,7 @@ extern "C" void InitN64Registers(const char* assetDir) {
         }
     }
 
-    // 3. Allocate PIF Base (Dummy buffer for Peripheral Interface)
+    // 3. Allocate PIF Base
     if (gN64_PIF_Base == nullptr) {
         gN64_PIF_Base = static_cast<uint32_t*>(calloc(0x1000, 1));
         if (!gN64_PIF_Base) {
@@ -71,7 +71,7 @@ extern "C" void InitN64Registers(const char* assetDir) {
     gN64_Reg_Base = s_regFile;
     memset(s_regFile, 0, sizeof(s_regFile));
 
-    // Wiring
+    // Wiring inflate.c globals
     inbuf      = gN64_RDRAM;
     D_80007284 = gN64_RDRAM; 
     D_80007290 = s_huftPool;
