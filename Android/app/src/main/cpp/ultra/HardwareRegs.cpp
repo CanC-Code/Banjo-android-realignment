@@ -1,4 +1,5 @@
 #include "HardwareRegs.h"
+#include "bka_safe_base.h"
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
@@ -8,21 +9,16 @@
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
-// ── Replicate struct huft from inflate.c so we can size the pool ──────────────
-// Must match the layout in the compiled recompilation exactly.
 struct huft {
-    uint8_t  e;       // extra bits or op
-    uint8_t  b;       // bits in code
-    uint16_t _pad;    // alignment padding
+    uint8_t  e;
+    uint8_t  b;
+    uint16_t _pad;
     union {
-        uint16_t  n;  // literal / length / distance base
-        struct huft* t; // next table pointer
+        uint16_t  n;
+        struct huft* t;
     } v;
 };
 
-// ── Inflate globals that exist in libbkawrapper.so ───────────────────────────
-// Declared extern so the linker resolves them to the .so's BSS symbols.
-// We assign them here before the engine starts.
 extern "C" {
     extern uint8_t* inbuf;
     extern uint8_t* D_80007284;
@@ -30,61 +26,73 @@ extern "C" {
     extern uint32_t  inptr;
 }
 
-// ── Public globals referenced by NativeBridge and stubs ──────────────────────
-#define N64_RDRAM_SIZE   (8u * 1024u * 1024u)
 #define HUFT_POOL_COUNT  4096
 
-// Enforce C linkage so rarezip.c can resolve gN64_RDRAM during compilation
+// Enforce C linkage for compatibility with legacy C modules
 extern "C" {
     uint8_t* gN64_RDRAM    = nullptr;
     uint32_t* gN64_Reg_Base = nullptr;
+    uint32_t* gN64_PIF_Base = nullptr;
+    uint8_t* gN64_ROM_Base = nullptr;
 }
 
 static uint32_t s_regFile[0x500 / 4];
 static huft     s_huftPool[HUFT_POOL_COUNT];
 
-// ── InitN64Registers ──────────────────────────────────────────────────────────
 extern "C" void InitN64Registers(const char* assetDir) {
+    // 1. Allocate RDRAM (Main memory)
     if (gN64_RDRAM == nullptr) {
-        gN64_RDRAM = static_cast<uint8_t*>(calloc(N64_RDRAM_SIZE, 1));
+        gN64_RDRAM = static_cast<uint8_t*>(calloc(BKA_RDRAM_ALLOC_SIZE, 1));
         if (!gN64_RDRAM) {
-            LOGE("FATAL: calloc(%u) for RDRAM failed", N64_RDRAM_SIZE);
-            return;
+            LOGE("FATAL: calloc(%u) for RDRAM failed", BKA_RDRAM_ALLOC_SIZE);
+            abort();
         }
-        LOGI("gN64_RDRAM allocated: %p (%u bytes)", gN64_RDRAM, N64_RDRAM_SIZE);
+        LOGI("gN64_RDRAM allocated: %p", gN64_RDRAM);
+    }
+
+    // 2. Allocate ROM Base (Dummy buffer to prevent crash on ROM access)
+    if (gN64_ROM_Base == nullptr) {
+        gN64_ROM_Base = static_cast<uint8_t*>(calloc(BKA_ROM_ALLOC_SIZE, 1));
+        if (!gN64_ROM_Base) {
+            LOGE("FATAL: calloc(%u) for ROM failed", BKA_ROM_ALLOC_SIZE);
+            abort();
+        }
+    }
+
+    // 3. Allocate PIF Base (Dummy buffer for Peripheral Interface)
+    if (gN64_PIF_Base == nullptr) {
+        gN64_PIF_Base = static_cast<uint32_t*>(calloc(0x1000, 1));
+        if (!gN64_PIF_Base) {
+            LOGE("FATAL: calloc(PIF) failed");
+            abort();
+        }
     }
 
     gN64_Reg_Base = s_regFile;
     memset(s_regFile, 0, sizeof(s_regFile));
 
-    // Wire inflate.c globals to valid memory.
-    // These were raw RDRAM pointers on N64 hardware; here we back them
-    // with the allocated gN64_RDRAM block to avoid collision with game data.
+    // Wiring
     inbuf      = gN64_RDRAM;
-    D_80007284 = gN64_RDRAM; // Base default, dynamically translated in rarezip.c
+    D_80007284 = gN64_RDRAM; 
     D_80007290 = s_huftPool;
     inptr      = 0;
 
     memset(s_huftPool, 0, sizeof(s_huftPool));
 
-    LOGI("inflate wired: inbuf=%p D_80007284=%p D_80007290=%p",
-         inbuf, (void*)D_80007284, (void*)D_80007290);
+    LOGI("Hardware regs initialized and wired.");
 }
 
-// ── HardwareRegs_Shutdown ─────────────────────────────────────────────────────
 extern "C" void HardwareRegs_Shutdown(void) {
-    if (gN64_RDRAM) {
-        free(gN64_RDRAM);
-        gN64_RDRAM = nullptr;
-    }
+    if (gN64_RDRAM) { free(gN64_RDRAM); gN64_RDRAM = nullptr; }
+    if (gN64_ROM_Base) { free(gN64_ROM_Base); gN64_ROM_Base = nullptr; }
+    if (gN64_PIF_Base) { free(gN64_PIF_Base); gN64_PIF_Base = nullptr; }
+    
     gN64_Reg_Base = nullptr;
     inbuf         = nullptr;
-    // D_80007284 = nullptr; // Safety Fix: Removed to prevent race condition crashes during teardown
     D_80007290    = nullptr;
     LOGI("HardwareRegs_Shutdown complete.");
 }
 
-// ── Register I/O stubs ───────────────────────────────────────────────────────
 extern "C" u32 ReadHardwareRegister(u32 addr) {
     uint32_t offset = (addr & 0x00FFFFFFu) / 4;
     if (offset < (sizeof(s_regFile) / sizeof(s_regFile[0])))
