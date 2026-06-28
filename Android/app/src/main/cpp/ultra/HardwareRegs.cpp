@@ -24,23 +24,24 @@ struct huft {
 // Declared extern so the linker resolves them to the .so's BSS symbols.
 // We assign them here before the engine starts.
 extern "C" {
-    extern uint8_t*  inbuf;
-    extern uint8_t*  D_80007284;
-    extern huft*     D_80007290;
+    extern uint8_t* inbuf;
+    extern uint8_t* D_80007284;
+    extern huft* D_80007290;
     extern uint32_t  inptr;
 }
 
 // ── Public globals referenced by NativeBridge and stubs ──────────────────────
 #define N64_RDRAM_SIZE   (8u * 1024u * 1024u)
 #define HUFT_POOL_COUNT  4096
-#define INFLATE_WSIZE    (32u * 1024u)
 
-uint8_t*  gN64_RDRAM    = nullptr;
-uint32_t* gN64_Reg_Base = nullptr;
+// Enforce C linkage so rarezip.c can resolve gN64_RDRAM during compilation
+extern "C" {
+    uint8_t* gN64_RDRAM    = nullptr;
+    uint32_t* gN64_Reg_Base = nullptr;
+}
 
 static uint32_t s_regFile[0x500 / 4];
 static huft     s_huftPool[HUFT_POOL_COUNT];
-static uint8_t  s_inflateWindow[INFLATE_WSIZE];
 
 // ── InitN64Registers ──────────────────────────────────────────────────────────
 extern "C" void InitN64Registers(const char* assetDir) {
@@ -58,14 +59,13 @@ extern "C" void InitN64Registers(const char* assetDir) {
 
     // Wire inflate.c globals to valid memory.
     // These were raw RDRAM pointers on N64 hardware; here we back them
-    // with static allocations to avoid collision with game data.
+    // with the allocated gN64_RDRAM block to avoid collision with game data.
     inbuf      = gN64_RDRAM;
-    D_80007284 = s_inflateWindow;
+    D_80007284 = gN64_RDRAM; // Base default, dynamically translated in rarezip.c
     D_80007290 = s_huftPool;
     inptr      = 0;
 
-    memset(s_inflateWindow, 0, sizeof(s_inflateWindow));
-    memset(s_huftPool,      0, sizeof(s_huftPool));
+    memset(s_huftPool, 0, sizeof(s_huftPool));
 
     LOGI("inflate wired: inbuf=%p D_80007284=%p D_80007290=%p",
          inbuf, (void*)D_80007284, (void*)D_80007290);
@@ -79,7 +79,7 @@ extern "C" void HardwareRegs_Shutdown(void) {
     }
     gN64_Reg_Base = nullptr;
     inbuf         = nullptr;
-    D_80007284    = nullptr;
+    // D_80007284 = nullptr; // Safety Fix: Removed to prevent race condition crashes during teardown
     D_80007290    = nullptr;
     LOGI("HardwareRegs_Shutdown complete.");
 }
