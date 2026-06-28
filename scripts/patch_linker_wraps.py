@@ -6,8 +6,10 @@ import re
 BUILD_OBJ_DIR = "Android/app/.cxx"
 SAFE_BASE_FILE = "Android/app/src/main/cpp/bka_safe_base.h"
 CMAKE_FILE = "Android/app/src/main/cpp/CMakeLists.txt"
+# Corrected: BKA_StartEngine lives in stubs.cpp
 ENGINE_SRC_FILE = "Android/app/src/main/cpp/emulator/stubs.cpp"
-NEW_SOURCE = "ultra/HardwareRegs.cpp" # Relative to CMakeLists.txt
+# Corrected: Must be relative to CMakeLists.txt
+NEW_SOURCE = "ultra/HardwareRegs.cpp" 
 
 # Symbols to rename in the object files to force external linking (HLE Stubs)
 RENAME_MAP = {
@@ -78,6 +80,7 @@ def add_to_cmakelists():
             return
 
         # Pattern matches the add_library source list
+        # Using a flexible regex that looks for the closing parenthesis of add_library
         pattern = r"(add_library\(bkawrapper SHARED\s+[\s\S]*?)(\s*\))"
         replacement = rf"\1\n    {NEW_SOURCE}\2"
         
@@ -138,11 +141,12 @@ def patch_rarezip():
     with open(rarezip_path, 'r') as f:
         content = f.read()
 
-    if "TO_NATIVE_PTR" in content and "D_80007290 = (struct huft*)TO_NATIVE_PTR(arg2);" in content:
+    # Idempotency check: don't patch multiple times
+    if "BKA_DEBUG_DATA" in content:
         print(f"{rarezip_path} already fully patched.")
         return
 
-    # 1. Inject the macro and the gN64_RDRAM extern directly below the includes
+    # 1. Inject the macro and the gN64_RDRAM extern
     macro_injection = """#include "rarezip.h"
 #include <android/log.h>
 
@@ -156,6 +160,7 @@ extern u8* gN64_RDRAM;
     content = content.replace('#include "rarezip.h"', macro_injection)
 
     # 2. Replace the unsafe func_800005C0 implementation with logging + translation
+    # Regex logic updated to be safe against trailing comments and whitespace
     unsafe_func = r"(u32\s+func_800005C0\s*\([^)]+\)\s*\{)(.*?)(return\s+wp;[^\}]*\})"
     safe_func = r"""\1
     inbuf = TO_NATIVE_PTR(in);
@@ -163,6 +168,11 @@ extern u8* gN64_RDRAM;
     D_80007290 = (struct huft*)TO_NATIVE_PTR(arg2); 
     
     __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG", "INFLATE: in=%p, out=%p, arg2=%p", inbuf, D_80007284, D_80007290);
+    
+    // Check if the input buffer has data
+    if (inbuf != NULL) { 
+        __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG_DATA", "HEADER: %02x %02x %02x %02x", inbuf[0], inbuf[1], inbuf[2], inbuf[3]); 
+    }
     
     if (gN64_RDRAM == NULL) { __android_log_print(ANDROID_LOG_FATAL, "BKA_DEBUG", "FATAL: gN64_RDRAM is NULL"); abort(); }
 
