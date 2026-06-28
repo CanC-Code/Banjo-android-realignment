@@ -1,9 +1,13 @@
 import os
 import subprocess
+import re
 
-# Points to the directory where CMake generates the object files
+# Configuration Paths
 BUILD_OBJ_DIR = "Android/app/.cxx"
 SAFE_BASE_FILE = "Android/app/src/main/cpp/bka_safe_base.h"
+CMAKE_FILE = "Android/app/src/main/cpp/CMakeLists.txt"
+ENGINE_SRC_FILE = "Android/app/src/main/cpp/BKA_StartEngine.cpp"
+NEW_SOURCE = "HardwareRegs.cpp"
 
 # Symbols to rename in the object files to force external linking
 RENAME_MAP = {
@@ -52,12 +56,83 @@ def patch_objects():
                     subprocess.run(["llvm-objcopy"] + args + [path], check=True)
 
 def patch_header():
+    if not os.path.exists(SAFE_BASE_FILE):
+        print(f"Warning: {SAFE_BASE_FILE} not found. Skipping header patch.")
+        return
+
     with open(SAFE_BASE_FILE, 'r+') as f:
         content = f.read()
         if "__original___osInitialize_common" not in content:
             f.write("\n" + STUB_CODE)
-            print("Header updated.")
+            print(f"Header updated: {SAFE_BASE_FILE}")
+        else:
+            print(f"Header already patched: {SAFE_BASE_FILE}")
+
+def add_to_cmakelists():
+    if not os.path.exists(CMAKE_FILE):
+        print(f"Warning: {CMAKE_FILE} not found. Skipping CMakeLists update.")
+        return
+
+    with open(CMAKE_FILE, 'r+') as f:
+        content = f.read()
+        if NEW_SOURCE in content:
+            print(f"{NEW_SOURCE} already in CMakeLists.txt.")
+            return
+
+        # Pattern matches the add_library source list
+        pattern = r"(add_library\(bkawrapper SHARED\s+[\s\S]*?)(\s*\))"
+        replacement = rf"\1\n    {NEW_SOURCE}\2"
+        
+        new_content = re.sub(pattern, replacement, content)
+        if new_content != content:
+            f.seek(0)
+            f.write(new_content)
+            f.truncate()
+            print(f"Updated {CMAKE_FILE}.")
+        else:
+            print(f"Could not find add_library(bkawrapper SHARED ...) in {CMAKE_FILE}.")
+
+def inject_include(file_path, include_line):
+    if not os.path.exists(file_path):
+        return
+    with open(file_path, 'r+') as f:
+        content = f.read()
+        if include_line not in content:
+            f.seek(0, 0)
+            f.write(include_line + "\n" + content)
+            print(f"Injected {include_line} into {file_path}")
+
+def inject_init_call():
+    if not os.path.exists(ENGINE_SRC_FILE):
+        print(f"Warning: {ENGINE_SRC_FILE} not found. Skipping init injection.")
+        return
+
+    # Ensure header is included so InitHardwareRegs() is declared in scope
+    inject_include(ENGINE_SRC_FILE, '#include "HardwareRegs.h"')
+
+    with open(ENGINE_SRC_FILE, 'r+') as f:
+        content = f.read()
+        hook = "InitHardwareRegs();"
+        
+        if hook in content:
+            print("InitHardwareRegs() already injected in Engine entry.")
+            return
+
+        # Locate BKA_StartEngine function body
+        pattern = r"(void\s+BKA_StartEngine[^{]*?\{)"
+        replacement = rf"\1\n    {hook}"
+        
+        new_content = re.sub(pattern, replacement, content)
+        if new_content != content:
+            f.seek(0)
+            f.write(new_content)
+            f.truncate()
+            print(f"Injected InitHardwareRegs() into {ENGINE_SRC_FILE}.")
+        else:
+            print(f"Could not find BKA_StartEngine definition in {ENGINE_SRC_FILE}.")
 
 if __name__ == "__main__":
     patch_objects()
     patch_header()
+    add_to_cmakelists()
+    inject_init_call()
