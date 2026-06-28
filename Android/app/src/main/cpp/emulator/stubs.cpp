@@ -12,7 +12,7 @@
 #include <condition_variable>
 
 #include "n64_types.h"
-#include "bka_safe_base.h" 
+#include "bka_safe_base.h"
 
 // -------------------------------------------------------------------------
 // HIGH-LEVEL EMULATION NATIVE STRUCTURES
@@ -56,13 +56,21 @@ static std::mutex s_eventMutex;
 static OSMesgQueue* s_hlePiCmdQueue = nullptr;
 static pthread_t    s_hlePiMgrThread;
 
+// -------------------------------------------------------------------------
+// RESOURCE READINESS GATE
+// Prevents BKA_StartEngine from running until ResourceMgr_Init signals done.
+// -------------------------------------------------------------------------
+static pthread_mutex_t s_resourceGateMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  s_resourceGateCond  = PTHREAD_COND_INITIALIZER;
+static volatile bool   s_resourceReady     = false;
+
 extern "C" {
 // Recompiled OS headers
 #include <PR/os_pi.h>
 #include <PR/os_thread.h>
 #include <PR/os_message.h>
-#include <PR/sptask.h>  
-#include <PR/os_ai.h>      
+#include <PR/sptask.h>
+#include <PR/os_ai.h>
 #include <PR/os_eeprom.h>
 
 #define LOG_TAG "BKA_STUBS"
@@ -77,22 +85,23 @@ extern "C" {
 static OSPiHandle sPiTablePool[2];
 OSPiHandle* __osPiTable = sPiTablePool;
 
-void* __osViNext = nullptr; 
+void* __osViNext = nullptr;
 void* __osViCurr = nullptr;
 OSDevMgr __osPiDevMgr;
 u32 __osEventStateTab[16];
 
 // Required libultra hardware globals (typically written to 0x80000300 during init)
-s32 osTvType = 1;           // 1 = NTSC, 2 = PAL
-s32 osRomType = 0;          // 0 = Cartridge
-s32 osVersion = 0;
+s32 osTvType    = 1;           // 1 = NTSC, 2 = PAL
+s32 osRomType   = 0;           // 0 = Cartridge
+s32 osVersion   = 0;
 s32 osResetType = 0;
-u32 osMemSize = 0x00800000; // 8MB Expansion Pak
+u32 osMemSize   = 0x00800000;  // 8MB Expansion Pak
 
-// Intercept low-level boot memory mapping to prevent 0x80000000 segfault
+// Intercept low-level boot memory mapping to prevent 0x80000000 segfault.
 // The libultra macro osInitialize() automatically calls this function.
 void __osInitialize_common(void) {
-    LOGI("BKA-HLE: __osInitialize_common intercepted and stubbed (bypassing 0x80000000 raw hardware vector setup).");
+    LOGI("BKA-HLE: __osInitialize_common intercepted and stubbed "
+         "(bypassing 0x80000000 raw hardware vector setup).");
 }
 
 void __osViInit(void) {
@@ -100,19 +109,41 @@ void __osViInit(void) {
 }
 
 /* ============================================================
-   2. HLE NATIVE THREADING WITH GIL
+   2. RESOURCE READINESS GATE API
+   Called by ResourceMgr_Init (or its completion callback) once
+   all assets are fully mapped and ready for the boot ROM to read.
+   ============================================================ */
+
+void BKA_SignalResourcesReady(void) {
+    pthread_mutex_lock(&s_resourceGateMutex);
+    s_resourceReady = true;
+    pthread_cond_broadcast(&s_resourceGateCond);
+    pthread_mutex_unlock(&s_resourceGateMutex);
+    LOGI("BKA-STUBS: Resource gate opened — engine boot unblocked.");
+}
+
+static void WaitForResourcesReady(void) {
+    pthread_mutex_lock(&s_resourceGateMutex);
+    while (!s_resourceReady) {
+        pthread_cond_wait(&s_resourceGateCond, &s_resourceGateMutex);
+    }
+    pthread_mutex_unlock(&s_resourceGateMutex);
+}
+
+/* ============================================================
+   3. HLE NATIVE THREADING WITH GIL
    ============================================================ */
 
 void osCreateThread(OSThread *t, OSId id, void (*entry)(void *), void *arg, void *sp, OSPri p) {
     std::lock_guard<std::mutex> lock(s_threadMutex);
-    t->id = id;
+    t->id       = id;
     t->priority = p;
 
     NativeThread* nt = new NativeThread();
-    nt->entry = entry;
-    nt->arg = arg;
-    nt->id = id;
-    nt->pri = p;
+    nt->entry  = entry;
+    nt->arg    = arg;
+    nt->id     = id;
+    nt->pri    = p;
     nt->thread = 0;
 
     s_threadRegistry[t] = nt;
@@ -158,24 +189,24 @@ void osYieldThread(void) {
 }
 
 void osSetThreadPri(OSThread *t, OSPri pri) { if (t) t->priority = pri; }
-OSPri osGetThreadPri(OSThread *t) { return t ? t->priority : 0; }
+OSPri osGetThreadPri(OSThread *t)           { return t ? t->priority : 0; }
 void __osDequeueThread(OSThread **queue, OSThread *t) {}
 
 /* ============================================================
-   3. EVENT ROUTING & MESSAGE QUEUES
+   4. EVENT ROUTING & MESSAGE QUEUES
    ============================================================ */
 
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msgBuf, s32 count) {
     mq->validCount = 0;
-    mq->first = 0;
-    mq->msgCount = count;
-    mq->msg = msgBuf;
+    mq->first      = 0;
+    mq->msgCount   = count;
+    mq->msg        = msgBuf;
 
     std::lock_guard<std::mutex> lock(s_queueMutex);
     if (s_queueRegistry.find(mq) != s_queueRegistry.end()) delete s_queueRegistry[mq];
 
     NativeQueue* nq = new NativeQueue();
-    nq->capacity = count;
+    nq->capacity    = count;
     s_queueRegistry[mq] = nq;
 }
 
@@ -204,10 +235,10 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag) {
     std::unique_lock<std::mutex> lock(nq->mtx);
     if (flag == OS_MESG_BLOCK) {
         s_n64_gil.unlock();
-        nq->cv_send.wait(lock, [nq]() { return nq->buffer.size() < nq->capacity; });
+        nq->cv_send.wait(lock, [nq]() { return nq->buffer.size() < (size_t)nq->capacity; });
         s_n64_gil.lock();
     } else {
-        if (nq->buffer.size() >= nq->capacity) return -1;
+        if ((int)nq->buffer.size() >= nq->capacity) return -1;
     }
 
     nq->buffer.push_back(msg);
@@ -227,13 +258,13 @@ s32 osJamMesg(OSMesgQueue *mq, OSMesg msg, s32 flag) {
     std::unique_lock<std::mutex> lock(nq->mtx);
     if (flag == OS_MESG_BLOCK) {
         s_n64_gil.unlock();
-        nq->cv_send.wait(lock, [nq]() { return nq->buffer.size() < nq->capacity; });
+        nq->cv_send.wait(lock, [nq]() { return nq->buffer.size() < (size_t)nq->capacity; });
         s_n64_gil.lock();
     } else {
-        if (nq->buffer.size() >= nq->capacity) return -1;
+        if ((int)nq->buffer.size() >= nq->capacity) return -1;
     }
 
-    nq->buffer.push_front(msg); 
+    nq->buffer.push_front(msg);
     mq->validCount = nq->buffer.size();
     nq->cv_recv.notify_one();
     return 0;
@@ -264,7 +295,7 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flag) {
 }
 
 /* ============================================================
-   4. HLE DMA REDIRECTION & AUTOMATED PI MANAGER
+   5. HLE DMA REDIRECTION & AUTOMATED PI MANAGER
    ============================================================ */
 
 static void* HLE_PiManagerWorker(void* arg) {
@@ -275,10 +306,9 @@ static void* HLE_PiManagerWorker(void* arg) {
         OSMesg msg = nullptr;
         s32 ret = osRecvMesg(s_hlePiCmdQueue, &msg, OS_MESG_BLOCK);
 
-        // Critical Fix: Prevent absolute GIL starvation if the queue yields errors
         if (ret != 0 || msg == nullptr) {
             s_n64_gil.unlock();
-            usleep(1000); // 1ms backoff allows the master game thread to recover
+            usleep(1000);
             s_n64_gil.lock();
             continue;
         }
@@ -309,14 +339,13 @@ static void* HLE_PiManagerWorker(void* arg) {
 
 void osCreatePiManager(OSPri pri, OSMesgQueue *cmdQ, OSMesg *cmdBuf, s32 cmdMsgCnt) {
     s_hlePiCmdQueue = cmdQ;
-
     pthread_create(&s_hlePiMgrThread, nullptr, HLE_PiManagerWorker, nullptr);
     pthread_detach(s_hlePiMgrThread);
     LOGI("BKA-HLE: osCreatePiManager successfully generated background processing engine.");
 }
 
 /* ============================================================
-   5. SAFE AUDIO/VIDEO ENDPOINTS (DROP LOGIC)
+   6. SAFE AUDIO/VIDEO ENDPOINTS (DROP LOGIC)
    ============================================================ */
 
 void osSpTaskLoad(OSTask *tp) {}
@@ -326,14 +355,13 @@ void osSpTaskStartGo(OSTask *tp) {
     if (tp->t.type == M_GFXTASK) {
         HLE_TriggerN64Event(1); // OS_EVENT_SP
         HLE_TriggerN64Event(3); // OS_EVENT_DP
-    } 
-    else if (tp->t.type == M_AUDTASK) {
+    } else if (tp->t.type == M_AUDTASK) {
         HLE_TriggerN64Event(1); // OS_EVENT_SP
     }
 }
 
-void osSpTaskYield(void) {}
-OSYieldResult osSpTaskYielded(OSTask *tp) { return (OSYieldResult)0; }
+void osSpTaskYield(void)                    {}
+OSYieldResult osSpTaskYielded(OSTask *tp)   { return (OSYieldResult)0; }
 
 s32 osAiSetNextBuffer(void *bufPtr, u32 size) {
     if (size == 0 || bufPtr == nullptr) return 0;
@@ -341,64 +369,65 @@ s32 osAiSetNextBuffer(void *bufPtr, u32 size) {
     return 0;
 }
 
-u32 osAiGetLength(void) { return 0; }
-s32 osAiSetFrequency(u32 frequency) { return 0; }
-
+u32 osAiGetLength(void)              { return 0; }
+s32 osAiSetFrequency(u32 frequency)  { return 0; }
 
 /* ============================================================
-   6. PHASE 11: EEPROM / SAVE SYSTEM STUBS (EARLY BOOT LOCK FIX)
+   7. EEPROM / SAVE SYSTEM STUBS
    ============================================================ */
 
 s32 osEepromProbe(OSMesgQueue *mq) {
-    // Banjo-Kazooie expects a 4Kbit (returns 1) or 16Kbit (returns 2) EEPROM.
-    // Returning 1 bypasses the hardware lock and allows the bootloader to proceed.
-    return 1; 
+    // BK expects 4Kbit (1) or 16Kbit (2). Returning 1 bypasses the hardware lock.
+    return 1;
 }
 
 s32 osEepromLongRead(OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes) {
-    memset(buffer, 0, nbytes); // Return a clean, empty save file
-    return 0; // 0 = Success
+    memset(buffer, 0, nbytes);
+    return 0;
 }
 
 s32 osEepromLongWrite(OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes) {
-    return 0; // Pretend the save to the cartridge was successful
+    return 0;
 }
 
 s32 osEepromRead(OSMesgQueue *mq, u8 address, u8 *buffer) {
-    memset(buffer, 0, 8); // Standard EEPROM blocks are 8 bytes
+    memset(buffer, 0, 8);
     return 0;
 }
 
 s32 osEepromWrite(OSMesgQueue *mq, u8 address, u8 *buffer) {
-    return 0; 
+    return 0;
 }
 
 /* ============================================================
-   7. SECURE ENGINE IGNITION & LOCK MANIPULATION
+   8. SECURE ENGINE IGNITION
+   Blocks until ResourceMgr_Init signals completion, then
+   acquires the GIL and enters the recompiled boot ROM.
    ============================================================ */
 
-extern void func_80000450(int32_t arg0); 
+extern void func_80000450(int32_t arg0);
 
 void BKA_StartEngine(void) {
-    LOGI("BKA-STUBS: >>> SECURE CONCURRENT IGNITION VIA GIL LOCK <<<");
+    LOGI("BKA-STUBS: Waiting for resource gate before engine ignition...");
+
+    // Block here until all OTR assets are mapped and ready.
+    // This prevents bkboot_inflate from receiving null pointers.
+    WaitForResourcesReady();
+
+    LOGI("BKA-STUBS: Resource gate passed. >>> SECURE CONCURRENT IGNITION VIA GIL LOCK <<<");
     s_n64_gil.lock();
     func_80000450(0);
     s_n64_gil.unlock();
 }
 
 // Thread context bridge hooks used by NativeBridge to cycle execution constraints
-void BKA_DropEngineLock(void) {
-    s_n64_gil.unlock();
-}
+void BKA_DropEngineLock(void)  { s_n64_gil.unlock(); }
+void BKA_ClaimEngineLock(void) { s_n64_gil.lock(); }
 
-void BKA_ClaimEngineLock(void) {
-    s_n64_gil.lock();
-}
-
-void mainLoop(void) {}
+void mainLoop(void)                         {}
 void core1_loadOTR(uint8_t* data, size_t size) {}
-int  func_80258A4C(void) { return 0; }
-void func_8025A123(void) {}
-void initInterruptTables(void) {}
+int  func_80258A4C(void)                    { return 0; }
+void func_8025A123(void)                    {}
+void initInterruptTables(void)              {}
 
 } // extern "C"
