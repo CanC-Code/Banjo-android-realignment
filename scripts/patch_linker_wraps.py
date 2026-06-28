@@ -7,7 +7,7 @@ BUILD_OBJ_DIR = "Android/app/.cxx"
 SAFE_BASE_FILE = "Android/app/src/main/cpp/bka_safe_base.h"
 CMAKE_FILE = "Android/app/src/main/cpp/CMakeLists.txt"
 ENGINE_SRC_FILE = "Android/app/src/main/cpp/BKA_StartEngine.cpp"
-NEW_SOURCE = "HardwareRegs.cpp"
+NEW_SOURCE = "Android/app/src/main/cpp/Ultra/HardwareRegs.cpp"
 
 # Symbols to rename in the object files to force external linking
 RENAME_MAP = {
