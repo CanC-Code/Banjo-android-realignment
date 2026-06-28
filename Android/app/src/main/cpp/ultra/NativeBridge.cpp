@@ -16,7 +16,7 @@
 static JavaVM* g_jvm = nullptr;
 static std::string g_otrPath;
 
-static int g_surfaceWidth = 320;
+static int g_surfaceWidth  = 320;
 static int g_surfaceHeight = 240;
 
 struct BKA_ControllerPad {
@@ -26,15 +26,15 @@ struct BKA_ControllerPad {
     uint8_t  errno_val;
 };
 
-static BKA_ControllerPad g_inputMirror = {0, 0, 0, 0};
-static pthread_mutex_t   g_inputMutex = PTHREAD_MUTEX_INITIALIZER;
+static BKA_ControllerPad g_inputMirror  = {0, 0, 0, 0};
+static pthread_mutex_t   g_inputMutex   = PTHREAD_MUTEX_INITIALIZER;
 
-static volatile bool g_vblankRequested = false;
-static pthread_cond_t  g_vblankCond = PTHREAD_COND_INITIALIZER;
-static pthread_mutex_t g_vblankMutex = PTHREAD_MUTEX_INITIALIZER;
+static volatile bool   g_vblankRequested = false;
+static pthread_cond_t  g_vblankCond      = PTHREAD_COND_INITIALIZER;
+static pthread_mutex_t g_vblankMutex     = PTHREAD_MUTEX_INITIALIZER;
 
 extern "C" {
-    extern uint8_t* gN64_RDRAM;
+    extern uint8_t*  gN64_RDRAM;
     extern uint32_t* gN64_Reg_Base;
 
     void InitN64Registers(const char* assetDir);
@@ -44,11 +44,13 @@ extern "C" {
     void BKA_DropEngineLock(void);
     void BKA_ClaimEngineLock(void);
 
+    // ResourceMgr_Init is synchronous. After it returns, call
+    // BKA_SignalResourcesReady() to unblock BKA_StartEngine.
     void ResourceMgr_Init(const char* assetDir);
+    void BKA_SignalResourcesReady(void);
 
     extern BKA_ControllerPad gN64_ControllerData[4];
     void N64_TriggerVirtualVBlankInterrupt(void);
-
     void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId);
 
     void BKA_FrameSyncHook(void) {
@@ -73,8 +75,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
 }
 
 void* game_thread_fn(void* arg) {
-    JNIEnv* env = nullptr;
-    bool attached = false;
+    JNIEnv* env    = nullptr;
+    bool  attached = false;
 
     if (g_jvm != nullptr) {
         if (g_jvm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
@@ -82,18 +84,22 @@ void* game_thread_fn(void* arg) {
         }
     }
 
+    // BKA_StartEngine internally blocks on WaitForResourcesReady(),
+    // so it is safe to call here immediately — it will not proceed
+    // until nativeGameBoot signals the gate.
     BKA_StartEngine();
 
-    // CRITICAL FIX: The bootloader has returned, but the asynchronous game threads 
-    // are now alive in the background. We must block this host thread forever 
-    // to prevent it from reaching HardwareRegs_Shutdown() and wiping the RDRAM.
-    LOGI("NativeBridge: Bootloader finished. Engine is now alive. Securing runtime environment...");
-    
+    LOGI("NativeBridge: Bootloader finished. Engine is now alive. "
+         "Securing runtime environment...");
+
+    // Hold this thread alive so the stack frame and JNI attachment
+    // remain valid for the lifetime of the process. Android reclaims
+    // memory cleanly when the app process is killed.
     while (true) {
-        sleep(1000); // Sleep indefinitely (Android will safely claim memory when the app process is closed)
+        sleep(1000);
     }
 
-    // Unreachable Code
+    // Unreachable — kept for clarity.
     HardwareRegs_Shutdown();
 
     if (attached && g_jvm != nullptr) {
@@ -110,32 +116,44 @@ Java_com_bkawrapper_NativeBridge_nativeInit(JNIEnv* env, jclass clazz, jobject c
 }
 
 JNIEXPORT void JNICALL
-Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz, jstring otrPathStr, jobject assetManagerObj) {
+Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
+                                                 jstring otrPathStr,
+                                                 jobject assetManagerObj) {
     const char* otrPath = env->GetStringUTFChars(otrPathStr, nullptr);
     g_otrPath = otrPath;
     env->ReleaseStringUTFChars(otrPathStr, otrPath);
 
     InitN64Registers(g_otrPath.c_str());
-    ResourceMgr_Init(g_otrPath.c_str());
-    LOGI("NativeBridge: Resource Manager activated at: %s", g_otrPath.c_str());
 
+    // Launch the game thread first. It will block inside BKA_StartEngine
+    // on the resource gate until we signal below.
     pthread_t gameThread;
     if (pthread_create(&gameThread, nullptr, game_thread_fn, nullptr) == 0) {
         pthread_detach(gameThread);
-        LOGI("NativeBridge: Standalone engine thread generated safely.");
+        LOGI("NativeBridge: Game thread created. Initialising resource manager...");
     } else {
         LOGE("NativeBridge: Failed to create game thread.");
         HardwareRegs_Shutdown();
+        return;
     }
+
+    // ResourceMgr_Init is synchronous — it fully maps all OTR assets before
+    // returning. Only after it returns do we open the gate, guaranteeing
+    // bkboot_inflate always receives valid mapped memory.
+    ResourceMgr_Init(g_otrPath.c_str());
+    LOGI("NativeBridge: Resource Manager ready at: %s", g_otrPath.c_str());
+
+    // Unblock BKA_StartEngine / the recompiled boot ROM.
+    BKA_SignalResourcesReady();
 }
 
-JNIEXPORT void JNICALL 
+JNIEXPORT void JNICALL
 Java_com_bkawrapper_NativeBridge_surfaceReady(JNIEnv* env, jclass clazz, jint w, jint h) {
-    g_surfaceWidth = w;
+    g_surfaceWidth  = w;
     g_surfaceHeight = h;
 }
 
-JNIEXPORT void JNICALL 
+JNIEXPORT void JNICALL
 Java_com_bkawrapper_NativeBridge_updateTexture(JNIEnv* env, jclass clazz, jint textureId) {
     if (gN64_RDRAM == nullptr || gN64_Reg_Base == nullptr) return;
 
@@ -158,12 +176,14 @@ Java_com_bkawrapper_NativeBridge_updateTexture(JNIEnv* env, jclass clazz, jint t
     BKA_DropEngineLock();
 }
 
-JNIEXPORT void JNICALL 
-Java_com_bkawrapper_NativeBridge_nativeUpdateInput(JNIEnv* env, jclass clazz, jint buttons, jfloat stickX, jfloat stickY) {
+JNIEXPORT void JNICALL
+Java_com_bkawrapper_NativeBridge_nativeUpdateInput(JNIEnv* env, jclass clazz,
+                                                    jint buttons,
+                                                    jfloat stickX, jfloat stickY) {
     pthread_mutex_lock(&g_inputMutex);
-    g_inputMirror.button = (uint16_t)buttons;
-    g_inputMirror.stick_x = (int8_t)(stickX * 80.0f);
-    g_inputMirror.stick_y = (int8_t)(stickY * 80.0f);
+    g_inputMirror.button    = (uint16_t)buttons;
+    g_inputMirror.stick_x   = (int8_t)(stickX * 80.0f);
+    g_inputMirror.stick_y   = (int8_t)(stickY * 80.0f);
     g_inputMirror.errno_val = 0;
     pthread_mutex_unlock(&g_inputMutex);
 }
