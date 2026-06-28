@@ -6,13 +6,10 @@ import re
 BUILD_OBJ_DIR = "Android/app/.cxx"
 SAFE_BASE_FILE = "Android/app/src/main/cpp/bka_safe_base.h"
 CMAKE_FILE = "Android/app/src/main/cpp/CMakeLists.txt"
-# Corrected path to where BKA_StartEngine actually lives
 ENGINE_SRC_FILE = "Android/app/src/main/cpp/emulator/stubs.cpp"
+NEW_SOURCE = "ultra/HardwareRegs.cpp" # Relative to CMakeLists.txt
 
-# CMake paths must be relative to the CMakeLists.txt location
-CMAKE_INJECT_SOURCE = "ultra/HardwareRegs.cpp"
-
-# Symbols to rename in the object files to force external linking
+# Symbols to rename in the object files to force external linking (HLE Stubs)
 RENAME_MAP = {
     "__osInitialize_common": "__original___osInitialize_common",
     "__osViInit": "__original___osViInit"
@@ -40,7 +37,7 @@ void __original___osViInit(void) {
 
 def patch_objects():
     if not os.path.exists(BUILD_OBJ_DIR):
-        print(f"Warning: {BUILD_OBJ_DIR} not found. Skipping objcopy (will run on subsequent builds after .o files are generated).")
+        print(f"Warning: {BUILD_OBJ_DIR} not found. Skipping objcopy (will run on subsequent builds).")
         return
 
     args = []
@@ -76,13 +73,14 @@ def add_to_cmakelists():
 
     with open(CMAKE_FILE, 'r+') as f:
         content = f.read()
-        if CMAKE_INJECT_SOURCE in content:
-            print(f"{CMAKE_INJECT_SOURCE} already in CMakeLists.txt.")
+        if NEW_SOURCE in content:
+            print(f"{NEW_SOURCE} already in CMakeLists.txt.")
             return
 
         # Pattern matches the add_library source list
+        # Using a flexible regex that looks for the closing parenthesis of add_library
         pattern = r"(add_library\(bkawrapper SHARED\s+[\s\S]*?)(\s*\))"
-        replacement = rf"\1\n    {CMAKE_INJECT_SOURCE}\2"
+        replacement = rf"\1\n    {NEW_SOURCE}\2"
         
         new_content = re.sub(pattern, replacement, content)
         if new_content != content:
@@ -108,6 +106,7 @@ def inject_init_call():
         print(f"Warning: {ENGINE_SRC_FILE} not found. Skipping init injection.")
         return
 
+    # Ensure header is included so InitHardwareRegs() is declared in scope
     inject_include(ENGINE_SRC_FILE, '#include "HardwareRegs.h"')
 
     with open(ENGINE_SRC_FILE, 'r+') as f:
@@ -118,6 +117,7 @@ def inject_init_call():
             print("InitHardwareRegs() already injected in Engine entry.")
             return
 
+        # Locate BKA_StartEngine function body
         pattern = r"(void\s+BKA_StartEngine[^{]*?\{)"
         replacement = rf"\1\n    {hook}"
         
@@ -133,16 +133,17 @@ def inject_init_call():
 def patch_rarezip():
     rarezip_path = "src/done/rarezip.c"
     if not os.path.exists(rarezip_path):
-        print(f"Warning: {rarezip_path} not found. Skipping dynamic translation patch.")
+        print(f"Warning: {rarezip_path} not found.")
         return
 
     with open(rarezip_path, 'r') as f:
         content = f.read()
 
-    if "TO_NATIVE_PTR" in content:
-        print(f"{rarezip_path} already patched with translation layer.")
+    if "TO_NATIVE_PTR" in content and "D_80007290 = (struct huft*)TO_NATIVE_PTR(arg2);" in content:
+        print(f"{rarezip_path} already fully patched.")
         return
 
+    # 1. Inject the macro and the gN64_RDRAM extern directly below the includes
     macro_injection = """#include "rarezip.h"
 
 extern u8* gN64_RDRAM;
@@ -154,12 +155,13 @@ extern u8* gN64_RDRAM;
 """
     content = content.replace('#include "rarezip.h"', macro_injection)
 
-    # Relaxed regex to account for trailing comments (//return uncompressed size) before the bracket
+    # 2. Replace the unsafe func_800005C0 implementation
+    # This regex is broad enough to catch the function body even with comments
     unsafe_func = r"(u32\s+func_800005C0\s*\([^)]+\)\s*\{)(.*?)(return\s+wp;[^\}]*\})"
     safe_func = r"""\1
     inbuf = TO_NATIVE_PTR(in);
     D_80007284 = TO_NATIVE_PTR(out); 
-    D_80007290 = arg2;
+    D_80007290 = (struct huft*)TO_NATIVE_PTR(arg2); 
     inbuf += 6; // skip 6 byte bk header 
     wp = 0; //wp
     inptr = 0; //inptr
@@ -172,7 +174,7 @@ extern u8* gN64_RDRAM;
     if new_content != content:
         with open(rarezip_path, 'w') as f:
             f.write(new_content)
-        print(f"Dynamically injected TO_NATIVE_PTR into {rarezip_path}.")
+        print(f"Dynamically injected TO_NATIVE_PTR for in, out, and arg2 into {rarezip_path}.")
     else:
         print(f"Failed to find func_800005C0 pattern in {rarezip_path}.")
 
