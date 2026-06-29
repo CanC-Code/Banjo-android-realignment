@@ -135,7 +135,8 @@ def patch_rarezip():
     with open(rarezip_path, 'r') as f:
         content = f.read()
 
-    if "decompress_rare_runtime_hle" in content:
+    # Idempotency check matching our updated automatic pointer reconstruction script block
+    if "RUNTIME AUTOMATIC HOST POINTER RECONSTRUCTION" in content:
         print(f"{rarezip_path} already fully patched.")
         return
 
@@ -152,6 +153,7 @@ extern u8* gN64_RDRAM;
 """
     content = content.replace('#include "rarezip.h"', macro_injection)
 
+    # Surgically inject pointer healing protection while preserving native inflation engine execution
     unsafe_func = r"(u32\s+func_800005C0\s*\([^)]+\)\s*\{)(.*?)(return\s+wp;[^\}]*\})"
     safe_func = r"""\1
     inbuf = TO_NATIVE_PTR(in);
@@ -159,11 +161,14 @@ extern u8* gN64_RDRAM;
     D_80007290 = (struct huft*)TO_NATIVE_PTR(arg2); 
     
     // RUNTIME AUTOMATIC HOST POINTER RECONSTRUCTION (HEAL 32-BIT TRUNCATION)
-    if (inbuf != NULL && D_80007284 != NULL) {
-        uintptr_t check_out = (uintptr_t)D_80007284;
-        if ((check_out >> 32) == 0) {
-            uintptr_t base_prefix = ((uintptr_t)inbuf) & 0xFFFFFFFF00000000ULL;
-            D_80007284 = (u8*)(base_prefix | check_out);
+    if (inbuf != NULL) {
+        uintptr_t base_prefix = ((uintptr_t)inbuf) & 0xFFFFFFFF00000000ULL;
+        
+        if (((uintptr_t)D_80007284 >> 32) == 0 && D_80007284 != NULL) {
+            D_80007284 = (u8*)(base_prefix | (uintptr_t)D_80007284);
+        }
+        if (((uintptr_t)D_80007290 >> 32) == 0 && D_80007290 != NULL) {
+            D_80007290 = (struct huft*)(base_prefix | (uintptr_t)D_80007290);
         }
     }
 
@@ -171,15 +176,11 @@ extern u8* gN64_RDRAM;
     
     if (gN64_RDRAM == NULL) { __android_log_print(ANDROID_LOG_FATAL, "BKA_DEBUG", "FATAL: gN64_RDRAM is NULL"); abort(); }
 
-    extern uint32_t decompress_rare_runtime_hle(const unsigned char* in, unsigned char* out_start, const unsigned char* arg2);
-    
-    uint32_t decomp_bytes = 0;
-    if (inbuf != NULL && D_80007284 != NULL) {
-        decomp_bytes = decompress_rare_runtime_hle(inbuf, D_80007284, (const unsigned char*)D_80007290);
-    }
-    
-    wp = decomp_bytes; // Align tracking window allocation limits with actual uncompressed length output
+    inbuf += 6; // skip 6 byte bk header 
+    wp = 0; // Reset tracking indexes cleanly for native zlib stream processing
     inptr = 0; 
+    
+    bkboot_inflate(); // Invoke native recompiled inflation engine using healed pointers
     \3"""
 
     new_content = re.sub(unsafe_func, safe_func, content, flags=re.DOTALL)
