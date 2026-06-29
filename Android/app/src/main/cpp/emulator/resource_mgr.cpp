@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstdint>
-#include <errno;
+#include <cerrno>
 #include <android/log.h>
 #include <string>
 
