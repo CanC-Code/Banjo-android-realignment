@@ -43,7 +43,7 @@ if(NOT EXCLUDE_GAME_SRC)
         # Low-Level OS Threading
         "createthread.c" "startthread.c" "stopthread.c" "destroythread.c" 
         "yieldthread.c" "settreadpri.c" "getthreadpri.c"
-        
+
         # Message Queues & Events
         "createmesgqueue.c" "seteventmesg.c" 
         "recvmesg.c" "sendmesg.c" "jammesg.c"
@@ -67,9 +67,11 @@ add_library(bkawrapper SHARED
     ${GAME_SOURCES}
 )
 
+# Linked wrapper added here to intercept OS initialization
 target_link_options(bkawrapper PRIVATE 
     "-Wl,--allow-multiple-definition"
     "-Wl,--export-dynamic"
+    "-Wl,--wrap=__osInitialize_common"
 )
 
 # ============================================================
