@@ -49,8 +49,6 @@ uint8_t* decompress_rare_asset(const uint8_t* src,
 
     while (out < out_end) {
         if (in >= in_end) {
-            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                "decompress_rare_asset: input exhausted reading cmd byte");
             free(dst);
             return nullptr;
         }
@@ -94,50 +92,59 @@ uint8_t* decompress_rare_asset(const uint8_t* src,
 
 /**
  * Runtime HLE Bridge: Direct override for the game's internal decompression routine.
- * Resolves Big-Endian sizing fields and executes safe, un-truncated block boundary writes.
+ * Employs a hybrid strategy to extract sizes from the payload stream or block metadata structure safely.
  */
 void decompress_rare_runtime_hle(const uint8_t* in, uint8_t* out_start, const uint8_t* arg2) {
-    if (!in || !out_start || !arg2) {
+    if (!in || !out_start) {
         return;
     }
 
-    // Parse the 32-bit Big-Endian uncompressed size parameter from the runtime block header
-    uint32_t decSize = ((uint32_t)arg2[0] << 24)
-                     | ((uint32_t)arg2[1] << 16)
-                     | ((uint32_t)arg2[2] <<  8)
-                     |  (uint32_t)arg2[3];
+    uint32_t decSize = 0;
 
-    // Absolute fallback sanity check for block validation safety
+    // Strategy A: If the stream points to a raw 0x1172 asset file block, extract the 24-bit size
+    if (in[0] == 0x11 && in[1] == 0x72) {
+        decSize = ((uint32_t)in[2] << 16)
+                | ((uint32_t)in[3] <<  8)
+                |  (uint32_t)in[4];
+    }
+    // Strategy B: Fallback to reading the 32-bit Big-Endian header allocation size field via arg2
+    else if (arg2) {
+        decSize = ((uint32_t)arg2[0] << 24)
+                | ((uint32_t)arg2[1] << 16)
+                | ((uint32_t)arg2[2] <<  8)
+                |  (uint32_t)arg2[3];
+    }
+
+    // Validation boundary guard check
     if (decSize == 0 || decSize > 32u * 1024u * 1024u) {
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "decompress_rare_runtime_hle: Implausible size calculation rejected: %u bytes", decSize);
         return;
     }
 
-    uint8_t* out     = out_start;
+    // Skip the 6-byte header if reading directly from an intact standalone payload segment block
+    const uint8_t* bitstream = (in[0] == 0x11 && in[1] == 0x72) ? (in + 5) : in;
+
+    uint8_t* out = out_start;
     const uint8_t* out_end = out_start + decSize;
 
-    // Process the bitstream directly using your verified decompression logic
     while (out < out_end) {
-        uint8_t cmd = *in++;
+        uint8_t cmd = *bitstream++;
 
         for (int bit = 7; bit >= 0 && out < out_end; bit--) {
             if ((cmd >> bit) & 1) {
-                // Literal Copy Clause
-                *out++ = *in++;
+                *out++ = *bitstream++;
             } else {
-                // Back-Reference Clause
-                uint8_t b0 = *in++;
-                uint8_t b1 = *in++;
+                uint8_t b0 = *bitstream++;
+                uint8_t b1 = *bitstream++;
 
                 uint32_t count  = ((uint32_t)(b0 >> 4) & 0x0Fu) + 3u;
                 uint32_t offset = (((uint32_t)(b0 & 0x0Fu) << 8) | (uint32_t)b1) + 1u;
 
-                // Output underflow memory protection protection guard
                 if (offset > (uint32_t)(out - out_start)) {
                     memset(out, 0, out_end - out);
                     return;
                 }
 
-                // Byte-by-byte write sequence to support overlapping sliding windows safely
                 for (uint32_t j = 0; j < count && out < out_end; j++) {
                     *out = *(out - offset);
                     out++;
