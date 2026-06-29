@@ -135,25 +135,26 @@ def patch_rarezip():
     with open(rarezip_path, 'r') as f:
         content = f.read()
 
-    # Idempotency check matching our updated automatic pointer reconstruction script block
-    if "RUNTIME AUTOMATIC HOST POINTER RECONSTRUCTION" in content:
+    # Idempotency safety validation check
+    if "NATIVE HLE INFLATION ENGINE DEPLOYED" in content:
         print(f"{rarezip_path} already fully patched.")
         return
 
     macro_injection = """#include "rarezip.h"
 #include <android/log.h>
 #include <stdint.h>
+#include <string.h>
+#include <zlib.h>
 
 extern u8* gN64_RDRAM;
 
-#define TO_NATIVE_PTR(n64_addr) \\
-    (((u32)(n64_addr) >= 0x80000000 && (u32)(n64_addr) < 0x80800000) \\
-        ? (gN64_RDRAM + ((u32)(n64_addr) & 0x00FFFFFF)) \\
+#define TO_NATIVE_PTR(n64_addr) \
+    (((u32)(n64_addr) >= 0x80000000 && (u32)(n64_addr) < 0x80800000) \
+        ? (gN64_RDRAM + ((u32)(n64_addr) & 0x00FFFFFF)) \
         : (n64_addr))
 """
     content = content.replace('#include "rarezip.h"', macro_injection)
 
-    # Surgically inject pointer healing protection while preserving native inflation engine execution
     unsafe_func = r"(u32\s+func_800005C0\s*\([^)]+\)\s*\{)(.*?)(return\s+wp;[^\}]*\})"
     safe_func = r"""\1
     inbuf = TO_NATIVE_PTR(in);
@@ -172,15 +173,53 @@ extern u8* gN64_RDRAM;
         }
     }
 
-    __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG", "INFLATE: in=%p, out=%p, arg2=%p", inbuf, D_80007284, D_80007290);
+    __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG", "INFLATE: in=%p, out=%p, arg2=%p", inbuf, D_80007284, D_80007290);
     
     if (gN64_RDRAM == NULL) { __android_log_print(ANDROID_LOG_FATAL, "BKA_DEBUG", "FATAL: gN64_RDRAM is NULL"); abort(); }
 
-    inbuf += 6; // skip 6 byte bk header 
-    wp = 0; // Reset tracking indexes cleanly for native zlib stream processing
-    inptr = 0; 
+    // NATIVE HLE INFLATION ENGINE DEPLOYED
+    uint32_t decSize = 0;
+    if (D_80007290 != NULL) {
+        uint8_t* header_bytes = (uint8_t*)D_80007290;
+        decSize = ((uint32_t)header_bytes[0] << 24) | ((uint32_t)header_bytes[1] << 16) | ((uint32_t)header_bytes[2] << 8) | header_bytes[3];
+    }
+    if (decSize == 0 || decSize > 64u * 1024u * 1024u) {
+        decSize = 16u * 1024u * 1024u; // Safe max boundary fallback allocation layout frame window
+    }
+
+    unsigned char* compressed_stream = inbuf + 6; // Skip custom 6-byte boot segment layout header block
     
-    bkboot_inflate(); // Invoke native recompiled inflation engine using healed pointers
+    z_stream stream;
+    memset(&stream, 0, sizeof(stream));
+    stream.next_in   = (Bytef*)compressed_stream;
+    stream.avail_in  = 64u * 1024u * 1024u; 
+    stream.next_out  = (Bytef*)D_80007284;
+    stream.avail_out = decSize;
+
+    // Phase 1: Try Raw Deflate Decoding Initialization (-15 Window Bits Configuration)
+    int z_status = inflateInit2(&stream, -15);
+    if (z_status == Z_OK) {
+        z_status = inflate(&stream, Z_FINISH);
+        inflateEnd(&stream);
+    }
+
+    // Phase 2: Fallback to Unified Auto-Detect Zlib/Gzip Configuration if raw processing fails
+    if (z_status != Z_STREAM_END) {
+        memset(&stream, 0, sizeof(stream));
+        stream.next_in   = (Bytef*)compressed_stream;
+        stream.avail_in  = 64u * 1024u * 1024u;
+        stream.next_out  = (Bytef*)D_80007284;
+        stream.avail_out = decSize;
+        if (inflateInit2(&stream, 15 + 32) == Z_OK) {
+            z_status = inflate(&stream, Z_FINISH);
+            inflateEnd(&stream);
+        }
+    }
+
+    __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG", "INFLATE HLE: Decompressed %u bytes successfully. Status: %d", (uint32_t)stream.total_out, z_status);
+
+    wp = stream.total_out; 
+    inptr = 0; 
     \3"""
 
     new_content = re.sub(unsafe_func, safe_func, content, flags=re.DOTALL)
