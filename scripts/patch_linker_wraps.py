@@ -135,8 +135,8 @@ def patch_rarezip():
     with open(rarezip_path, 'r') as f:
         content = f.read()
 
-    # Idempotency safety validation verification check
-    if "BOUNDS-VALIDATED NATIVE HLE INFLATION" in content:
+    # Updated idempotency validation trace tag
+    if "SAFE BOUNDS EXTRACTOR RUNNING" in content:
         print(f"{rarezip_path} already fully patched.")
         return
 
@@ -177,39 +177,44 @@ extern u8* gN64_RDRAM;
     
     if (gN64_RDRAM == NULL) { __android_log_print(ANDROID_LOG_FATAL, "BKA_DEBUG", "FATAL: gN64_RDRAM is NULL"); abort(); }
 
-    // BOUNDS-VALIDATED NATIVE HLE INFLATION
+    // SAFE BOUNDS EXTRACTOR RUNNING
     uint32_t decSize = 0;
-    uint32_t compSize = 0;
-    
-    if (D_80007290 != NULL) {
-        uint8_t* header_bytes = (uint8_t*)D_80007290;
-        decSize  = ((uint32_t)header_bytes[0] << 24) | ((uint32_t)header_bytes[1] << 16) | ((uint32_t)header_bytes[2] << 8) | header_bytes[3];
-        compSize = ((uint32_t)header_bytes[4] << 24) | ((uint32_t)header_bytes[5] << 16) | ((uint32_t)header_bytes[6] << 8) | header_bytes[7];
+    if (inbuf != NULL) {
+        // Unpack Big-Endian sizes from the 6-byte segment payload wrapper cleanly
+        uint32_t size24 = ((uint32_t)inbuf[2] << 16) | ((uint32_t)inbuf[3] << 8) | inbuf[4];
+        uint32_t size32 = ((uint32_t)inbuf[2] << 24) | ((uint32_t)inbuf[3] << 16) | ((uint32_t)inbuf[4] << 8) | inbuf[5];
+        
+        if (size24 > 0 && size24 < 16u * 1024u * 1024u) {
+            decSize = size24;
+        } else if (size32 > 0 && size32 < 32u * 1024u * 1024u) {
+            decSize = size32;
+        }
     }
-    
-    // Sanity boundary safety falls if headers are unreadable or unpopulated
-    if (decSize == 0 || decSize > 64u * 1024u * 1024u)   { decSize = 16u * 1024u * 1024u; }
-    if (compSize == 0 || compSize > 64u * 1024u * 1024u) { compSize = 16u * 1024u * 1024u; }
+
+    // Defensive buffer constraint fallback mapping
+    if (decSize == 0) {
+        decSize = 512u * 1024u; 
+    }
 
     z_stream stream;
     memset(&stream, 0, sizeof(stream));
-    stream.next_in   = (Bytef*)(inbuf + 6); // Advance past the 6-byte boot segment layout block wrapper safely
-    stream.avail_in  = (compSize > 6) ? (compSize - 6) : compSize; // Enforce exact input boundary constraints
+    stream.next_in   = (Bytef*)(inbuf + 6); 
+    stream.avail_in  = 4u * 1024u * 1024u; // Safe maximum reading envelope step limit to prevent page overruns
     stream.next_out  = (Bytef*)D_80007284;
     stream.avail_out = decSize;
 
-    // Strategy Phase 1: Try Raw Deflate Parsing Configuration (-15 Window Bits Structure Allocation)
+    // Execution Pass A: Raw Deflate Sequence Mapping Configuration
     int z_status = inflateInit2(&stream, -15);
     if (z_status == Z_OK) {
         z_status = inflate(&stream, Z_FINISH);
         inflateEnd(&stream);
     }
 
-    // Strategy Phase 2: Dynamic Fallback to Unified Auto-Detect Zlib/Gzip Configuration if raw pass fails
+    // Execution Pass B: Alternative Standard Zlib/Gzip Validation Sequence Fallback
     if (z_status != Z_STREAM_END) {
         memset(&stream, 0, sizeof(stream));
         stream.next_in   = (Bytef*)(inbuf + 6);
-        stream.avail_in  = (compSize > 6) ? (compSize - 6) : compSize;
+        stream.avail_in  = 4u * 1024u * 1024u;
         stream.next_out  = (Bytef*)D_80007284;
         stream.avail_out = decSize;
         if (inflateInit2(&stream, 15 + 32) == Z_OK) {
@@ -218,7 +223,7 @@ extern u8* gN64_RDRAM;
         }
     }
 
-    __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG", "INFLATE HLE SUCCESS: Processed %u -> %u bytes. Code: %d", (uint32_t)stream.total_in, (uint32_t)stream.total_out, z_status);
+    __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG", "INFLATE HLE SUCCESS: Decompressed %u bytes. Code: %d", (uint32_t)stream.total_out, z_status);
 
     wp = stream.total_out; 
     inptr = 0; 
