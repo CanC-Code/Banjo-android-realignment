@@ -109,16 +109,25 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
 
     if (!fileFound) {
         if (gN64_ROM_Base != nullptr && relativeRomOffset + size <= 0x04000000) {
-            // Standard cartridge space path
             memcpy(dramAddr, gN64_ROM_Base + relativeRomOffset, size);
         } else {
-            // FIX: Recover truncated 64-bit memory addresses using the stack frame context
+            // Reconstruct the truncated upper bits using the stack pointer space tracking context
             uintptr_t stackContextMarker = reinterpret_cast<uintptr_t>(&path);
             uint32_t upper32Bits = static_cast<uint32_t>(stackContextMarker >> 32);
             uintptr_t reconstructedHostPointer = (static_cast<uintptr_t>(upper32Bits) << 32) | devAddr;
 
             if (upper32Bits > 0 && devAddr > 0x04000000) {
-                LOGW("ResourceMgr: Reconstructed truncated 64-bit address 0x%08X -> %p", devAddr, (void*)reconstructedHostPointer);
+                // NESTED POINTER PROBE: Check if the memory target contains a nested 64-bit pointer reference
+                uintptr_t* potentialNestedPtr = reinterpret_cast<uintptr_t*>(reconstructedHostPointer);
+                
+                if (potentialNestedPtr && (*potentialNestedPtr >> 40) == (reconstructedHostPointer >> 40)) {
+                    LOGW("ResourceMgr: Nested pointer wrapper detected. Dereferencing descriptor layout %p -> %p", 
+                         (void*)reconstructedHostPointer, (void*)*potentialNestedPtr);
+                    reconstructedHostPointer = *potentialNestedPtr;
+                } else {
+                    LOGW("ResourceMgr: Resolved direct 64-bit source pointer targeting address: %p", (void*)reconstructedHostPointer);
+                }
+
                 memcpy(dramAddr, reinterpret_cast<void*>(reconstructedHostPointer), size);
             } else {
                 LOGE("DMA OUT OF BOUNDS: Absolute offset address violation at: 0x%08X", devAddr);
