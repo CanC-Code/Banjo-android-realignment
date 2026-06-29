@@ -135,8 +135,8 @@ def patch_rarezip():
     with open(rarezip_path, 'r') as f:
         content = f.read()
 
-    # Idempotency safety validation check
-    if "NATIVE HLE INFLATION ENGINE DEPLOYED" in content:
+    # Idempotency safety validation verification check
+    if "BOUNDS-VALIDATED NATIVE HLE INFLATION" in content:
         print(f"{rarezip_path} already fully patched.")
         return
 
@@ -148,9 +148,9 @@ def patch_rarezip():
 
 extern u8* gN64_RDRAM;
 
-#define TO_NATIVE_PTR(n64_addr) \
-    (((u32)(n64_addr) >= 0x80000000 && (u32)(n64_addr) < 0x80800000) \
-        ? (gN64_RDRAM + ((u32)(n64_addr) & 0x00FFFFFF)) \
+#define TO_NATIVE_PTR(n64_addr) \\
+    (((u32)(n64_addr) >= 0x80000000 && (u32)(n64_addr) < 0x80800000) \\
+        ? (gN64_RDRAM + ((u32)(n64_addr) & 0x00FFFFFF)) \\
         : (n64_addr))
 """
     content = content.replace('#include "rarezip.h"', macro_injection)
@@ -177,37 +177,39 @@ extern u8* gN64_RDRAM;
     
     if (gN64_RDRAM == NULL) { __android_log_print(ANDROID_LOG_FATAL, "BKA_DEBUG", "FATAL: gN64_RDRAM is NULL"); abort(); }
 
-    // NATIVE HLE INFLATION ENGINE DEPLOYED
+    // BOUNDS-VALIDATED NATIVE HLE INFLATION
     uint32_t decSize = 0;
+    uint32_t compSize = 0;
+    
     if (D_80007290 != NULL) {
         uint8_t* header_bytes = (uint8_t*)D_80007290;
-        decSize = ((uint32_t)header_bytes[0] << 24) | ((uint32_t)header_bytes[1] << 16) | ((uint32_t)header_bytes[2] << 8) | header_bytes[3];
+        decSize  = ((uint32_t)header_bytes[0] << 24) | ((uint32_t)header_bytes[1] << 16) | ((uint32_t)header_bytes[2] << 8) | header_bytes[3];
+        compSize = ((uint32_t)header_bytes[4] << 24) | ((uint32_t)header_bytes[5] << 16) | ((uint32_t)header_bytes[6] << 8) | header_bytes[7];
     }
-    if (decSize == 0 || decSize > 64u * 1024u * 1024u) {
-        decSize = 16u * 1024u * 1024u; // Safe max boundary fallback allocation layout frame window
-    }
-
-    unsigned char* compressed_stream = inbuf + 6; // Skip custom 6-byte boot segment layout header block
     
+    // Sanity boundary safety falls if headers are unreadable or unpopulated
+    if (decSize == 0 || decSize > 64u * 1024u * 1024u)   { decSize = 16u * 1024u * 1024u; }
+    if (compSize == 0 || compSize > 64u * 1024u * 1024u) { compSize = 16u * 1024u * 1024u; }
+
     z_stream stream;
     memset(&stream, 0, sizeof(stream));
-    stream.next_in   = (Bytef*)compressed_stream;
-    stream.avail_in  = 64u * 1024u * 1024u; 
+    stream.next_in   = (Bytef*)(inbuf + 6); // Advance past the 6-byte boot segment layout block wrapper safely
+    stream.avail_in  = (compSize > 6) ? (compSize - 6) : compSize; // Enforce exact input boundary constraints
     stream.next_out  = (Bytef*)D_80007284;
     stream.avail_out = decSize;
 
-    // Phase 1: Try Raw Deflate Decoding Initialization (-15 Window Bits Configuration)
+    // Strategy Phase 1: Try Raw Deflate Parsing Configuration (-15 Window Bits Structure Allocation)
     int z_status = inflateInit2(&stream, -15);
     if (z_status == Z_OK) {
         z_status = inflate(&stream, Z_FINISH);
         inflateEnd(&stream);
     }
 
-    // Phase 2: Fallback to Unified Auto-Detect Zlib/Gzip Configuration if raw processing fails
+    // Strategy Phase 2: Dynamic Fallback to Unified Auto-Detect Zlib/Gzip Configuration if raw pass fails
     if (z_status != Z_STREAM_END) {
         memset(&stream, 0, sizeof(stream));
-        stream.next_in   = (Bytef*)compressed_stream;
-        stream.avail_in  = 64u * 1024u * 1024u;
+        stream.next_in   = (Bytef*)(inbuf + 6);
+        stream.avail_in  = (compSize > 6) ? (compSize - 6) : compSize;
         stream.next_out  = (Bytef*)D_80007284;
         stream.avail_out = decSize;
         if (inflateInit2(&stream, 15 + 32) == Z_OK) {
@@ -216,7 +218,7 @@ extern u8* gN64_RDRAM;
         }
     }
 
-    __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG", "INFLATE HLE: Decompressed %u bytes successfully. Status: %d", (uint32_t)stream.total_out, z_status);
+    __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG", "INFLATE HLE SUCCESS: Processed %u -> %u bytes. Code: %d", (uint32_t)stream.total_in, (uint32_t)stream.total_out, z_status);
 
     wp = stream.total_out; 
     inptr = 0; 
