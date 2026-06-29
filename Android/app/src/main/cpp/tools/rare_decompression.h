@@ -26,8 +26,9 @@ uint8_t* decompress_rare_asset(const uint8_t* src, uint32_t src_size, uint32_t* 
  * @param in Pointer to the start of the compressed bitstream payload.
  * @param out_start Pointer to the pre-allocated virtual DRAM destination target memory workspace.
  * @param arg2 Pointer to the base of the 8-byte allocation structure metadata header.
+ * @return Total number of bytes successfully decompressed.
  */
-void decompress_rare_runtime_hle(const uint8_t* in, uint8_t* out_start, const uint8_t* arg2);
+uint32_t decompress_rare_runtime_hle(const uint8_t* in, uint8_t* out_start, const uint8_t* arg2);
 
 #ifdef __cplusplus
 }
