@@ -16,6 +16,9 @@
 
 static std::string g_assetDir;
 
+// Import the signal function from stubs.cpp
+extern "C" void BKA_SignalResourcesReady(void);
+
 extern "C" {
 
 // CRITICAL FIX: Define the ROM pointer here. It will be dynamically populated on boot.
@@ -38,7 +41,7 @@ void ResourceMgr_Init(const char* assetDir) {
     char romPath[512];
     snprintf(romPath, sizeof(romPath), "%srom_base.bin", g_assetDir.c_str());
     FILE* f = fopen(romPath, "rb");
-    
+
     if (f) {
         fseek(f, 0, SEEK_END);
         size_t romSize = ftell(f);
@@ -53,6 +56,9 @@ void ResourceMgr_Init(const char* assetDir) {
         if (gN64_ROM_Base) {
             fread(gN64_ROM_Base, 1, romSize, f);
             LOGI("ResourceMgr: Successfully loaded rom_base.bin (%zu bytes) into contiguous memory.", romSize);
+            
+            // SIGNAL SUCCESS: This releases the block in BKA_StartEngine
+            BKA_SignalResourcesReady();
         } else {
             LOGE("ResourceMgr: FATAL - Memory allocation failed for ROM buffer.");
         }
