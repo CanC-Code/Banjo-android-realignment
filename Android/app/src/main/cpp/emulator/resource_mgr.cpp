@@ -124,15 +124,19 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
             uint64_t upper32BitsSign = dramContext & 0xFFFFFFFF00000000ULL;
             uintptr_t reconstructedHostPointer = upper32BitsSign | devAddr;
 
-            LOGW("ResourceMgr: Intercepted truncated host pointer instruction. Reconstructing: devAddr=0x%08X -> %p", 
-                 devAddr, (void*)reconstructedHostPointer);
-
-            // Nested Pointer Descriptor handling
+            // Nested Pointer Descriptor Validation
             uintptr_t* potentialNestedPtr = reinterpret_cast<uintptr_t*>(reconstructedHostPointer);
-            if (potentialNestedPtr && ((*potentialNestedPtr >> 40) == (reconstructedHostPointer >> 40))) {
-                LOGW("ResourceMgr: Unwrapping nested descriptor layer reference %p -> %p", 
-                     (void*)reconstructedHostPointer, (void*)*potentialNestedPtr);
-                reconstructedHostPointer = *potentialNestedPtr;
+            
+            // Check for 8-byte pointer alignment before dereferencing to prevent platform exceptions
+            if (potentialNestedPtr && ((reconstructedHostPointer & 0x7) == 0)) {
+                uintptr_t nestedVal = *potentialNestedPtr;
+                
+                // Explicit 32-bit heap page validation to verify matching host address structures
+                if ((nestedVal >> 32) == (reconstructedHostPointer >> 32)) {
+                    LOGW("ResourceMgr: Unwrapping nested descriptor layer reference %p -> %p", 
+                         (void*)reconstructedHostPointer, (void*)nestedVal);
+                    reconstructedHostPointer = nestedVal;
+                }
             }
 
             memcpy(dramAddr, reinterpret_cast<void*>(reconstructedHostPointer), size);
