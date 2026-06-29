@@ -58,7 +58,6 @@ static pthread_t    s_hlePiMgrThread;
 
 // -------------------------------------------------------------------------
 // RESOURCE READINESS GATE
-// Prevents BKA_StartEngine from running until ResourceMgr_Init signals done.
 // -------------------------------------------------------------------------
 static pthread_mutex_t s_resourceGateMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  s_resourceGateCond  = PTHREAD_COND_INITIALIZER;
@@ -79,7 +78,7 @@ extern "C" {
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  LOG_TAG, __VA_ARGS__)
 
 /* ============================================================
-   1. OS GLOBALS & LINKER FIXES
+   1. OS GLOBALS & LINKER WRAPPING
    ============================================================ */
 
 static OSPiHandle sPiTablePool[2];
@@ -90,18 +89,20 @@ void* __osViCurr = nullptr;
 OSDevMgr __osPiDevMgr;
 u32 __osEventStateTab[16];
 
-// Required libultra hardware globals (typically written to 0x80000300 during init)
+// Required libultra hardware globals
 s32 osTvType    = 1;           // 1 = NTSC, 2 = PAL
 s32 osRomType   = 0;           // 0 = Cartridge
 s32 osVersion   = 0;
 s32 osResetType = 0;
 u32 osMemSize   = 0x00800000;  // 8MB Expansion Pak
 
-// Intercept low-level boot memory mapping to prevent 0x80000000 segfault.
-// The libultra macro osInitialize() automatically calls this function.
-void __osInitialize_common(void) {
-    LOGI("BKA-HLE: __osInitialize_common intercepted and stubbed "
-         "(bypassing 0x80000000 raw hardware vector setup).");
+// Linker Wrap: This replaces the real __osInitialize_common
+// Call __real___osInitialize_common() if you ever need to invoke the original assembly logic.
+extern void __real___osInitialize_common(void);
+
+void __wrap___osInitialize_common(void) {
+    LOGI("BKA-HLE: __osInitialize_common intercepted via Linker Wrap.");
+    // We intentionally do NOT call __real___osInitialize_common() to prevent the segfault.
 }
 
 void __osViInit(void) {
@@ -110,8 +111,6 @@ void __osViInit(void) {
 
 /* ============================================================
    2. RESOURCE READINESS GATE API
-   Called by ResourceMgr_Init (or its completion callback) once
-   all assets are fully mapped and ready for the boot ROM to read.
    ============================================================ */
 
 void BKA_SignalResourcesReady(void) {
@@ -295,7 +294,7 @@ s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flag) {
 }
 
 /* ============================================================
-   5. HLE DMA REDIRECTION & AUTOMATED PI MANAGER
+   5. HLE DMA REDIRECTION
    ============================================================ */
 
 static void* HLE_PiManagerWorker(void* arg) {
@@ -314,17 +313,12 @@ static void* HLE_PiManagerWorker(void* arg) {
         }
 
         OSIoMesg* ioMsg = reinterpret_cast<OSIoMesg*>(msg);
-
         s32 direction = OS_READ;
-#ifdef OS_MESG_TYPE_DMAWRITE
-        if (ioMsg->hdr.type == OS_MESG_TYPE_DMAWRITE) {
-            direction = OS_WRITE;
-        }
-#else
+        
+        // Handle DMA types
         if (ioMsg->hdr.type == 16 || ioMsg->hdr.type == 2) {
             direction = OS_WRITE;
         }
-#endif
 
         osPiRawStartDma(direction, ioMsg->devAddr, ioMsg->dramAddr, ioMsg->size);
 
@@ -341,11 +335,11 @@ void osCreatePiManager(OSPri pri, OSMesgQueue *cmdQ, OSMesg *cmdBuf, s32 cmdMsgC
     s_hlePiCmdQueue = cmdQ;
     pthread_create(&s_hlePiMgrThread, nullptr, HLE_PiManagerWorker, nullptr);
     pthread_detach(s_hlePiMgrThread);
-    LOGI("BKA-HLE: osCreatePiManager successfully generated background processing engine.");
+    LOGI("BKA-HLE: osCreatePiManager successfully generated.");
 }
 
 /* ============================================================
-   6. SAFE AUDIO/VIDEO ENDPOINTS (DROP LOGIC)
+   6. SAFE AUDIO/VIDEO ENDPOINTS
    ============================================================ */
 
 void osSpTaskLoad(OSTask *tp) {}
@@ -376,51 +370,27 @@ s32 osAiSetFrequency(u32 frequency)  { return 0; }
    7. EEPROM / SAVE SYSTEM STUBS
    ============================================================ */
 
-s32 osEepromProbe(OSMesgQueue *mq) {
-    // BK expects 4Kbit (1) or 16Kbit (2). Returning 1 bypasses the hardware lock.
-    return 1;
-}
-
-s32 osEepromLongRead(OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes) {
-    memset(buffer, 0, nbytes);
-    return 0;
-}
-
-s32 osEepromLongWrite(OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes) {
-    return 0;
-}
-
-s32 osEepromRead(OSMesgQueue *mq, u8 address, u8 *buffer) {
-    memset(buffer, 0, 8);
-    return 0;
-}
-
-s32 osEepromWrite(OSMesgQueue *mq, u8 address, u8 *buffer) {
-    return 0;
-}
+s32 osEepromProbe(OSMesgQueue *mq) { return 1; }
+s32 osEepromLongRead(OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes) { memset(buffer, 0, nbytes); return 0; }
+s32 osEepromLongWrite(OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes) { return 0; }
+s32 osEepromRead(OSMesgQueue *mq, u8 address, u8 *buffer) { memset(buffer, 0, 8); return 0; }
+s32 osEepromWrite(OSMesgQueue *mq, u8 address, u8 *buffer) { return 0; }
 
 /* ============================================================
    8. SECURE ENGINE IGNITION
-   Blocks until ResourceMgr_Init signals completion, then
-   acquires the GIL and enters the recompiled boot ROM.
    ============================================================ */
 
 extern void func_80000450(int32_t arg0);
 
 void BKA_StartEngine(void) {
     LOGI("BKA-STUBS: Waiting for resource gate before engine ignition...");
-
-    // Block here until all OTR assets are mapped and ready.
-    // This prevents bkboot_inflate from receiving null pointers.
     WaitForResourcesReady();
-
-    LOGI("BKA-STUBS: Resource gate passed. >>> SECURE CONCURRENT IGNITION VIA GIL LOCK <<<");
+    LOGI("BKA-STUBS: Resource gate passed. >>> SECURE CONCURRENT IGNITION <<<");
     s_n64_gil.lock();
     func_80000450(0);
     s_n64_gil.unlock();
 }
 
-// Thread context bridge hooks used by NativeBridge to cycle execution constraints
 void BKA_DropEngineLock(void)  { s_n64_gil.unlock(); }
 void BKA_ClaimEngineLock(void) { s_n64_gil.lock(); }
 
