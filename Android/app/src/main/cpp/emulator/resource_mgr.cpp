@@ -82,19 +82,23 @@ void ResourceMgr_Init(const char* assetDir) {
 }
 
 /**
- * Handles N64 DMA requests by decoding segmented pointer layouts into flat ROM offsets.
+ * Handles N64 DMA requests by isolating segmented structures from native host allocations.
  */
 void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
-    // Isolate the true 24-bit ROM offset by stripping the upper N64 segment pool byte (e.g., 0x0F, 0x0E)
-    uint32_t romOffset = devAddr & 0x00FFFFFF;
-
     char path[512];
     bool fileFound = false;
     FILE* f = nullptr;
 
-    // Check for loose high-resolution extracted target assets using the clean offset format
-    snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), romOffset);
+    // Isolate clean 28-bit relative offset mapping layers for tracking extraction files
+    uint32_t relativeRomOffset = devAddr & 0x0FFFFFFF;
+
+    snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), relativeRomOffset);
     f = fopen(path, "rb");
+
+    if (!f) {
+        snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), devAddr);
+        f = fopen(path, "rb");
+    }
 
     if (f) {
         size_t bytesRead = fread(dramAddr, 1, size, f);
@@ -107,12 +111,31 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     }
 
     if (!fileFound) {
-        // Read directly from the raw pre-allocated ROM binary buffer base block
-        if (gN64_ROM_Base != nullptr && (romOffset + size) <= g_romSize) {
-            memcpy(dramAddr, gN64_ROM_Base + romOffset, size);
+        // STRICT SPECIFICATION FILTER:
+        // Genuine N64 ROM access maps under raw boundaries (< g_romSize) or targets the Cartridge segment (0x10000000)
+        bool isGenuineRom = (devAddr < g_romSize) || ((devAddr >> 24) == 0x10 && (relativeRomOffset + size) <= g_romSize);
+
+        if (isGenuineRom && gN64_ROM_Base != nullptr) {
+            memcpy(dramAddr, gN64_ROM_Base + relativeRomOffset, size);
         } else {
-            LOGE("DMA OUT OF BOUNDS: Invalid layout bounds access pointer targeting: devAddr=0x%08X (Decoded Offset=0x%08X)", devAddr, romOffset);
-            memset(dramAddr, 0, size);
+            // TRUNCATED 64-BIT HOST POINTER HEALING
+            // Safely anchor upper memory page bits using the destination block address context directly
+            uintptr_t dramContext = reinterpret_cast<uintptr_t>(dramAddr);
+            uint64_t upper32BitsSign = dramContext & 0xFFFFFFFF00000000ULL;
+            uintptr_t reconstructedHostPointer = upper32BitsSign | devAddr;
+
+            LOGW("ResourceMgr: Intercepted truncated host pointer instruction. Reconstructing: devAddr=0x%08X -> %p", 
+                 devAddr, (void*)reconstructedHostPointer);
+
+            // Nested Pointer Descriptor handling
+            uintptr_t* potentialNestedPtr = reinterpret_cast<uintptr_t*>(reconstructedHostPointer);
+            if (potentialNestedPtr && ((*potentialNestedPtr >> 40) == (reconstructedHostPointer >> 40))) {
+                LOGW("ResourceMgr: Unwrapping nested descriptor layer reference %p -> %p", 
+                     (void*)reconstructedHostPointer, (void*)*potentialNestedPtr);
+                reconstructedHostPointer = *potentialNestedPtr;
+            }
+
+            memcpy(dramAddr, reinterpret_cast<void*>(reconstructedHostPointer), size);
         }
     }
 
