@@ -135,13 +135,13 @@ def patch_rarezip():
     with open(rarezip_path, 'r') as f:
         content = f.read()
 
-    # Idempotency check modified to trace our explicit function override injection point
     if "decompress_rare_runtime_hle" in content:
         print(f"{rarezip_path} already fully patched.")
         return
 
     macro_injection = """#include "rarezip.h"
 #include <android/log.h>
+#include <stdint.h>
 
 extern u8* gN64_RDRAM;
 
@@ -152,29 +152,33 @@ extern u8* gN64_RDRAM;
 """
     content = content.replace('#include "rarezip.h"', macro_injection)
 
-    # Completely isolate and override the recompiled block inflation execution pathway
     unsafe_func = r"(u32\s+func_800005C0\s*\([^)]+\)\s*\{)(.*?)(return\s+wp;[^\}]*\})"
     safe_func = r"""\1
     inbuf = TO_NATIVE_PTR(in);
     D_80007284 = TO_NATIVE_PTR(out); 
     D_80007290 = (struct huft*)TO_NATIVE_PTR(arg2); 
     
-    __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG", "INFLATE: in=%p, out=%p, arg2=%p", inbuf, D_80007284, D_80007290);
-    
-    if (inbuf != NULL) { 
-        __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG_DATA", "HEADER: %02x %02x %02x %02x", inbuf[0], inbuf[1], inbuf[2], inbuf[3]); 
+    // RUNTIME AUTOMATIC HOST POINTER RECONSTRUCTION (HEAL 32-BIT TRUNCATION)
+    if (inbuf != NULL && D_80007284 != NULL) {
+        uintptr_t check_out = (uintptr_t)D_80007284;
+        if ((check_out >> 32) == 0) {
+            uintptr_t base_prefix = ((uintptr_t)inbuf) & 0xFFFFFFFF00000000ULL;
+            D_80007284 = (u8*)(base_prefix | check_out);
+        }
     }
+
+    __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG", "INFLATE: in=%p, out=%p, arg2=%p", inbuf, D_80007284, D_80007290);
     
     if (gN64_RDRAM == NULL) { __android_log_print(ANDROID_LOG_FATAL, "BKA_DEBUG", "FATAL: gN64_RDRAM is NULL"); abort(); }
 
-    // Intercept with high-level compilation block layer bypass to ensure architecture safety
-    extern void decompress_rare_runtime_hle(const unsigned char* in, unsigned char* out_start, const unsigned char* arg2);
+    extern uint32_t decompress_rare_runtime_hle(const unsigned char* in, unsigned char* out_start, const unsigned char* arg2);
     
+    uint32_t decomp_bytes = 0;
     if (inbuf != NULL && D_80007284 != NULL) {
-        decompress_rare_runtime_hle(inbuf, D_80007284, (const unsigned char*)D_80007290);
+        decomp_bytes = decompress_rare_runtime_hle(inbuf, D_80007284, (const unsigned char*)D_80007290);
     }
     
-    wp = 0; // Set tracking pointer context state cleanly before running the return frame macro sequence
+    wp = decomp_bytes; // Align tracking window allocation limits with actual uncompressed length output
     inptr = 0; 
     \3"""
 
