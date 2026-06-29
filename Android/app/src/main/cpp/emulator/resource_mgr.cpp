@@ -28,44 +28,57 @@ uint8_t* gN64_ROM_Base = nullptr;
  * Initializes the Resource Manager in Absolute Self-Building Mode.
  */
 void ResourceMgr_Init(const char* assetDir) {
-    if (!assetDir) return;
+    if (!assetDir) {
+        LOGE("ResourceMgr: assetDir is null!");
+        return;
+    }
 
     g_assetDir = assetDir;
+    LOGI("ResourceMgr: Setting assetDir to %s", g_assetDir.c_str());
+
+    // Ensure directory ends with a slash
     if (!g_assetDir.empty() && g_assetDir.back() != '/') {
         g_assetDir += "/";
     }
 
-    LOGI("ResourceMgr: Activated in Absolute Self-Building Mode at %s", g_assetDir.c_str());
-
-    // Dynamically allocate and load the raw ROM so fallback DMA has real data to read
     char romPath[512];
     snprintf(romPath, sizeof(romPath), "%srom_base.bin", g_assetDir.c_str());
+    
+    LOGI("ResourceMgr: Attempting to open %s", romPath);
     FILE* f = fopen(romPath, "rb");
 
-    if (f) {
-        fseek(f, 0, SEEK_END);
-        size_t romSize = ftell(f);
-        fseek(f, 0, SEEK_SET);
-
-        // Prevent memory leaks if the Activity restarts and re-initializes the bridge
-        if (gN64_ROM_Base) {
-            free(gN64_ROM_Base);
-        }
-
-        gN64_ROM_Base = static_cast<uint8_t*>(malloc(romSize));
-        if (gN64_ROM_Base) {
-            fread(gN64_ROM_Base, 1, romSize, f);
-            LOGI("ResourceMgr: Successfully loaded rom_base.bin (%zu bytes) into contiguous memory.", romSize);
-            
-            // SIGNAL SUCCESS: This releases the block in BKA_StartEngine
-            BKA_SignalResourcesReady();
-        } else {
-            LOGE("ResourceMgr: FATAL - Memory allocation failed for ROM buffer.");
-        }
-        fclose(f);
-    } else {
-        LOGE("ResourceMgr: FATAL - Could not find rom_base.bin at %s", romPath);
+    if (!f) {
+        LOGE("ResourceMgr: FATAL - Could not open rom_base.bin. Path: %s", romPath);
+        return;
     }
+
+    LOGI("ResourceMgr: File opened, getting size...");
+    fseek(f, 0, SEEK_END);
+    size_t romSize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    LOGI("ResourceMgr: Allocating %zu bytes...", romSize);
+    // Prevent memory leaks if the Activity restarts and re-initializes the bridge
+    if (gN64_ROM_Base) {
+        free(gN64_ROM_Base);
+    }
+
+    gN64_ROM_Base = static_cast<uint8_t*>(malloc(romSize));
+    
+    if (!gN64_ROM_Base) {
+        LOGE("ResourceMgr: FATAL - malloc failed!");
+        fclose(f);
+        return;
+    }
+
+    LOGI("ResourceMgr: Reading ROM into memory...");
+    size_t read = fread(gN64_ROM_Base, 1, romSize, f);
+    fclose(f);
+
+    LOGI("ResourceMgr: Read %zu bytes. Signaling readiness.", read);
+    
+    // SIGNAL SUCCESS: This releases the block in BKA_StartEngine
+    BKA_SignalResourcesReady();
 }
 
 /**
