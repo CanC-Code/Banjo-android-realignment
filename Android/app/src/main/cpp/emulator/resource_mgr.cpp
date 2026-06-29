@@ -21,6 +21,7 @@ extern "C" void BKA_SignalResourcesReady(void);
 extern "C" {
 
 uint8_t* gN64_ROM_Base = nullptr;
+static size_t g_romSize = 0; // Tracks precise file boundaries to prevent masking illusions
 
 /**
  * Initializes the Resource Manager in Absolute Self-Building Mode.
@@ -50,18 +51,19 @@ void ResourceMgr_Init(const char* assetDir) {
     }
 
     fseek(f, 0, SEEK_END);
-    size_t romSize = ftell(f);
+    g_romSize = ftell(f);
     fseek(f, 0, SEEK_SET);
 
-    if (romSize == 0 || romSize > 128 * 1024 * 1024) {
-        LOGE("ResourceMgr: FATAL ERROR - Invalid rom_base.bin size detected: %zu bytes", romSize);
+    if (g_romSize == 0 || g_romSize > 128 * 1024 * 1024) {
+        LOGE("ResourceMgr: FATAL ERROR - Invalid rom_base.bin size detected: %zu bytes", g_romSize);
         fclose(f);
+        g_romSize = 0;
         return;
     }
 
     if (gN64_ROM_Base == nullptr) {
-        LOGI("ResourceMgr: Pointer is null. Allocating independent buffer block of %zu bytes.", romSize);
-        gN64_ROM_Base = static_cast<uint8_t*>(malloc(romSize));
+        LOGI("ResourceMgr: Pointer is null. Allocating independent buffer block of %zu bytes.", g_romSize);
+        gN64_ROM_Base = static_cast<uint8_t*>(malloc(g_romSize));
     } else {
         LOGI("ResourceMgr: Pointer pre-allocated by engine core at %p. Safely retaining structure layout.", gN64_ROM_Base);
     }
@@ -73,7 +75,7 @@ void ResourceMgr_Init(const char* assetDir) {
     }
 
     LOGI("ResourceMgr: Streaming binary database targets into virtual memory locations...");
-    size_t bytesRead = fread(gN64_ROM_Base, 1, romSize, f);
+    size_t bytesRead = fread(gN64_ROM_Base, 1, g_romSize, f);
     LOGI("ResourceMgr: Verification validation sequence populated %zu bytes into ROM base block.", bytesRead);
     
     fclose(f);
@@ -108,24 +110,25 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     }
 
     if (!fileFound) {
-        if (gN64_ROM_Base != nullptr && relativeRomOffset + size <= 0x04000000) {
+        // STRICT BOUNDS CHECK: Verify against raw unmasked address spaces and actual storage sizes
+        if (gN64_ROM_Base != nullptr && devAddr < g_romSize && relativeRomOffset + size <= g_romSize) {
             memcpy(dramAddr, gN64_ROM_Base + relativeRomOffset, size);
         } else {
-            // Reconstruct the truncated upper bits using the stack pointer space tracking context
+            // Reconstruct the truncated upper bits using the stack context layer
             uintptr_t stackContextMarker = reinterpret_cast<uintptr_t>(&path);
             uint32_t upper32Bits = static_cast<uint32_t>(stackContextMarker >> 32);
             uintptr_t reconstructedHostPointer = (static_cast<uintptr_t>(upper32Bits) << 32) | devAddr;
 
-            if (upper32Bits > 0 && devAddr > 0x04000000) {
-                // NESTED POINTER PROBE: Check if the memory target contains a nested 64-bit pointer reference
+            if (upper32Bits > 0 && devAddr > 0x01000000) {
                 uintptr_t* potentialNestedPtr = reinterpret_cast<uintptr_t*>(reconstructedHostPointer);
                 
-                if (potentialNestedPtr && (*potentialNestedPtr >> 40) == (reconstructedHostPointer >> 40)) {
-                    LOGW("ResourceMgr: Nested pointer wrapper detected. Dereferencing descriptor layout %p -> %p", 
+                // Safe probe check to make sure we don't dereference random low values
+                if (devAddr > 0x10000000 && potentialNestedPtr && (*potentialNestedPtr >> 40) == (reconstructedHostPointer >> 40)) {
+                    LOGW("ResourceMgr: Caught nested wrapper layout reference. Intercepting %p -> %p", 
                          (void*)reconstructedHostPointer, (void*)*potentialNestedPtr);
                     reconstructedHostPointer = *potentialNestedPtr;
                 } else {
-                    LOGW("ResourceMgr: Resolved direct 64-bit source pointer targeting address: %p", (void*)reconstructedHostPointer);
+                    LOGW("ResourceMgr: Healed masked pointer collision exception. Resolved address: %p", (void*)reconstructedHostPointer);
                 }
 
                 memcpy(dramAddr, reinterpret_cast<void*>(reconstructedHostPointer), size);
