@@ -6,9 +6,7 @@ import re
 BUILD_OBJ_DIR = "Android/app/.cxx"
 SAFE_BASE_FILE = "Android/app/src/main/cpp/bka_safe_base.h"
 CMAKE_FILE = "Android/app/src/main/cpp/CMakeLists.txt"
-# Corrected: BKA_StartEngine lives in stubs.cpp
 ENGINE_SRC_FILE = "Android/app/src/main/cpp/emulator/stubs.cpp"
-# Corrected: Must be relative to CMakeLists.txt
 NEW_SOURCE = "ultra/HardwareRegs.cpp" 
 
 # Symbols to rename in the object files to force external linking (HLE Stubs)
@@ -79,11 +77,9 @@ def add_to_cmakelists():
             print(f"{NEW_SOURCE} already in CMakeLists.txt.")
             return
 
-        # Pattern matches the add_library source list
-        # Using a flexible regex that looks for the closing parenthesis of add_library
         pattern = r"(add_library\(bkawrapper SHARED\s+[\s\S]*?)(\s*\))"
         replacement = rf"\1\n    {NEW_SOURCE}\2"
-        
+
         new_content = re.sub(pattern, replacement, content)
         if new_content != content:
             f.seek(0)
@@ -108,21 +104,19 @@ def inject_init_call():
         print(f"Warning: {ENGINE_SRC_FILE} not found. Skipping init injection.")
         return
 
-    # Ensure header is included so InitHardwareRegs() is declared in scope
     inject_include(ENGINE_SRC_FILE, '#include "HardwareRegs.h"')
 
     with open(ENGINE_SRC_FILE, 'r+') as f:
         content = f.read()
         hook = "InitHardwareRegs();"
-        
+
         if hook in content:
             print("InitHardwareRegs() already injected in Engine entry.")
             return
 
-        # Locate BKA_StartEngine function body
         pattern = r"(void\s+BKA_StartEngine[^{]*?\{)"
         replacement = rf"\1\n    {hook}"
-        
+
         new_content = re.sub(pattern, replacement, content)
         if new_content != content:
             f.seek(0)
@@ -141,12 +135,11 @@ def patch_rarezip():
     with open(rarezip_path, 'r') as f:
         content = f.read()
 
-    # Idempotency check: don't patch multiple times
-    if "BKA_DEBUG_DATA" in content:
+    # Idempotency check modified to trace our explicit function override injection point
+    if "decompress_rare_runtime_hle" in content:
         print(f"{rarezip_path} already fully patched.")
         return
 
-    # 1. Inject the macro and the gN64_RDRAM extern
     macro_injection = """#include "rarezip.h"
 #include <android/log.h>
 
@@ -159,8 +152,7 @@ extern u8* gN64_RDRAM;
 """
     content = content.replace('#include "rarezip.h"', macro_injection)
 
-    # 2. Replace the unsafe func_800005C0 implementation with logging + translation
-    # Regex logic updated to be safe against trailing comments and whitespace
+    # Completely isolate and override the recompiled block inflation execution pathway
     unsafe_func = r"(u32\s+func_800005C0\s*\([^)]+\)\s*\{)(.*?)(return\s+wp;[^\}]*\})"
     safe_func = r"""\1
     inbuf = TO_NATIVE_PTR(in);
@@ -169,22 +161,25 @@ extern u8* gN64_RDRAM;
     
     __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG", "INFLATE: in=%p, out=%p, arg2=%p", inbuf, D_80007284, D_80007290);
     
-    // Check if the input buffer has data
     if (inbuf != NULL) { 
         __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG_DATA", "HEADER: %02x %02x %02x %02x", inbuf[0], inbuf[1], inbuf[2], inbuf[3]); 
     }
     
     if (gN64_RDRAM == NULL) { __android_log_print(ANDROID_LOG_FATAL, "BKA_DEBUG", "FATAL: gN64_RDRAM is NULL"); abort(); }
 
-    inbuf += 6; // skip 6 byte bk header 
-    wp = 0; //wp
-    inptr = 0; //inptr
+    // Intercept with high-level compilation block layer bypass to ensure architecture safety
+    extern void decompress_rare_runtime_hle(const unsigned char* in, unsigned char* out_start, const unsigned char* arg2);
     
-    bkboot_inflate(); //inflate
+    if (inbuf != NULL && D_80007284 != NULL) {
+        decompress_rare_runtime_hle(inbuf, D_80007284, (const unsigned char*)D_80007290);
+    }
+    
+    wp = 0; // Set tracking pointer context state cleanly before running the return frame macro sequence
+    inptr = 0; 
     \3"""
 
     new_content = re.sub(unsafe_func, safe_func, content, flags=re.DOTALL)
-    
+
     if new_content != content:
         with open(rarezip_path, 'w') as f:
             f.write(new_content)
