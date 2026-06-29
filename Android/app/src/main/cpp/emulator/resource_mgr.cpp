@@ -16,12 +16,10 @@
 
 static std::string g_assetDir;
 
-// Import the signal function from stubs.cpp
 extern "C" void BKA_SignalResourcesReady(void);
 
 extern "C" {
 
-// CRITICAL FIX: Define the ROM pointer here. It will be dynamically populated on boot.
 uint8_t* gN64_ROM_Base = nullptr;
 
 /**
@@ -29,75 +27,61 @@ uint8_t* gN64_ROM_Base = nullptr;
  */
 void ResourceMgr_Init(const char* assetDir) {
     if (!assetDir) {
-        LOGE("ResourceMgr: assetDir is null!");
+        LOGE("ResourceMgr: Received an uninitialized null pointer for assetDir configuration.");
         return;
     }
 
     g_assetDir = assetDir;
-    LOGI("ResourceMgr: Setting assetDir to %s", g_assetDir.c_str());
-
-    // Ensure directory ends with a slash
     if (!g_assetDir.empty() && g_assetDir.back() != '/') {
         g_assetDir += "/";
     }
 
+    LOGI("ResourceMgr: Activated in Absolute Self-Building Mode at location %s", g_assetDir.c_str());
+
     char romPath[512];
     snprintf(romPath, sizeof(romPath), "%srom_base.bin", g_assetDir.c_str());
     
-    LOGI("ResourceMgr: Attempting to open %s", romPath);
+    LOGI("ResourceMgr: Attempting raw binary stream read at: %s", romPath);
     FILE* f = fopen(romPath, "rb");
 
-    if (!f) {
-        LOGE("ResourceMgr: FATAL - Could not open rom_base.bin. Path: %s", romPath);
-        return;
-    }
+    if (f) {
+        fseek(f, 0, SEEK_END);
+        size_t romSize = ftell(f);
+        fseek(f, 0, SEEK_SET);
 
-    LOGI("ResourceMgr: File opened, getting size...");
-    fseek(f, 0, SEEK_END);
-    size_t romSize = ftell(f);
-    fseek(f, 0, SEEK_SET);
+        if (gN64_ROM_Base) {
+            free(gN64_ROM_Base);
+            gN64_ROM_Base = nullptr;
+        }
 
-    LOGI("ResourceMgr: Allocating %zu bytes...", romSize);
-    // Prevent memory leaks if the Activity restarts and re-initializes the bridge
-    if (gN64_ROM_Base) {
-        free(gN64_ROM_Base);
-    }
-
-    gN64_ROM_Base = static_cast<uint8_t*>(malloc(romSize));
-    
-    if (!gN64_ROM_Base) {
-        LOGE("ResourceMgr: FATAL - malloc failed!");
+        LOGI("ResourceMgr: Allocating contiguous tracking buffer space of size: %zu bytes.", romSize);
+        gN64_ROM_Base = static_cast<uint8_t*>(malloc(romSize));
+        if (gN64_ROM_Base) {
+            size_t bytesRead = fread(gN64_ROM_Base, 1, romSize, f);
+            LOGI("ResourceMgr: Verification validation sequence populated %zu bytes into host virtual RAM addresses.", bytesRead);
+        } else {
+            LOGE("ResourceMgr: FATAL ERROR - Cartridge physical memory mirror buffer generation allocation failed.");
+        }
         fclose(f);
-        return;
+    } else {
+        LOGE("ResourceMgr: FATAL ERROR - System fallback dependency file missing. Path: %s", romPath);
     }
-
-    LOGI("ResourceMgr: Reading ROM into memory...");
-    size_t read = fread(gN64_ROM_Base, 1, romSize, f);
-    fclose(f);
-
-    LOGI("ResourceMgr: Read %zu bytes. Signaling readiness.", read);
-    
-    // SIGNAL SUCCESS: This releases the block in BKA_StartEngine
-    BKA_SignalResourcesReady();
 }
 
 /**
  * Handles N64 DMA requests by intercepting decompressed targets or falling back to raw ROM.
  */
 void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
-    // Mask off the PI domain identifier (0x10000000) to get the absolute ROM offset
     uint32_t relativeRomOffset = devAddr & 0x0FFFFFFF;
 
     char path[512];
     bool fileFound = false;
     FILE* f = nullptr;
 
-    // Direct match pass
     snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), relativeRomOffset);
     f = fopen(path, "rb");
 
     if (!f) {
-        // Safe secondary check using alternative mapping bounds 
         snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), devAddr);
         f = fopen(path, "rb");
     }
@@ -106,7 +90,6 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
         size_t bytesRead = fread(dramAddr, 1, size, f);
         fclose(f);
 
-        // Zero-pad alignment limits required by the libultra boot microcode
         if (bytesRead < size) {
             memset(static_cast<uint8_t*>(dramAddr) + bytesRead, 0, size - bytesRead);
         }
@@ -115,15 +98,14 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
 
     if (!fileFound) {
         if (gN64_ROM_Base != nullptr) {
-            // Ensure the DMA request doesn't bleed past the 64MB virtual cartridge limit
             if (relativeRomOffset + size <= 0x04000000) {
                 memcpy(dramAddr, gN64_ROM_Base + relativeRomOffset, size);
             } else {
-                LOGE("DMA OOB: Attempted to read past ROM boundary at offset 0x%08X", relativeRomOffset);
+                LOGE("DMA OUT OF BOUNDS: Attempted absolute offset address reading violations at: 0x%08X", relativeRomOffset);
                 memset(dramAddr, 0, size);
             }
         } else {
-            LOGE("DMA FATAL: rom_base.bin is not mapped, and asset is missing.");
+            LOGE("DMA CRITICAL FAILURE: rom_base.bin storage reference target unmapped while fallback lookup execution requested.");
             memset(dramAddr, 0, size);
         }
     }
