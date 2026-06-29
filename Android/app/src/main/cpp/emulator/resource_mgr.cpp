@@ -3,7 +3,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <cstdint>
-#include <errno.h>
+#include <errno;
 #include <android/log.h>
 #include <string>
 
@@ -21,7 +21,7 @@ extern "C" void BKA_SignalResourcesReady(void);
 extern "C" {
 
 uint8_t* gN64_ROM_Base = nullptr;
-static size_t g_romSize = 0; // Tracks precise file boundaries to prevent masking illusions
+static size_t g_romSize = 0; 
 
 /**
  * Initializes the Resource Manager in Absolute Self-Building Mode.
@@ -82,22 +82,19 @@ void ResourceMgr_Init(const char* assetDir) {
 }
 
 /**
- * Handles N64 DMA requests by intercepting decompressed targets or falling back to raw ROM.
+ * Handles N64 DMA requests by decoding segmented pointer layouts into flat ROM offsets.
  */
 void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
-    uint32_t relativeRomOffset = devAddr & 0x0FFFFFFF;
+    // Isolate the true 24-bit ROM offset by stripping the upper N64 segment pool byte (e.g., 0x0F, 0x0E)
+    uint32_t romOffset = devAddr & 0x00FFFFFF;
 
     char path[512];
     bool fileFound = false;
     FILE* f = nullptr;
 
-    snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), relativeRomOffset);
+    // Check for loose high-resolution extracted target assets using the clean offset format
+    snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), romOffset);
     f = fopen(path, "rb");
-
-    if (!f) {
-        snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), devAddr);
-        f = fopen(path, "rb");
-    }
 
     if (f) {
         size_t bytesRead = fread(dramAddr, 1, size, f);
@@ -110,32 +107,12 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     }
 
     if (!fileFound) {
-        // STRICT BOUNDS CHECK: Verify against raw unmasked address spaces and actual storage sizes
-        if (gN64_ROM_Base != nullptr && devAddr < g_romSize && relativeRomOffset + size <= g_romSize) {
-            memcpy(dramAddr, gN64_ROM_Base + relativeRomOffset, size);
+        // Read directly from the raw pre-allocated ROM binary buffer base block
+        if (gN64_ROM_Base != nullptr && (romOffset + size) <= g_romSize) {
+            memcpy(dramAddr, gN64_ROM_Base + romOffset, size);
         } else {
-            // Reconstruct the truncated upper bits using the stack context layer
-            uintptr_t stackContextMarker = reinterpret_cast<uintptr_t>(&path);
-            uint32_t upper32Bits = static_cast<uint32_t>(stackContextMarker >> 32);
-            uintptr_t reconstructedHostPointer = (static_cast<uintptr_t>(upper32Bits) << 32) | devAddr;
-
-            if (upper32Bits > 0 && devAddr > 0x01000000) {
-                uintptr_t* potentialNestedPtr = reinterpret_cast<uintptr_t*>(reconstructedHostPointer);
-                
-                // Safe probe check to make sure we don't dereference random low values
-                if (devAddr > 0x10000000 && potentialNestedPtr && (*potentialNestedPtr >> 40) == (reconstructedHostPointer >> 40)) {
-                    LOGW("ResourceMgr: Caught nested wrapper layout reference. Intercepting %p -> %p", 
-                         (void*)reconstructedHostPointer, (void*)*potentialNestedPtr);
-                    reconstructedHostPointer = *potentialNestedPtr;
-                } else {
-                    LOGW("ResourceMgr: Healed masked pointer collision exception. Resolved address: %p", (void*)reconstructedHostPointer);
-                }
-
-                memcpy(dramAddr, reinterpret_cast<void*>(reconstructedHostPointer), size);
-            } else {
-                LOGE("DMA OUT OF BOUNDS: Absolute offset address violation at: 0x%08X", devAddr);
-                memset(dramAddr, 0, size);
-            }
+            LOGE("DMA OUT OF BOUNDS: Invalid layout bounds access pointer targeting: devAddr=0x%08X (Decoded Offset=0x%08X)", devAddr, romOffset);
+            memset(dramAddr, 0, size);
         }
     }
 
