@@ -9,7 +9,6 @@
 
 #include "bka_safe_base.h"
 
-// UNIFIED LOG TAG: Temporarily using NativeBridge to bypass logcat filtering limits
 #define LOG_TAG "NativeBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  LOG_TAG, __VA_ARGS__)
@@ -60,8 +59,6 @@ void ResourceMgr_Init(const char* assetDir) {
         return;
     }
 
-    // SAFE COMPONENT REUSE: If InitN64Registers initialized this global memory context pointer,
-    // do not call free() or overwrite its base tracking reference.
     if (gN64_ROM_Base == nullptr) {
         LOGI("ResourceMgr: Pointer is null. Allocating independent buffer block of %zu bytes.", romSize);
         gN64_ROM_Base = static_cast<uint8_t*>(malloc(romSize));
@@ -111,16 +108,22 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     }
 
     if (!fileFound) {
-        if (gN64_ROM_Base != nullptr) {
-            if (relativeRomOffset + size <= 0x04000000) {
-                memcpy(dramAddr, gN64_ROM_Base + relativeRomOffset, size);
+        if (gN64_ROM_Base != nullptr && relativeRomOffset + size <= 0x04000000) {
+            // Standard cartridge space path
+            memcpy(dramAddr, gN64_ROM_Base + relativeRomOffset, size);
+        } else {
+            // FIX: Recover truncated 64-bit memory addresses using the stack frame context
+            uintptr_t stackContextMarker = reinterpret_cast<uintptr_t>(&path);
+            uint32_t upper32Bits = static_cast<uint32_t>(stackContextMarker >> 32);
+            uintptr_t reconstructedHostPointer = (static_cast<uintptr_t>(upper32Bits) << 32) | devAddr;
+
+            if (upper32Bits > 0 && devAddr > 0x04000000) {
+                LOGW("ResourceMgr: Reconstructed truncated 64-bit address 0x%08X -> %p", devAddr, (void*)reconstructedHostPointer);
+                memcpy(dramAddr, reinterpret_cast<void*>(reconstructedHostPointer), size);
             } else {
-                LOGE("DMA OUT OF BOUNDS: Attempted absolute offset address reading violations at: 0x%08X", relativeRomOffset);
+                LOGE("DMA OUT OF BOUNDS: Absolute offset address violation at: 0x%08X", devAddr);
                 memset(dramAddr, 0, size);
             }
-        } else {
-            LOGE("DMA CRITICAL FAILURE: rom_base.bin storage reference target unmapped while fallback lookup execution requested.");
-            memset(dramAddr, 0, size);
         }
     }
 
