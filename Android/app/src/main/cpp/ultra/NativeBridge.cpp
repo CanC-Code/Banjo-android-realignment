@@ -34,7 +34,7 @@ static pthread_cond_t  g_vblankCond      = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t g_vblankMutex     = PTHREAD_MUTEX_INITIALIZER;
 
 extern "C" {
-    extern uint8_t*  gN64_RDRAM;
+    extern uint8_t* gN64_RDRAM;
     extern uint32_t* gN64_Reg_Base;
 
     void InitN64Registers(const char* assetDir);
@@ -75,22 +75,26 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
 }
 
 void* game_thread_fn(void* arg) {
+    LOGI("NativeBridge: Game thread execution starting...");
     JNIEnv* env    = nullptr;
     bool  attached = false;
 
     if (g_jvm != nullptr) {
         if (g_jvm->AttachCurrentThread(&env, nullptr) == JNI_OK) {
             attached = true;
+            LOGI("NativeBridge: Game thread securely attached to JVM.");
+        } else {
+            LOGE("NativeBridge: WARNING - Failed to attach game thread to JVM.");
         }
     }
 
     // BKA_StartEngine internally blocks on WaitForResourcesReady(),
     // so it is safe to call here immediately — it will not proceed
     // until nativeGameBoot signals the gate.
+    LOGI("NativeBridge: Invoking BKA_StartEngine...");
     BKA_StartEngine();
 
-    LOGI("NativeBridge: Bootloader finished. Engine is now alive. "
-         "Securing runtime environment...");
+    LOGI("NativeBridge: Bootloader finished. Engine is now alive. Securing runtime environment...");
 
     // Hold this thread alive so the stack frame and JNI attachment
     // remain valid for the lifetime of the process. Android reclaims
@@ -112,27 +116,48 @@ extern "C" {
 
 JNIEXPORT void JNICALL
 Java_com_bkawrapper_NativeBridge_nativeInit(JNIEnv* env, jclass clazz, jobject context) {
-    if (g_jvm == nullptr) env->GetJavaVM(&g_jvm);
+    if (g_jvm == nullptr) {
+        env->GetJavaVM(&g_jvm);
+        LOGI("NativeBridge: nativeInit updated JavaVM configuration context.");
+    }
 }
 
 JNIEXPORT void JNICALL
 Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
                                                  jstring otrPathStr,
                                                  jobject assetManagerObj) {
+    LOGI("NativeBridge: nativeGameBoot sequence triggered.");
+
+    if (!otrPathStr) {
+        LOGE("NativeBridge: FATAL ERROR - otrPathStr parameter received as NULL.");
+        return;
+    }
+
     const char* otrPath = env->GetStringUTFChars(otrPathStr, nullptr);
+    if (!otrPath) {
+        LOGE("NativeBridge: FATAL ERROR - Failed to convert JNI string to native UTF characters.");
+        return;
+    }
     g_otrPath = otrPath;
     env->ReleaseStringUTFChars(otrPathStr, otrPath);
 
+    LOGI("NativeBridge: Converted path configuration set to: %s", g_otrPath.c_str());
+    LOGI("NativeBridge: Attempting hardware register initialization via InitN64Registers...");
+    
+    // CRASH CHECKPOINT: If it drops here, the memory setup or mapping inside InitN64Registers is failing
     InitN64Registers(g_otrPath.c_str());
+    
+    LOGI("NativeBridge: InitN64Registers executed successfully without early fault.");
 
     // Launch the game thread first. It will block inside BKA_StartEngine
     // on the resource gate until we signal below.
     pthread_t gameThread;
+    LOGI("NativeBridge: Spawning background engine game thread...");
     if (pthread_create(&gameThread, nullptr, game_thread_fn, nullptr) == 0) {
         pthread_detach(gameThread);
-        LOGI("NativeBridge: Game thread created. Initialising resource manager...");
+        LOGI("NativeBridge: Game thread context completely detached and monitoring background initialization.");
     } else {
-        LOGE("NativeBridge: Failed to create game thread.");
+        LOGE("NativeBridge: FATAL ERROR - Engine thread allocation deployment failed.");
         HardwareRegs_Shutdown();
         return;
     }
@@ -140,10 +165,12 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
     // ResourceMgr_Init is synchronous — it fully maps all OTR assets before
     // returning. Only after it returns do we open the gate, guaranteeing
     // bkboot_inflate always receives valid mapped memory.
+    LOGI("NativeBridge: Commencing ResourceMgr_Init resource map structural sequence...");
     ResourceMgr_Init(g_otrPath.c_str());
-    LOGI("NativeBridge: Resource Manager ready at: %s", g_otrPath.c_str());
+    LOGI("NativeBridge: Resource Manager validation loop verified complete.");
 
     // Unblock BKA_StartEngine / the recompiled boot ROM.
+    LOGI("NativeBridge: Signaling native safe boot gateway unblock condition.");
     BKA_SignalResourcesReady();
 }
 
@@ -151,6 +178,7 @@ JNIEXPORT void JNICALL
 Java_com_bkawrapper_NativeBridge_surfaceReady(JNIEnv* env, jclass clazz, jint w, jint h) {
     g_surfaceWidth  = w;
     g_surfaceHeight = h;
+    LOGI("NativeBridge: Rendering target viewport surface size updated: %dx%d", w, h);
 }
 
 JNIEXPORT void JNICALL
