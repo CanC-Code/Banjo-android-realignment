@@ -9,7 +9,8 @@
 
 #include "bka_safe_base.h"
 
-#define LOG_TAG "ResourceMgr"
+// UNIFIED LOG TAG: Temporarily using NativeBridge to bypass logcat filtering limits
+#define LOG_TAG "NativeBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
@@ -41,31 +42,44 @@ void ResourceMgr_Init(const char* assetDir) {
     char romPath[512];
     snprintf(romPath, sizeof(romPath), "%srom_base.bin", g_assetDir.c_str());
     
-    LOGI("ResourceMgr: Attempting raw binary stream read at: %s", romPath);
+    LOGI("ResourceMgr: Open file pointer tracking target: %s", romPath);
     FILE* f = fopen(romPath, "rb");
 
-    if (f) {
-        fseek(f, 0, SEEK_END);
-        size_t romSize = ftell(f);
-        fseek(f, 0, SEEK_SET);
-
-        if (gN64_ROM_Base) {
-            free(gN64_ROM_Base);
-            gN64_ROM_Base = nullptr;
-        }
-
-        LOGI("ResourceMgr: Allocating contiguous tracking buffer space of size: %zu bytes.", romSize);
-        gN64_ROM_Base = static_cast<uint8_t*>(malloc(romSize));
-        if (gN64_ROM_Base) {
-            size_t bytesRead = fread(gN64_ROM_Base, 1, romSize, f);
-            LOGI("ResourceMgr: Verification validation sequence populated %zu bytes into host virtual RAM addresses.", bytesRead);
-        } else {
-            LOGE("ResourceMgr: FATAL ERROR - Cartridge physical memory mirror buffer generation allocation failed.");
-        }
-        fclose(f);
-    } else {
+    if (!f) {
         LOGE("ResourceMgr: FATAL ERROR - System fallback dependency file missing. Path: %s", romPath);
+        return;
     }
+
+    fseek(f, 0, SEEK_END);
+    size_t romSize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    if (romSize == 0 || romSize > 128 * 1024 * 1024) {
+        LOGE("ResourceMgr: FATAL ERROR - Invalid rom_base.bin size detected: %zu bytes", romSize);
+        fclose(f);
+        return;
+    }
+
+    // SAFE COMPONENT REUSE: If InitN64Registers initialized this global memory context pointer,
+    // do not call free() or overwrite its base tracking reference.
+    if (gN64_ROM_Base == nullptr) {
+        LOGI("ResourceMgr: Pointer is null. Allocating independent buffer block of %zu bytes.", romSize);
+        gN64_ROM_Base = static_cast<uint8_t*>(malloc(romSize));
+    } else {
+        LOGI("ResourceMgr: Pointer pre-allocated by engine core at %p. Safely retaining structure layout.", gN64_ROM_Base);
+    }
+
+    if (!gN64_ROM_Base) {
+        LOGE("ResourceMgr: FATAL ERROR - Memory pointer verification failed. Cannot parse ROM stream.");
+        fclose(f);
+        return;
+    }
+
+    LOGI("ResourceMgr: Streaming binary database targets into virtual memory locations...");
+    size_t bytesRead = fread(gN64_ROM_Base, 1, romSize, f);
+    LOGI("ResourceMgr: Verification validation sequence populated %zu bytes into ROM base block.", bytesRead);
+    
+    fclose(f);
 }
 
 /**
