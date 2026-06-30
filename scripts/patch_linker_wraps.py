@@ -173,7 +173,7 @@ extern u8* D_80007284;
 extern struct huft* D_80007290;
 extern u32 wp;
 extern u32 inptr;
-extern void bkboot_inflate(void);
+extern int bkboot_inflate(void);
 
 /* ── Pointer classification and translation ───────────────────────────── */
 static u8* bka_resolve_ptr(uintptr_t addr) {
