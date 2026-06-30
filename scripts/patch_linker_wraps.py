@@ -39,11 +39,9 @@ void __original___osViInit(void) {
 
 # --- Helper Functions ---
 def ensure_dir(filepath):
-    """Ensure the parent directory exists."""
     Path(filepath).parent.mkdir(parents=True, exist_ok=True)
 
 def atomic_write(filepath, content):
-    """Write content to a file atomically."""
     ensure_dir(filepath)
     temp_fd, temp_path = tempfile.mkstemp(dir=Path(filepath).parent)
     try:
@@ -56,35 +54,24 @@ def atomic_write(filepath, content):
         raise e
 
 def read_file(filepath):
-    """Read file content or return None if not found."""
     if not os.path.exists(filepath):
         return None
     with open(filepath, 'r') as f:
         return f.read()
-
-def write_file(filepath, content):
-    """Write content to a file, creating parent dirs if needed."""
-    ensure_dir(filepath)
-    with open(filepath, 'w') as f:
-        f.write(content)
 
 # --- Patching Functions ---
 def patch_objects():
     if not os.path.exists(BUILD_OBJ_DIR):
         print(f"Warning: {BUILD_OBJ_DIR} not found. Skipping objcopy.")
         return
-
-    # Check for llvm-objcopy
     try:
         subprocess.run(["llvm-objcopy", "--version"], check=True, capture_output=True)
     except (subprocess.CalledProcessError, FileNotFoundError):
         print("Error: 'llvm-objcopy' not found. Skipping object patching.")
         return
-
     args = []
     for old, new in RENAME_MAP.items():
         args.extend(["--redefine-sym", f"{old}={new}"])
-
     for root, _, files in os.walk(BUILD_OBJ_DIR):
         for file in files:
             if file.endswith(".o"):
@@ -101,12 +88,10 @@ def patch_header():
     if not os.path.exists(SAFE_BASE_FILE):
         print(f"Warning: {SAFE_BASE_FILE} not found. Skipping header patch.")
         return
-
     content = read_file(SAFE_BASE_FILE)
     if "__original___osInitialize_common" in content:
         print(f"Header already patched: {SAFE_BASE_FILE}")
         return
-
     new_content = content + "\n" + STUB_CODE
     atomic_write(SAFE_BASE_FILE, new_content)
     print(f"Header updated: {SAFE_BASE_FILE}")
@@ -115,17 +100,13 @@ def add_to_cmakelists():
     if not os.path.exists(CMAKE_FILE):
         print(f"Warning: {CMAKE_FILE} not found. Skipping CMakeLists update.")
         return
-
     content = read_file(CMAKE_FILE)
     if NEW_SOURCE in content:
         print(f"{NEW_SOURCE} already in CMakeLists.txt.")
         return
-
-    # Match add_library(bkawrapper SHARED ...) and insert NEW_SOURCE before the closing paren
     pattern = r'(add_library\(bkawrapper\s+SHARED\s+)([^)]*)(\s*\))'
     replacement = rf'\1\2\n    {NEW_SOURCE}\3'
     new_content = re.sub(pattern, replacement, content)
-
     if new_content != content:
         atomic_write(CMAKE_FILE, new_content)
         print(f"Updated {CMAKE_FILE}.")
@@ -136,12 +117,10 @@ def inject_include(file_path, include_line):
     if not os.path.exists(file_path):
         print(f"Warning: {file_path} not found. Skipping include injection.")
         return
-
     content = read_file(file_path)
     if include_line in content:
         print(f"Include already present in {file_path}.")
         return
-
     new_content = include_line + "\n" + content
     atomic_write(file_path, new_content)
     print(f"Injected {include_line} into {file_path}.")
@@ -150,20 +129,15 @@ def inject_init_call():
     if not os.path.exists(ENGINE_SRC_FILE):
         print(f"Warning: {ENGINE_SRC_FILE} not found. Skipping init injection.")
         return
-
     inject_include(ENGINE_SRC_FILE, '#include "HardwareRegs.h"')
-
     content = read_file(ENGINE_SRC_FILE)
     hook = "InitHardwareRegs();"
     if hook in content:
         print("InitHardwareRegs() already injected in Engine entry.")
         return
-
-    # Match BKA_StartEngine definition (multi-line safe)
     pattern = r'(void\s+BKA_StartEngine\s*\([^)]*\)\s*\{)'
     replacement = rf'\1\n    {hook}'
     new_content = re.sub(pattern, replacement, content)
-
     if new_content != content:
         atomic_write(ENGINE_SRC_FILE, new_content)
         print(f"Injected InitHardwareRegs() into {ENGINE_SRC_FILE}.")
@@ -176,7 +150,7 @@ def patch_rarezip():
         return
 
     content = read_file(RAREZIP_PATH)
-    IDEMPOTENCY_TAG = "DYNAMIC FORMAT MULTIPLEXER (GZIP/1172/RARE-LZSS-v6)"
+    IDEMPOTENCY_TAG = "DYNAMIC FORMAT MULTIPLEXER (GZIP/1172/RARE-LZSS-v7)"
     if IDEMPOTENCY_TAG in content:
         print(f"{RAREZIP_PATH} already fully patched.")
         return
@@ -196,15 +170,19 @@ static u8* bka_resolve_ptr(uintptr_t addr) {
     u8* rdram = gN64_RDRAM;
     u8* rdram_end = rdram + (8u * 1024u * 1024u);
 
-    /* Case A: N64 KSEG0 virtual address */
+    /* Case A: N64 KSEG0 virtual address (0x80000000-0x807FFFFF) */
     if (addr >= 0x80000000u && addr < 0x80800000u) {
         return rdram + (addr & 0x00FFFFFFu);
     }
-    /* Case B: already inside the current RDRAM window */
+    /* Case B: Already inside the current RDRAM window */
     if ((u8*)addr >= rdram && (u8*)addr < rdram_end) {
         return (u8*)addr;
     }
-    /* Case C: stale host pointer — recover N64 offset from low 24 bits */
+    /* Case C: ROM base block (0x7100000000-0x7200000000) */
+    if (addr >= 0x7100000000u && addr < 0x7200000000u) {
+        return (u8*)addr;  // Treat as valid host pointer
+    }
+    /* Case D: Stale host pointer — recover N64 offset from low 24 bits */
     u8* recovered = rdram + (addr & 0x00FFFFFFu);
     __android_log_print(ANDROID_LOG_WARN, "BKA_DEBUG",
         "PTR_RECOVER: stale=0x%014llX rdram_base=0x%014llX recovered=%p (offset=0x%06X)",
@@ -223,8 +201,7 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
 
     while (src < src_end && dst_ptr < dst_end) {
         uint8_t flags = *src++;
-        int bit;
-        for (bit = 0; bit < 8 && src < src_end && dst_ptr < dst_end; bit++) {
+        for (int bit = 0; bit < 8 && src < src_end && dst_ptr < dst_end; bit++) {
             if (flags & (1u << bit)) {
                 uint8_t lit = *src++;
                 *dst_ptr++ = lit;
@@ -250,7 +227,6 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
 '''
 
     # --- Main Patch for func_800005C0 ---
-    # Match the entire function body (non-greedy)
     unsafe_func_pattern = r'(u32\s+func_800005C0\s*\([^)]*\)\s*\{)(.*?)(\})'
     injected_code = f'''\
 \\1
@@ -261,7 +237,7 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
     D_80007290 = (struct huft*)bka_resolve_ptr((uintptr_t)arg2);
 
     __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
-        "INFLATE: in_raw=0x%llX out_raw=0x%llX arg2_raw=0x%llX",
+        "INFLATE: in_raw=0x%%llX out_raw=0x%%llX arg2_raw=0x%%llX",
         (unsigned long long)(uintptr_t)in,
         (unsigned long long)(uintptr_t)out,
         (unsigned long long)(uintptr_t)arg2);
@@ -286,12 +262,12 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
         u8* rdram_end = gN64_RDRAM + (8u * 1024u * 1024u);
         if (inbuf >= rdram_end || inbuf < gN64_RDRAM) {{
             __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG",
-                "ERROR: inbuf=%p still outside RDRAM [%p..%p] after resolve", inbuf, gN64_RDRAM, rdram_end);
+                "ERROR: inbuf=%p outside RDRAM [%%p..%%p]", inbuf, gN64_RDRAM, rdram_end);
             wp = 0; inptr = 0; break;
         }}
         if (D_80007284 >= rdram_end || D_80007284 < gN64_RDRAM) {{
             __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG",
-                "ERROR: out=%p still outside RDRAM after resolve", D_80007284);
+                "ERROR: out=%p outside RDRAM", D_80007284);
             wp = 0; inptr = 0; break;
         }}
 
@@ -306,17 +282,13 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
         uint8_t magic0 = inbuf[0];
         uint8_t magic1 = inbuf[1];
 
-        /* PATH A: Rare LZSS (0x50 0x10) */
+        /* PATH A: Rare LZSS (0x50 0x10) - Read size from header (bytes 2-5) */
         if (magic0 == 0x50 && magic1 == 0x10) {{
-            const uint8_t* a = (const uint8_t*)D_80007290;
-            uint32_t dec_size = 0;
-            if (a != NULL && a + 4 <= rdram_end && a >= gN64_RDRAM) {{
-                dec_size = ((uint32_t)a[0] << 24) | ((uint32_t)a[1] << 16)
-                         | ((uint32_t)a[2] <<  8) |  (uint32_t)a[3];
-            }}
-            const uint8_t* comp  = inbuf + 2;
-            size_t comp_avail    = (size_t)(rdram_end - comp);
-            size_t out_cap       = (size_t)(rdram_end - D_80007284);
+            uint32_t dec_size = ((uint32_t)inbuf[2] << 24) | ((uint32_t)inbuf[3] << 16)
+                             | ((uint32_t)inbuf[4] <<  8) |  (uint32_t)inbuf[5];
+            const uint8_t* comp = inbuf + 6;  // Skip magic + size
+            size_t comp_avail = (size_t)(rdram_end - comp);
+            size_t out_cap = (size_t)(rdram_end - D_80007284);
             if (dec_size > 0 && out_cap > dec_size) out_cap = dec_size;
 
             __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
@@ -379,7 +351,15 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
             wp = (u32)zs.total_out; inptr = 0; break;
         }}
 
-        /* PATH D: Unknown */
+        /* PATH D: Zeroed data (invalid) */
+        if (magic0 == 0x00 && magic1 == 0x00) {{
+            __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG",
+                "INFLATE: Zeroed data detected (in=%p). Skipping decompression.",
+                inbuf);
+            wp = 0; inptr = 0; break;
+        }}
+
+        /* PATH E: Unknown format */
         __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG",
             "INFLATE UNKNOWN: magic=%02X %02X — no handler, returning 0",
             (unsigned)magic0, (unsigned)magic1);
