@@ -155,7 +155,7 @@ def patch_rarezip():
         return
 
     content = read_file(RAREZIP_PATH)
-    IDEMPOTENCY_TAG = "DYNAMIC FORMAT MULTIPLEXER (GZIP/1172/RARE-LZSS-v7)"
+    IDEMPOTENCY_TAG = "DYNAMIC FORMAT MULTIPLEXER (GZIP/1172/RARE-LZSS-v8)"
     if IDEMPOTENCY_TAG in content:
         print(f"{RAREZIP_PATH} already fully patched.")
         return
@@ -179,26 +179,28 @@ extern int bkboot_inflate(void);
 static u8* bka_resolve_ptr(uintptr_t addr) {
     if (addr == 0) return NULL;
     u8* rdram = gN64_RDRAM;
-    u8* rdram_end = rdram + (8u * 1024u * 1024u);
 
-    /* Case A: N64 KSEG0 virtual address (0x80000000-0x807FFFFF) */
-    if (addr >= 0x80000000u && addr < 0x80800000u) {
+    /* Case A: N64 KSEG0 or KSEG1 virtual address */
+    if ((addr >= 0x80000000u && addr < 0x80800000u) || 
+        (addr >= 0xA0000000u && addr < 0xA0800000u)) {
         return rdram + (addr & 0x00FFFFFFu);
     }
-    /* Case B: Already inside the current RDRAM window */
-    if ((u8*)addr >= rdram && (u8*)addr < rdram_end) {
-        return (u8*)addr;
+    
+    /* Case B: Valid 64-bit Host Pointer (Untruncated AArch64 alloc) */
+    if (addr > 0xFFFFFFFFull) {
+        return (u8*)addr; 
     }
-    /* Case C: ROM base block (0x7100000000-0x7200000000) */
-    if (addr >= 0x7100000000u && addr < 0x7200000000u) {
-        return (u8*)addr;  // Treat as valid host pointer
-    }
-    /* Case D: Stale host pointer — recover N64 offset from low 24 bits */
-    u8* recovered = rdram + (addr & 0x00FFFFFFu);
+    
+    /* Case C: Truncated 64-bit Host Pointer */
+    /* Reconstruct missing top 32-bits using the host memory space baseline from RDRAM */
+    uintptr_t host_upper = ((uintptr_t)rdram) & 0xFFFFFFFF00000000ull;
+    u8* reconstructed = (u8*)(host_upper | addr);
+    
     __android_log_print(ANDROID_LOG_WARN, "BKA_DEBUG",
-        "PTR_RECOVER: stale=0x%014llX rdram_base=0x%014llX recovered=%p (offset=0x%06X)",
-        (unsigned long long)addr, (unsigned long long)(uintptr_t)rdram, recovered, (unsigned)(addr & 0x00FFFFFFu));
-    return recovered;
+        "PTR_RECOVER: Truncated host ptr=0x%014llX recovered=%p",
+        (unsigned long long)addr, reconstructed);
+        
+    return reconstructed;
 }
 
 /* ── Rare LZSS decompressor ───────────────────────────────────────────── */
@@ -242,7 +244,6 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
     injected_code = f'''\
 \\1
     /* ═══ BKA HLE: rarezip inflate hook ══ {IDEMPOTENCY_TAG} ═══ */
-    /* Resolve all three pointers */
     inbuf = bka_resolve_ptr((uintptr_t)in);
     D_80007284 = bka_resolve_ptr((uintptr_t)out);
     D_80007290 = (struct huft*)bka_resolve_ptr((uintptr_t)arg2);
@@ -256,7 +257,6 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
         "INFLATE: in=%p out=%p arg2=%p rdram=%p",
         inbuf, D_80007284, D_80007290, gN64_RDRAM);
 
-    /* Check for zeroed input buffer */
     if (inbuf[0] == 0x00 && inbuf[1] == 0x00 && inbuf[2] == 0x00 && inbuf[3] == 0x00) {{
         __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG",
             "INFLATE: Zeroed input buffer detected (in=%p). Skipping decompression.", inbuf);
@@ -265,22 +265,19 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
         return wp;
     }}
 
-    /* Log first 8 bytes of resolved stream */
-    __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
-        "INFLATE HDR: [%02X %02X %02X %02X %02X %02X %02X %02X]",
-        inbuf[0], inbuf[1], inbuf[2], inbuf[3], inbuf[4], inbuf[5], inbuf[6], inbuf[7]);
-
     uint8_t magic0 = inbuf[0];
     uint8_t magic1 = inbuf[1];
+    u8* rdram_end = gN64_RDRAM + (8u * 1024u * 1024u);
 
-    /* PATH A: Rare LZSS (0x50 0x10) - Read size from header (bytes 2-5) */
+    /* PATH A: Rare LZSS (0x50 0x10) */
     if (magic0 == 0x50 && magic1 == 0x10) {{
         uint32_t dec_size = ((uint32_t)inbuf[2] << 24) | ((uint32_t)inbuf[3] << 16)
                          | ((uint32_t)inbuf[4] <<  8) |  (uint32_t)inbuf[5];
-        inbuf += 6;  // Skip 6-byte header (magic + size)
-        u8* rdram_end = gN64_RDRAM + (8u * 1024u * 1024u);
-        size_t comp_avail = (size_t)(rdram_end - inbuf);
-        size_t out_cap = (size_t)(rdram_end - D_80007284);
+        inbuf += 6;
+        
+        size_t comp_avail = (inbuf >= gN64_RDRAM && inbuf < rdram_end) ? (size_t)(rdram_end - inbuf) : 0x4000000;
+        size_t out_cap = (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) ? (size_t)(rdram_end - D_80007284) : 0x4000000;
+        
         if (dec_size > 0 && out_cap > dec_size) out_cap = dec_size;
 
         __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
@@ -291,8 +288,6 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
         if (out_cap > 0 && comp_avail > 0) {{
             written = bka_rare_lzss_decompress(inbuf, comp_avail, D_80007284, out_cap);
         }}
-        __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
-            "INFLATE RARE-LZSS RESULT: wrote=%u expected=%u", written, dec_size);
         wp = written;
         inptr = 0;
         return wp;
@@ -302,10 +297,11 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
     if (magic0 == 0x11 && (magic1 == 0x72 || magic1 == 0x73)) {{
         uint32_t dec_size = ((uint32_t)inbuf[2] << 24) | ((uint32_t)inbuf[3] << 16)
                           | ((uint32_t)inbuf[4] <<  8) |  (uint32_t)inbuf[5];
-        inbuf += 6;  // Skip 6-byte header
-        u8* rdram_end = gN64_RDRAM + (8u * 1024u * 1024u);
-        size_t comp_avail = (size_t)(rdram_end - inbuf);
-        size_t out_cap = (size_t)(rdram_end - D_80007284);
+        inbuf += 6;
+        
+        size_t comp_avail = (inbuf >= gN64_RDRAM && inbuf < rdram_end) ? (size_t)(rdram_end - inbuf) : 0x4000000;
+        size_t out_cap = (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) ? (size_t)(rdram_end - D_80007284) : 0x4000000;
+        
         if (out_cap > dec_size) out_cap = dec_size;
 
         z_stream zs;
@@ -319,9 +315,6 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
             zr = inflate(&zs, Z_FINISH);
             inflateEnd(&zs);
         }}
-        __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
-            "INFLATE 1172: decSize=%u in=%u out=%u status=%d",
-            dec_size, (uint32_t)zs.total_in, (uint32_t)zs.total_out, zr);
         wp = (u32)zs.total_out;
         inptr = 0;
         return wp;
@@ -329,15 +322,15 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
 
     /* PATH C: Standard GZIP (0x1F 0x8B) */
     if (magic0 == 0x1F && magic1 == 0x8B) {{
-        inbuf += 2;  // Skip GZIP header (10 bytes total, but we handle it in inflate)
-        u8* rdram_end = gN64_RDRAM + (8u * 1024u * 1024u);
-        size_t avail_in = (size_t)(rdram_end - inbuf);
-        size_t out_cap = (size_t)(rdram_end - D_80007284);
+        inbuf += 2;
+        
+        size_t comp_avail = (inbuf >= gN64_RDRAM && inbuf < rdram_end) ? (size_t)(rdram_end - inbuf) : 0x4000000;
+        size_t out_cap = (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) ? (size_t)(rdram_end - D_80007284) : 0x4000000;
 
         z_stream zs;
         memset(&zs, 0, sizeof(zs));
         zs.next_in = (Bytef*)inbuf;
-        zs.avail_in = (uInt)avail_in;
+        zs.avail_in = (uInt)comp_avail;
         zs.next_out = (Bytef*)D_80007284;
         zs.avail_out = (uInt)out_cap;
         int zr = Z_DATA_ERROR;
@@ -345,15 +338,12 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
             zr = inflate(&zs, Z_FINISH);
             inflateEnd(&zs);
         }}
-        __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
-            "INFLATE GZIP: in=%u out=%u status=%d",
-            (uint32_t)zs.total_in, (uint32_t)zs.total_out, zr);
         wp = (u32)zs.total_out;
         inptr = 0;
         return wp;
     }}
 
-    /* PATH D: Fallback to original behavior (skip 6 bytes + call bkboot_inflate) */
+    /* PATH D: Fallback */
     inbuf += 6;
     wp = 0;
     inptr = 0;
@@ -361,10 +351,10 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
 \\3
 '''
 
-    # Apply helper code (insert after #include <ultra64.h>)
+    # Apply helper code
     new_content = content.replace('#include <ultra64.h>', '#include <ultra64.h>\n' + helper_code, 1)
 
-    # Apply main patch
+    # Apply main patch (also note IDEMPOTENCY_TAG logic change to ensure clean patching in iterative builds)
     new_content = re.sub(unsafe_func_pattern, injected_code, new_content, flags=re.DOTALL)
 
     if new_content != content:
