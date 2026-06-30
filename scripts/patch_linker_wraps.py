@@ -155,7 +155,7 @@ def patch_rarezip():
         return
 
     content = read_file(RAREZIP_PATH)
-    IDEMPOTENCY_TAG = "DYNAMIC FORMAT MULTIPLEXER (GZIP/1172/RARE-LZSS-v8)"
+    IDEMPOTENCY_TAG = "DYNAMIC FORMAT MULTIPLEXER (GZIP/1172/RARE-LZSS-v9)"
     if IDEMPOTENCY_TAG in content:
         print(f"{RAREZIP_PATH} already fully patched.")
         return
@@ -273,51 +273,64 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
     if (magic0 == 0x50 && magic1 == 0x10) {{
         uint32_t dec_size = ((uint32_t)inbuf[2] << 24) | ((uint32_t)inbuf[3] << 16)
                          | ((uint32_t)inbuf[4] <<  8) |  (uint32_t)inbuf[5];
-        inbuf += 6;
         
-        size_t comp_avail = (inbuf >= gN64_RDRAM && inbuf < rdram_end) ? (size_t)(rdram_end - inbuf) : 0x4000000;
-        size_t out_cap = (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) ? (size_t)(rdram_end - D_80007284) : 0x4000000;
-        
-        if (dec_size > 0 && out_cap > dec_size) out_cap = dec_size;
+        /* Sanity check to avoid trapping MIPS executable padding (e.g., BEQL instructions) */
+        if (dec_size > 0 && dec_size < 0x04000000) {{
+            inbuf += 6;
+            
+            size_t comp_avail = (inbuf >= gN64_RDRAM && inbuf < rdram_end) ? (size_t)(rdram_end - inbuf) : 0x4000000;
+            size_t out_cap = (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) ? (size_t)(rdram_end - D_80007284) : 0x4000000;
+            
+            if (dec_size > 0 && out_cap > dec_size) out_cap = dec_size;
 
-        __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
-            "INFLATE RARE-LZSS: dec_size=%u comp_avail=%zu out_cap=%zu",
-            dec_size, comp_avail, out_cap);
+            __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
+                "INFLATE RARE-LZSS: dec_size=%u comp_avail=%zu out_cap=%zu",
+                dec_size, comp_avail, out_cap);
 
-        uint32_t written = 0;
-        if (out_cap > 0 && comp_avail > 0) {{
-            written = bka_rare_lzss_decompress(inbuf, comp_avail, D_80007284, out_cap);
+            uint32_t written = 0;
+            if (out_cap > 0 && comp_avail > 0) {{
+                written = bka_rare_lzss_decompress(inbuf, comp_avail, D_80007284, out_cap);
+            }}
+            wp = written;
+            inptr = 0;
+            return wp;
+        }} else {{
+            __android_log_print(ANDROID_LOG_WARN, "BKA_DEBUG",
+                "INFLATE: False positive Rare-LZSS magic (0x5010) detected with invalid size %u. Falling through.", dec_size);
         }}
-        wp = written;
-        inptr = 0;
-        return wp;
     }}
 
     /* PATH B: Rare deflate (0x11 0x72 / 0x11 0x73) */
     if (magic0 == 0x11 && (magic1 == 0x72 || magic1 == 0x73)) {{
         uint32_t dec_size = ((uint32_t)inbuf[2] << 24) | ((uint32_t)inbuf[3] << 16)
                           | ((uint32_t)inbuf[4] <<  8) |  (uint32_t)inbuf[5];
-        inbuf += 6;
         
-        size_t comp_avail = (inbuf >= gN64_RDRAM && inbuf < rdram_end) ? (size_t)(rdram_end - inbuf) : 0x4000000;
-        size_t out_cap = (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) ? (size_t)(rdram_end - D_80007284) : 0x4000000;
-        
-        if (out_cap > dec_size) out_cap = dec_size;
+        if (dec_size > 0 && dec_size < 0x04000000) {{
+            inbuf += 6;
+            
+            size_t comp_avail = (inbuf >= gN64_RDRAM && inbuf < rdram_end) ? (size_t)(rdram_end - inbuf) : 0x4000000;
+            size_t out_cap = (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) ? (size_t)(rdram_end - D_80007284) : 0x4000000;
+            
+            if (out_cap > dec_size) out_cap = dec_size;
 
-        z_stream zs;
-        memset(&zs, 0, sizeof(zs));
-        zs.next_in = (Bytef*)inbuf;
-        zs.avail_in = (uInt)comp_avail;
-        zs.next_out = (Bytef*)D_80007284;
-        zs.avail_out = (uInt)out_cap;
-        int zr = Z_DATA_ERROR;
-        if (inflateInit2(&zs, -15) == Z_OK) {{
-            zr = inflate(&zs, Z_FINISH);
-            inflateEnd(&zs);
+            z_stream zs;
+            memset(&zs, 0, sizeof(zs));
+            zs.next_in = (Bytef*)inbuf;
+            zs.avail_in = (uInt)comp_avail;
+            zs.next_out = (Bytef*)D_80007284;
+            zs.avail_out = (uInt)out_cap;
+            int zr = Z_DATA_ERROR;
+            if (inflateInit2(&zs, -15) == Z_OK) {{
+                zr = inflate(&zs, Z_FINISH);
+                inflateEnd(&zs);
+            }}
+            wp = (u32)zs.total_out;
+            inptr = 0;
+            return wp;
+        }} else {{
+            __android_log_print(ANDROID_LOG_WARN, "BKA_DEBUG",
+                "INFLATE: False positive 1172 magic detected with invalid size %u. Falling through.", dec_size);
         }}
-        wp = (u32)zs.total_out;
-        inptr = 0;
-        return wp;
     }}
 
     /* PATH C: Standard GZIP (0x1F 0x8B) */
@@ -354,7 +367,7 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
     # Apply helper code
     new_content = content.replace('#include <ultra64.h>', '#include <ultra64.h>\n' + helper_code, 1)
 
-    # Apply main patch (also note IDEMPOTENCY_TAG logic change to ensure clean patching in iterative builds)
+    # Apply main patch (Idempotency updated to v9)
     new_content = re.sub(unsafe_func_pattern, injected_code, new_content, flags=re.DOTALL)
 
     if new_content != content:
