@@ -155,7 +155,7 @@ def patch_rarezip():
         return
 
     content = read_file(RAREZIP_PATH)
-    IDEMPOTENCY_TAG = "DYNAMIC FORMAT MULTIPLEXER (GZIP/1172/RARE-LZSS-v10)"
+    IDEMPOTENCY_TAG = "DYNAMIC FORMAT MULTIPLEXER (GZIP/1172/RARE-LZSS-v11)"
     if IDEMPOTENCY_TAG in content:
         print(f"{RAREZIP_PATH} already fully patched.")
         return
@@ -195,10 +195,6 @@ static u8* bka_resolve_ptr(uintptr_t addr) {
     uintptr_t host_upper = ((uintptr_t)rdram) & 0xFFFFFFFF00000000ull;
     u8* reconstructed = (u8*)(host_upper | addr);
     
-    __android_log_print(ANDROID_LOG_WARN, "BKA_DEBUG",
-        "PTR_RECOVER: Truncated host ptr=0x%014llX recovered=%p",
-        (unsigned long long)addr, reconstructed);
-        
     return reconstructed;
 }
 
@@ -248,56 +244,48 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
     u8* p_out = bka_resolve_ptr((uintptr_t)out);
     u8* p_arg2 = bka_resolve_ptr((uintptr_t)arg2);
 
+    /* Safely catch NULL pointers or blank memory boundaries */
     if (!p_in || (p_in[0] == 0x00 && p_in[1] == 0x00 && p_in[2] == 0x00 && p_in[3] == 0x00)) {{
-        inbuf = p_in;
-        D_80007284 = p_out;
-        D_80007290 = (struct huft*)p_arg2;
-        return bkboot_inflate();
+        wp = 0;
+        inptr = 0;
+        return wp;
     }}
 
     uint8_t magic0 = p_in[0];
     uint8_t magic1 = p_in[1];
     u8* rdram_end = gN64_RDRAM + (8u * 1024u * 1024u);
 
+    /* Extract size from standard header */
+    uint32_t dec_size = ((uint32_t)p_in[2] << 24) | ((uint32_t)p_in[3] << 16)
+                      | ((uint32_t)p_in[4] <<  8) |  (uint32_t)p_in[5];
+
     /* PATH A: Rare LZSS (0x50 0x10) */
     if (magic0 == 0x50 && magic1 == 0x10) {{
-        uint32_t dec_size = ((uint32_t)p_in[2] << 24) | ((uint32_t)p_in[3] << 16)
-                         | ((uint32_t)p_in[4] <<  8) |  (uint32_t)p_in[5];
-        
-        if (dec_size > 0 && dec_size < 0x04000000) {{
-            inbuf = p_in + 6;
-            D_80007284 = p_out;
-            D_80007290 = (struct huft*)p_arg2;
-
-            size_t comp_avail = (inbuf >= gN64_RDRAM && inbuf < rdram_end) ? (size_t)(rdram_end - inbuf) : 0x4000000;
-            size_t out_cap = (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) ? (size_t)(rdram_end - D_80007284) : 0x4000000;
+        if (dec_size == 0) {{ wp = 0; inptr = 0; return wp; }}
+        if (dec_size < 0x04000000) {{
+            size_t comp_avail = (p_in + 6 >= gN64_RDRAM && p_in + 6 < rdram_end) ? (size_t)(rdram_end - (p_in + 6)) : 0x4000000;
+            size_t out_cap = (p_out >= gN64_RDRAM && p_out < rdram_end) ? (size_t)(rdram_end - p_out) : 0x4000000;
             if (out_cap > dec_size) out_cap = dec_size;
 
-            wp = bka_rare_lzss_decompress(inbuf, comp_avail, D_80007284, out_cap);
+            wp = bka_rare_lzss_decompress(p_in + 6, comp_avail, p_out, out_cap);
             inptr = 0;
             return wp;
         }}
     }}
 
     /* PATH B: Rare deflate (0x11 0x72 / 0x11 0x73) */
-    if (magic0 == 0x11 && (magic1 == 0x72 || magic1 == 0x73)) {{
-        uint32_t dec_size = ((uint32_t)p_in[2] << 24) | ((uint32_t)p_in[3] << 16)
-                          | ((uint32_t)p_in[4] <<  8) |  (uint32_t)p_in[5];
-        
-        if (dec_size > 0 && dec_size < 0x04000000) {{
-            inbuf = p_in + 6;
-            D_80007284 = p_out;
-            D_80007290 = (struct huft*)p_arg2;
-
-            size_t comp_avail = (inbuf >= gN64_RDRAM && inbuf < rdram_end) ? (size_t)(rdram_end - inbuf) : 0x4000000;
-            size_t out_cap = (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) ? (size_t)(rdram_end - D_80007284) : 0x4000000;
+    else if (magic0 == 0x11 && (magic1 == 0x72 || magic1 == 0x73)) {{
+        if (dec_size == 0) {{ wp = 0; inptr = 0; return wp; }}
+        if (dec_size < 0x04000000) {{
+            size_t comp_avail = (p_in + 6 >= gN64_RDRAM && p_in + 6 < rdram_end) ? (size_t)(rdram_end - (p_in + 6)) : 0x4000000;
+            size_t out_cap = (p_out >= gN64_RDRAM && p_out < rdram_end) ? (size_t)(rdram_end - p_out) : 0x4000000;
             if (out_cap > dec_size) out_cap = dec_size;
 
             z_stream zs;
             memset(&zs, 0, sizeof(zs));
-            zs.next_in = (Bytef*)inbuf;
+            zs.next_in = (Bytef*)(p_in + 6);
             zs.avail_in = (uInt)comp_avail;
-            zs.next_out = (Bytef*)D_80007284;
+            zs.next_out = (Bytef*)p_out;
             zs.avail_out = (uInt)out_cap;
             if (inflateInit2(&zs, -15) == Z_OK) {{
                 inflate(&zs, Z_FINISH);
@@ -310,19 +298,15 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
     }}
 
     /* PATH C: Standard GZIP (0x1F 0x8B) */
-    if (magic0 == 0x1F && magic1 == 0x8B) {{
-        inbuf = p_in + 2;
-        D_80007284 = p_out;
-        D_80007290 = (struct huft*)p_arg2;
-
-        size_t comp_avail = (inbuf >= gN64_RDRAM && inbuf < rdram_end) ? (size_t)(rdram_end - inbuf) : 0x4000000;
-        size_t out_cap = (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) ? (size_t)(rdram_end - D_80007284) : 0x4000000;
+    else if (magic0 == 0x1F && magic1 == 0x8B) {{
+        size_t comp_avail = (p_in + 2 >= gN64_RDRAM && p_in + 2 < rdram_end) ? (size_t)(rdram_end - (p_in + 2)) : 0x4000000;
+        size_t out_cap = (p_out >= gN64_RDRAM && p_out < rdram_end) ? (size_t)(rdram_end - p_out) : 0x4000000;
 
         z_stream zs;
         memset(&zs, 0, sizeof(zs));
-        zs.next_in = (Bytef*)inbuf;
+        zs.next_in = (Bytef*)(p_in + 2);
         zs.avail_in = (uInt)comp_avail;
-        zs.next_out = (Bytef*)D_80007284;
+        zs.next_out = (Bytef*)p_out;
         zs.avail_out = (uInt)out_cap;
         if (inflateInit2(&zs, 15 + 32) == Z_OK) {{
             inflate(&zs, Z_FINISH);
@@ -333,11 +317,14 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
         return wp;
     }}
 
-    /* PATH D: Fallback - sync expected state variables completely intact */
-    inbuf = p_in;
+    /* PATH D: Fallback - Rebuild expected state sequence EXACTLY for bkboot_inflate */
+    inbuf = p_in + 6;
     D_80007284 = p_out;
     D_80007290 = (struct huft*)p_arg2;
-    return bkboot_inflate();
+    wp = 0;
+    inptr = 0;
+    bkboot_inflate();
+    return wp;
 \\3
 '''
 
