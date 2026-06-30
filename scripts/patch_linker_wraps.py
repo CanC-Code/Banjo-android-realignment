@@ -135,8 +135,7 @@ def patch_rarezip():
     with open(rarezip_path, 'r') as f:
         content = f.read()
 
-    # Updated idempotency tag to match our adaptive footprint parsing system
-    if "ADAPTIVE ALLOCATION ENVELOPE STRAPS" in content:
+    if "EXPLICIT METADATA SIZING INTEGRATION" in content:
         print(f"{rarezip_path} already fully patched.")
         return
 
@@ -177,43 +176,59 @@ extern u8* gN64_RDRAM;
     
     if (gN64_RDRAM == NULL) { __android_log_print(ANDROID_LOG_FATAL, "BKA_DEBUG", "FATAL: gN64_RDRAM is NULL"); abort(); }
 
-    // ADAPTIVE ALLOCATION ENVELOPE STRAPS (SAFE FOR SYSTEM STACK AND MEMORY-MAPPED RDRAM)
-    size_t max_avail_in  = 16u * 1024u * 1024u; 
-    size_t max_avail_out = 16u * 1024u * 1024u;
-    uint8_t* compressed_stream = inbuf + 6; // Skip the standard 6-byte Rare boot segment layout block wrapper safely
+    // EXPLICIT METADATA SIZING INTEGRATION
+    uint32_t decSize = 0;
+    uint32_t compSize = 0;
+    if (D_80007290 != NULL) {
+        uint8_t* h = (uint8_t*)D_80007290;
+        decSize  = ((uint32_t)h[0] << 24) | ((uint32_t)h[1] << 16) | ((uint32_t)h[2] << 8) | h[3];
+        compSize = ((uint32_t)h[4] << 24) | ((uint32_t)h[5] << 16) | ((uint32_t)h[6] << 8) | h[7];
+    }
 
+    // Baseline fallbacks if headers contain corrupt or missing structures
+    if (decSize == 0 || decSize > 16u * 1024u * 1024u)   { decSize = 1024u * 1024u; }
+    if (compSize == 0 || compSize > 16u * 1024u * 1024u) { compSize = 1024u * 1024u; }
+
+    __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG", "INFLATE METADATA: Parsed decSize=%u, compSize=%u", decSize, compSize);
+
+    uint8_t* compressed_stream = inbuf + 6; // Skip 6-byte Rare wrapping header cleanly
+    size_t avail_in_bounded = (compSize > 6) ? (compSize - 6) : compSize;
+    size_t avail_out_bounded = decSize;
+
+    // Strict clamping limits if blocks map inside the virtual RDRAM pool
     if (gN64_RDRAM != NULL) {
         uint8_t* rdram_end = gN64_RDRAM + (8u * 1024u * 1024u);
-        
         if (compressed_stream >= gN64_RDRAM && compressed_stream < rdram_end) {
-            max_avail_in = (size_t)(rdram_end - compressed_stream);
+            size_t rdram_in_limit = (size_t)(rdram_end - compressed_stream);
+            if (avail_in_bounded > rdram_in_limit) avail_in_bounded = rdram_in_limit;
         }
         if (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) {
-            max_avail_out = (size_t)(rdram_end - D_80007284);
+            size_t rdram_out_limit = (size_t)(rdram_end - D_80007284);
+            if (avail_out_bounded > rdram_out_limit) avail_out_bounded = rdram_out_limit;
         }
     }
 
     z_stream stream;
     memset(&stream, 0, sizeof(stream));
     stream.next_in   = (Bytef*)compressed_stream;
-    stream.avail_in  = max_avail_in;
+    stream.avail_in  = avail_in_bounded;
     stream.next_out  = (Bytef*)D_80007284;
-    stream.avail_out = max_avail_out;
+    stream.avail_out = avail_out_bounded;
 
-    // Strategy Phase A: Raw Deflate Parsing Configuration (Used for early boot segment overlays)
+    // Strategy Phase A: Raw Deflate Configuration (Used for early boot segment overlays)
     int z_status = inflateInit2(&stream, -15);
     if (z_status == Z_OK) {
         z_status = inflate(&stream, Z_FINISH);
         inflateEnd(&stream);
     }
 
-    // Strategy Phase B: Standard Automated Zlib/Gzip Magic Verification Check Fallback Frame
+    // Strategy Phase B: Standard Automated Zlib/Gzip Magic Fallback
     if (z_status != Z_STREAM_END) {
         memset(&stream, 0, sizeof(stream));
         stream.next_in   = (Bytef*)compressed_stream;
-        stream.avail_in  = max_avail_in;
+        stream.avail_in  = avail_in_bounded;
         stream.next_out  = (Bytef*)D_80007284;
-        stream.avail_out = max_avail_out;
+        stream.avail_out = avail_out_bounded;
         if (inflateInit2(&stream, 15 + 32) == Z_OK) {
             z_status = inflate(&stream, Z_FINISH);
             inflateEnd(&stream);
