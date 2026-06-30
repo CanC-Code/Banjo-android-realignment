@@ -122,14 +122,14 @@ def patch_rarezip():
     with open(rarezip_path, 'r') as f:
         content = f.read()
 
-    # Idempotency tag — bump version string if you change the injected block
-    IDEMPOTENCY_TAG = "DYNAMIC FORMAT MULTIPLEXER (GZIP/1172/UNKNOWN-v3)"
+    # Bump this tag whenever the injected block changes
+    IDEMPOTENCY_TAG = "DYNAMIC FORMAT MULTIPLEXER (GZIP/1172/RARE-LZSS-v4)"
     if IDEMPOTENCY_TAG in content:
         print(f"{rarezip_path} already fully patched.")
         return
 
     # ── Step 1: replace the include block with our macro header ──────────
-    macro_injection = """#include "rarezip.h"
+    macro_injection = r"""#include "rarezip.h"
 #include <android/log.h>
 #include <stdint.h>
 #include <string.h>
@@ -137,41 +137,90 @@ def patch_rarezip():
 
 extern u8* gN64_RDRAM;
 
-#define TO_NATIVE_PTR(n64_addr) \\
-    (((u32)(n64_addr) >= 0x80000000u && (u32)(n64_addr) < 0x80800000u) \\
-        ? (gN64_RDRAM + ((u32)(n64_addr) & 0x00FFFFFFu)) \\
+#define TO_NATIVE_PTR(n64_addr) \
+    (((u32)(n64_addr) >= 0x80000000u && (u32)(n64_addr) < 0x80800000u) \
+        ? (gN64_RDRAM + ((u32)(n64_addr) & 0x00FFFFFFu)) \
         : ((u8*)(uintptr_t)(n64_addr)))
+
+/* ── Rare LZSS decompressor ─────────────────────────────────────────────
+ * Header layout (magic byte already consumed by caller):
+ *   byte 0    : 0x50  (magic, already matched)
+ *   byte 1    : 0x10  (sub-type, already matched)
+ *   bytes 2-4 : 24-bit big-endian decoded size
+ *   byte 5    : compression mode flags (unused here, skip)
+ *   byte 6+   : compressed bitstream
+ *
+ * Algorithm: standard Rare LZSS with 0x1000-byte ring buffer,
+ * initial fill value 0x00, lookahead up to 18 bytes.
+ * Flag byte: bit set = literal byte; bit clear = (offset, length) pair
+ * encoded as two bytes:  high nibble+1 = length (3..18),
+ *                        12-bit value  = ring offset.
+ * ──────────────────────────────────────────────────────────────────────*/
+static uint32_t bka_rare_lzss_decompress(
+        const uint8_t* src, size_t src_len,
+        uint8_t*       dst, size_t dst_cap)
+{
+    /* Ring buffer: 4096 bytes, pre-filled with 0x00, write head at 0 */
+    uint8_t ring[0x1000];
+    memset(ring, 0x00, sizeof(ring));
+    uint32_t ring_pos = 0;
+
+    const uint8_t* src_end = src + src_len;
+    uint8_t*       dst_ptr = dst;
+    const uint8_t* dst_end = dst + dst_cap;
+
+    while (src < src_end && dst_ptr < dst_end) {
+        uint8_t flags = *src++;
+        int bit;
+        for (bit = 0; bit < 8 && src < src_end && dst_ptr < dst_end; bit++) {
+            if (flags & (1u << bit)) {
+                /* Literal byte */
+                uint8_t lit = *src++;
+                *dst_ptr++        = lit;
+                ring[ring_pos]    = lit;
+                ring_pos          = (ring_pos + 1u) & 0xFFFu;
+            } else {
+                /* Back-reference: two bytes encode (ring_offset, length) */
+                if (src + 1 >= src_end) break;
+                uint8_t b0 = *src++;
+                uint8_t b1 = *src++;
+                uint32_t ring_off = ((uint32_t)(b1 & 0xF0u) << 4u) | b0;
+                uint32_t length   = (uint32_t)(b1 & 0x0Fu) + 3u;
+                uint32_t i;
+                for (i = 0; i < length && dst_ptr < dst_end; i++) {
+                    uint8_t byte = ring[(ring_off + i) & 0xFFFu];
+                    *dst_ptr++         = byte;
+                    ring[ring_pos]     = byte;
+                    ring_pos           = (ring_pos + 1u) & 0xFFFu;
+                }
+            }
+        }
+    }
+    return (uint32_t)(dst_ptr - dst);
+}
 """
     content = content.replace('#include "rarezip.h"', macro_injection)
 
-    # ── Step 2: locate and replace func_800005C0's body ──────────────────
+    # ── Step 2: replace func_800005C0's body ─────────────────────────────
     #
-    # The regex captures three groups:
-    #   \1  – function signature up to and including the opening brace
+    # Regex groups:
+    #   \1  – function signature + opening brace
     #   \2  – original body (discarded)
-    #   \3  – the closing "return wp;" line and closing brace
+    #   \3  – original "return wp; }" (preserved verbatim)
     #
-    # CRITICAL: all injected code must be valid C *inside* a function body.
-    # No file-scope variable initialisers, no bare if-statements at top level.
-    # Early-exit guards must NOT use the \3 back-reference inline; instead we
-    # use a single "do { ... } while(0)" block so all paths fall through to the
-    # single "return wp;" at the bottom supplied by \3.
-
+    # ALL injected code lives inside a do{...}while(0) so every statement is
+    # unambiguously inside the function body.  Early exits use break, not \3.
     unsafe_func = r"(u32\s+func_800005C0\s*\([^)]+\)\s*\{)(.*?)(return\s+wp;[^\}]*\})"
 
-    # We write the replacement as a plain string (no raw-string escaping tricks)
-    # so that Python's re.sub sees \1 and \3 as group back-references and
-    # everything else as literal C source.
     injected_body = (
-        # ── group 1: function signature ──────────────────────────────────
         r"\1"
-
-        # ── pointer translation ──────────────────────────────────────────
         """
-    /* ── BKA HLE: rarezip inflate hook ── """ + IDEMPOTENCY_TAG + """ ── */
-    inbuf       = TO_NATIVE_PTR(in);
-    D_80007284  = TO_NATIVE_PTR(out);
-    D_80007290  = (struct huft*)TO_NATIVE_PTR(arg2);
+    /* ═══ BKA HLE: rarezip inflate hook ══ """
+        + IDEMPOTENCY_TAG +
+        """ ═══ */
+    inbuf      = TO_NATIVE_PTR(in);
+    D_80007284 = TO_NATIVE_PTR(out);
+    D_80007290 = (struct huft*)TO_NATIVE_PTR(arg2);
 
     /* Heal 32-bit pointer truncation: sign-extend high bits from inbuf */
     if (inbuf != NULL && D_80007284 != NULL) {
@@ -184,8 +233,8 @@ extern u8* gN64_RDRAM;
     __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
         "INFLATE: in=%p, out=%p, arg2=%p", inbuf, D_80007284, D_80007290);
 
-    /* ── guard block: all early exits set wp=0 then fall through ─────── */
     do {
+        /* ── NULL guards ──────────────────────────────────────────────── */
         if (gN64_RDRAM == NULL) {
             __android_log_print(ANDROID_LOG_FATAL, "BKA_DEBUG",
                 "FATAL: gN64_RDRAM is NULL");
@@ -193,120 +242,155 @@ extern u8* gN64_RDRAM;
         }
         if (inbuf == NULL) {
             __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG",
-                "ERROR: inbuf is NULL, skipping inflate");
+                "ERROR: inbuf is NULL — skipping inflate");
             wp = 0; inptr = 0; break;
         }
         if (D_80007284 == NULL) {
             __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG",
-                "ERROR: out pointer is NULL, skipping inflate");
+                "ERROR: out pointer is NULL — skipping inflate");
             wp = 0; inptr = 0; break;
         }
 
         /* ── format detection ─────────────────────────────────────────── */
-        uint32_t decSize = 8u * 1024u * 1024u;
-        uint8_t* compressed_stream = inbuf;
-        int is_1172 = 0;
-        int is_gzip = 0;
+        uint8_t  magic0 = inbuf[0];
+        uint8_t  magic1 = inbuf[1];
+        int      is_1172      = (magic0 == 0x11 && (magic1 == 0x72 || magic1 == 0x73));
+        int      is_gzip      = (magic0 == 0x1F && magic1 == 0x8B);
+        int      is_rare_lzss = (magic0 == 0x50 && magic1 == 0x10);
 
-        if (inbuf[0] == 0x11 && (inbuf[1] == 0x72 || inbuf[1] == 0x73)) {
-            is_1172 = 1;
-            decSize = ((uint32_t)inbuf[2] << 24) | ((uint32_t)inbuf[3] << 16)
-                    | ((uint32_t)inbuf[4] <<  8) |  (uint32_t)inbuf[5];
-            compressed_stream = inbuf + 6;
+        /* ── RDRAM pool bounds for clamping ───────────────────────────── */
+        uint8_t* rdram_end        = gN64_RDRAM + (8u * 1024u * 1024u);
+        size_t   avail_in_bounded = (size_t)(rdram_end - inbuf);
+        if (avail_in_bounded > 8u * 1024u * 1024u)
+            avail_in_bounded = 8u * 1024u * 1024u;
+
+        /* ════════════════════════════════════════════════════════════════
+         * PATH A: Rare LZSS  (magic 0x50 0x10)
+         * Header:
+         *   [0]     = 0x50
+         *   [1]     = 0x10
+         *   [2..4]  = 24-bit big-endian decoded size
+         *   [5]     = flags (skip)
+         *   [6+]    = compressed bitstream
+         * ════════════════════════════════════════════════════════════════*/
+        if (is_rare_lzss) {
+            uint32_t dec_size = ((uint32_t)inbuf[2] << 16)
+                              | ((uint32_t)inbuf[3] <<  8)
+                              |  (uint32_t)inbuf[4];
+            const uint8_t* comp_start = inbuf + 6;
+            size_t         comp_avail = (size_t)(rdram_end - comp_start);
+            size_t         out_cap    = (size_t)(rdram_end - D_80007284);
+            if (out_cap > dec_size) out_cap = dec_size;
+
             __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
-                "INFLATE METADATA: 1172 Format. decSize=%u", decSize);
-        } else if (inbuf[0] == 0x1F && inbuf[1] == 0x8B) {
-            is_gzip = 1;
-            compressed_stream = inbuf;
+                "INFLATE RARE-LZSS: dec_size=%u comp_avail=%zu out_cap=%zu",
+                dec_size, comp_avail, out_cap);
+
+            uint32_t written = bka_rare_lzss_decompress(
+                comp_start, comp_avail, D_80007284, out_cap);
+
             __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
-                "INFLATE METADATA: GZIP Format.");
-        } else {
-            /* Unknown magic: log and attempt both deflate modes below.
-               DO NOT memcpy a fixed size — we don't know the block length. */
-            compressed_stream = inbuf;
-            __android_log_print(ANDROID_LOG_WARN, "BKA_DEBUG",
-                "INFLATE METADATA: Unknown Format (%02X %02X). "
-                "Attempting raw deflate fallback.",
-                (unsigned)inbuf[0], (unsigned)inbuf[1]);
+                "INFLATE RARE-LZSS RESULT: wrote=%u expected=%u",
+                written, dec_size);
+
+            wp    = written;
+            inptr = 0;
+            break;
         }
 
-        /* ── clamp I/O to RDRAM pool ──────────────────────────────────── */
-        size_t avail_in_bounded  = 8u * 1024u * 1024u;
-        size_t avail_out_bounded = decSize;
-        {
-            uint8_t* rdram_end = gN64_RDRAM + (8u * 1024u * 1024u);
-            if (compressed_stream >= gN64_RDRAM && compressed_stream < rdram_end) {
-                size_t in_limit = (size_t)(rdram_end - compressed_stream);
-                if (avail_in_bounded > in_limit) avail_in_bounded = in_limit;
-            }
-            if (D_80007284 >= gN64_RDRAM && D_80007284 < rdram_end) {
-                size_t out_limit = (size_t)(rdram_end - D_80007284);
-                if (avail_out_bounded > out_limit) avail_out_bounded = out_limit;
-            }
-        }
+        /* ════════════════════════════════════════════════════════════════
+         * PATH B: Rare 11 72 / 11 73  (raw deflate, length-prefixed)
+         * Header:
+         *   [0]     = 0x11
+         *   [1]     = 0x72 or 0x73
+         *   [2..5]  = 32-bit big-endian decoded size
+         *   [6+]    = raw deflate stream (no zlib wrapper)
+         * ════════════════════════════════════════════════════════════════*/
+        if (is_1172) {
+            uint32_t dec_size = ((uint32_t)inbuf[2] << 24)
+                              | ((uint32_t)inbuf[3] << 16)
+                              | ((uint32_t)inbuf[4] <<  8)
+                              |  (uint32_t)inbuf[5];
+            const uint8_t* comp_start = inbuf + 6;
+            size_t comp_avail = (size_t)(rdram_end - comp_start);
+            size_t out_cap    = (size_t)(rdram_end - D_80007284);
+            if (out_cap > dec_size) out_cap = dec_size;
 
-        /* ── zlib inflate ─────────────────────────────────────────────── */
-        z_stream zs;
-        memset(&zs, 0, sizeof(zs));
-        zs.next_in   = (Bytef*)compressed_stream;
-        zs.avail_in  = (uInt)avail_in_bounded;
-        zs.next_out  = (Bytef*)D_80007284;
-        zs.avail_out = (uInt)avail_out_bounded;
-
-        int z_status = Z_DATA_ERROR;
-
-        if (is_gzip) {
-            if (inflateInit2(&zs, 15 + 32) == Z_OK) {
-                z_status = inflate(&zs, Z_FINISH);
-                inflateEnd(&zs);
-            }
-        } else if (is_1172) {
-            if (inflateInit2(&zs, -15) == Z_OK) {
-                z_status = inflate(&zs, Z_FINISH);
-                inflateEnd(&zs);
-            }
-        } else {
-            /* Unknown: try raw deflate first, then zlib-wrapped deflate. */
-            if (inflateInit2(&zs, -15) == Z_OK) {
-                z_status = inflate(&zs, Z_FINISH);
-                inflateEnd(&zs);
-            }
-            if (z_status != Z_STREAM_END) {
-                memset(&zs, 0, sizeof(zs));
-                zs.next_in   = (Bytef*)compressed_stream;
-                zs.avail_in  = (uInt)avail_in_bounded;
-                zs.next_out  = (Bytef*)D_80007284;
-                zs.avail_out = (uInt)avail_out_bounded;
-                if (inflateInit2(&zs, 15 + 32) == Z_OK) {
-                    z_status = inflate(&zs, Z_FINISH);
-                    inflateEnd(&zs);
+            /* Best-effort probe to log the actual compressed byte count */
+            {
+                z_stream probe;
+                memset(&probe, 0, sizeof(probe));
+                probe.next_in   = (Bytef*)comp_start;
+                probe.avail_in  = (uInt)comp_avail;
+                probe.next_out  = (Bytef*)D_80007284;
+                probe.avail_out = (uInt)out_cap;
+                if (inflateInit2(&probe, -15) == Z_OK) {
+                    inflate(&probe, Z_FINISH);
+                    __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
+                        "INFLATE METADATA: decSize=%u, calced_compSize=%u",
+                        dec_size, (uint32_t)probe.total_in);
+                    inflateEnd(&probe);
                 }
             }
-            if (z_status != Z_STREAM_END) {
-                __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG",
-                    "INFLATE UNKNOWN FORMAT FAILED: magic=%02X %02X, "
-                    "both deflate modes rejected. Returning 0.",
-                    (unsigned)inbuf[0], (unsigned)inbuf[1]);
-                wp = 0; inptr = 0; break;
+
+            z_stream zs;
+            memset(&zs, 0, sizeof(zs));
+            zs.next_in   = (Bytef*)comp_start;
+            zs.avail_in  = (uInt)comp_avail;
+            zs.next_out  = (Bytef*)D_80007284;
+            zs.avail_out = (uInt)out_cap;
+            int zr = Z_DATA_ERROR;
+            if (inflateInit2(&zs, -15) == Z_OK) {
+                zr = inflate(&zs, Z_FINISH);
+                inflateEnd(&zs);
             }
-        }
-
-        if (z_status == Z_STREAM_END || z_status == Z_OK) {
             __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
-                "INFLATE HLE SUCCESS: %u -> %u bytes. Status: %d",
-                (uint32_t)zs.total_in, (uint32_t)zs.total_out, z_status);
-        } else {
-            __android_log_print(ANDROID_LOG_WARN, "BKA_DEBUG",
-                "INFLATE PARTIAL/ERROR: in=%u out=%u status=%d",
-                (uint32_t)zs.total_in, (uint32_t)zs.total_out, z_status);
+                "INFLATE 1172 RESULT: %u -> %u bytes status=%d",
+                (uint32_t)zs.total_in, (uint32_t)zs.total_out, zr);
+            wp    = (u32)zs.total_out;
+            inptr = 0;
+            break;
         }
 
-        wp = (u32)zs.total_out;
-        inptr = 0;
+        /* ════════════════════════════════════════════════════════════════
+         * PATH C: Standard GZIP  (1F 8B)
+         * ════════════════════════════════════════════════════════════════*/
+        if (is_gzip) {
+            size_t out_cap = (size_t)(rdram_end - D_80007284);
+            __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
+                "INFLATE GZIP: out_cap=%zu", out_cap);
+            z_stream zs;
+            memset(&zs, 0, sizeof(zs));
+            zs.next_in   = (Bytef*)inbuf;
+            zs.avail_in  = (uInt)avail_in_bounded;
+            zs.next_out  = (Bytef*)D_80007284;
+            zs.avail_out = (uInt)out_cap;
+            int zr = Z_DATA_ERROR;
+            if (inflateInit2(&zs, 15 + 32) == Z_OK) {
+                zr = inflate(&zs, Z_FINISH);
+                inflateEnd(&zs);
+            }
+            __android_log_print(ANDROID_LOG_INFO, "BKA_DEBUG",
+                "INFLATE GZIP RESULT: %u -> %u bytes status=%d",
+                (uint32_t)zs.total_in, (uint32_t)zs.total_out, zr);
+            wp    = (u32)zs.total_out;
+            inptr = 0;
+            break;
+        }
+
+        /* ════════════════════════════════════════════════════════════════
+         * PATH D: Completely unknown magic — log and return 0.
+         * We DO NOT memcpy a hardcoded size; doing so would silently
+         * corrupt the output buffer.  Returning 0 lets the engine decide
+         * how to handle the failure rather than proceeding on bad data.
+         * ════════════════════════════════════════════════════════════════*/
+        __android_log_print(ANDROID_LOG_ERROR, "BKA_DEBUG",
+            "INFLATE UNKNOWN FORMAT: magic=%02X %02X — no handler. "
+            "Returning 0.",
+            (unsigned)magic0, (unsigned)magic1);
+        wp = 0; inptr = 0;
     } while (0);
     """
-
-        # ── group 3: original "return wp; }" ────────────────────────────
         r"\3"
     )
 
