@@ -1,8 +1,6 @@
 name: Automated Codebase Analysis
 
-
 on:
-  # Trigger only manually from the "Actions" tab
   workflow_dispatch:
 
 jobs:
@@ -10,34 +8,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout pristine codebase
+      - name: 📥 Checkout repository (full history)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: 🐍 Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: 🚀 Execute Analyzer Scripts
+      - name: 📦 Install Dependencies
         run: |
-          # Ensure the directory exists just in case
-          mkdir -p scripts
-          
-          # Find and execute every Python file in the scripts folder
-          for script in scripts/*.py; do
-            if [ -f "$script" ]; then
-              echo "========================================"
-              echo "⚙️ RUNNING: $script"
-              echo "========================================"
-              python "$script"
-            fi
-          done
+          python -m pip install --upgrade pip
+          if [ -f scripts/requirements.txt ]; then
+            pip install -r scripts/requirements.txt
+          fi
+
+      - name: 🚀 Execute Proofreader Engine
+        env:
+          PYTHONPATH: .
+        run: |
+          python scripts/main.py
 
       - name: 📦 Upload Output Artifacts
+        if: always()
         uses: actions/upload-artifact@v4
-        # We upload always, even if a script failed halfway through, 
-        # so you can see what it managed to output.
-        if: always() 
         with:
           name: analysis-results
           path: |
