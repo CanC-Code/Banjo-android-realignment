@@ -3,29 +3,42 @@ name: Automated Codebase Analysis
 on:
   workflow_dispatch:
 
-# Prevents GitHub rate limiting (429 Too Many Requests) by cancelling older runs
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  run-scripts:
+  analyze-and-build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout Banjo-android-realignment (Target Codebase)
+      # --- 1. PREPARE REPOSITORIES ---
+      - name: 📥 Checkout Target Codebase (Banjo-android-realignment)
         uses: actions/checkout@v4
         with:
+          submodules: recursive
           fetch-depth: 0
 
-      - name: 📥 Checkout repo_proofreader (Analysis Engine)
+      - name: 📥 Checkout Analysis Engine (repo_proofreader)
         uses: actions/checkout@v4
         with:
           repository: 'CanC-Code/repo_proofreader'
           path: '.proofreader-engine'
-          # A token is only required here if repo_proofreader is private. 
-          # If it is public, this step works as-is.
-          # token: ${{ secrets.PAT_TOKEN }} 
+
+      # --- 2. SETUP ENVIRONMENTS ---
+      - name: ☕ Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: 🛠️ Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🐘 Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.2
 
       - name: 🐍 Set up Python 3.11
         uses: actions/setup-python@v5
@@ -33,22 +46,55 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
+      # --- 3. RUN BANJO PRE-BUILD SCRIPTS ---
+      - name: 🖼️ Generate Android Icons
+        run: |
+          sudo apt-get update && sudo apt-get install -y imagemagick
+          if [ ! -f "icon_master.png" ]; then
+            convert -size 512x512 xc:blue icon_master.png
+          fi
+          python3 scripts/generate_icons.py icon_master.png
+
+      - name: 🧹 Pre-Patching (Sanitizer)
+        run: python3 scripts/sanitize_codebase.py .
+
+      - name: 🛡️ Apply Surgical Linker Patch
+        run: |
+          export PATH=$PATH:$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin
+          python3 scripts/patch_linker_wraps.py
+
+      - name: 🗺️ Generate Asset Manifests
+        run: |
+          pip3 install pyyaml
+          python3 scripts/generate_manifest.py
+
+      # --- 4. ATTEMPT ANDROID BUILD ---
+      - name: 🐘 Build Verification APK
+        id: build-apk
+        # Crucial: Allow failure so the proofreader can run and analyze the errors
+        continue-on-error: true 
+        run: |
+          cd Android
+          # Pipe output to a log file for the proofreader engine to consume
+          gradle assembleDebug \
+            -Pandroid.externalNativeBuild.cmake.arguments="-DEXCLUDE_GAME_SRC=OFF" \
+            --stacktrace > ../build_output.log 2>&1
+
+      # --- 5. RUN PROOFREADER ENGINE ---
       - name: 📦 Install Engine Dependencies
         run: |
           python -m pip install --upgrade pip
-          # Target the requirements.txt inside the newly checked-out engine folder
           if [ -f .proofreader-engine/scripts/requirements.txt ]; then
             pip install -r .proofreader-engine/scripts/requirements.txt
           fi
 
       - name: 🚀 Execute Proofreader Engine
         env:
-          # Ensures the Python module path can locate the engine's internal src modules
           PYTHONPATH: .:.proofreader-engine
         run: |
-          # Execute the main orchestrator script from the engine folder
           python .proofreader-engine/scripts/main.py
 
+      # --- 6. UPLOAD ARTIFACTS ---
       - name: 📦 Upload Output Artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -57,4 +103,6 @@ jobs:
           path: |
             *.json
             *.log
+            build_output.log
+            Android/app/build/outputs/apk/debug/*.apk
           retention-days: 5
