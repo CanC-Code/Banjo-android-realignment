@@ -71,11 +71,9 @@ jobs:
       # --- 4. ATTEMPT ANDROID BUILD ---
       - name: 🐘 Build Verification APK
         id: build-apk
-        # Crucial: Allow failure so the proofreader can run and analyze the errors
         continue-on-error: true 
         run: |
           cd Android
-          # Pipe output to a log file for the proofreader engine to consume
           gradle assembleDebug \
             -Pandroid.externalNativeBuild.cmake.arguments="-DEXCLUDE_GAME_SRC=OFF" \
             --stacktrace > ../build_output.log 2>&1
@@ -92,7 +90,8 @@ jobs:
         env:
           PYTHONPATH: .:.proofreader-engine
         run: |
-          python .proofreader-engine/scripts/main.py
+          # The required argument --repo_path is passed here, pointing to the workspace root (.)
+          python .proofreader-engine/scripts/main.py --repo_path .
 
       # --- 6. UPLOAD ARTIFACTS ---
       - name: 📦 Upload Output Artifacts
