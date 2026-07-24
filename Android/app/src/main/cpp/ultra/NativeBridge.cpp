@@ -16,6 +16,9 @@
 static JavaVM* g_jvm = nullptr;
 static std::string g_otrPath;
 
+// Exported globally for internal engine resource managers to access pre-embedded assets natively
+AAssetManager* g_assetManager = nullptr;
+
 static int g_surfaceWidth  = 320;
 static int g_surfaceHeight = 240;
 
@@ -66,8 +69,11 @@ extern "C" {
             pthread_cond_wait(&g_vblankCond, &g_vblankMutex);
         }
 
-        BKA_ClaimEngineLock();
+        // CRITICAL FIX: Relinquish the VBlank mutex before attempting to reclaim the Engine Lock 
+        // to prevent lock-order inversion and hard deadlocks against the render thread.
         pthread_mutex_unlock(&g_vblankMutex);
+        
+        BKA_ClaimEngineLock();
     }
 }
 
@@ -137,6 +143,15 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
     if (!otrPathStr) {
         LOGE("NativeBridge: FATAL ERROR - Target configuration path parameter received as NULL.");
         return;
+    }
+
+    // CRITICAL FIX: Extract and bind the AssetManager natively so the internal C++ 
+    // engine resource managers can retrieve the directly pre-embedded adapted files.
+    if (assetManagerObj != nullptr) {
+        g_assetManager = AAssetManager_fromJava(env, assetManagerObj);
+        LOGI("NativeBridge: Bound AAssetManager to handle directly pre-embedded configuration files.");
+    } else {
+        LOGE("NativeBridge: WARNING - AssetManager object is null. Pre-embedded assets may fail to deploy.");
     }
 
     // Reset initialization state flags to cleanly handle runtime Activity recreation
