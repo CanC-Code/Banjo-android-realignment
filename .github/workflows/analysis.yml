@@ -3,15 +3,29 @@ name: Automated Codebase Analysis
 on:
   workflow_dispatch:
 
+# Prevents GitHub rate limiting (429 Too Many Requests) by cancelling older runs
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   run-scripts:
     runs-on: ubuntu-latest
 
     steps:
-      - name: 📥 Checkout repository (full history)
+      - name: 📥 Checkout Banjo-android-realignment (Target Codebase)
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
+      - name: 📥 Checkout repo_proofreader (Analysis Engine)
+        uses: actions/checkout@v4
+        with:
+          repository: 'CanC-Code/repo_proofreader'
+          path: '.proofreader-engine'
+          # A token is only required here if repo_proofreader is private. 
+          # If it is public, this step works as-is.
+          # token: ${{ secrets.PAT_TOKEN }} 
 
       - name: 🐍 Set up Python 3.11
         uses: actions/setup-python@v5
@@ -19,18 +33,21 @@ jobs:
           python-version: '3.11'
           cache: 'pip'
 
-      - name: 📦 Install Dependencies
+      - name: 📦 Install Engine Dependencies
         run: |
           python -m pip install --upgrade pip
-          if [ -f scripts/requirements.txt ]; then
-            pip install -r scripts/requirements.txt
+          # Target the requirements.txt inside the newly checked-out engine folder
+          if [ -f .proofreader-engine/scripts/requirements.txt ]; then
+            pip install -r .proofreader-engine/scripts/requirements.txt
           fi
 
       - name: 🚀 Execute Proofreader Engine
         env:
-          PYTHONPATH: .
+          # Ensures the Python module path can locate the engine's internal src modules
+          PYTHONPATH: .:.proofreader-engine
         run: |
-          python scripts/main.py
+          # Execute the main orchestrator script from the engine folder
+          python .proofreader-engine/scripts/main.py
 
       - name: 📦 Upload Output Artifacts
         if: always()
