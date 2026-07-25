@@ -16,6 +16,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import android.opengl.GLSurfaceView;
@@ -114,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
     private boolean hasExtractionCompleted() {
         File sentinel = new File(getFilesDir(), SENTINEL_FILENAME);
         File romBase  = new File(getFilesDir(), "rom_base.bin");
-        
+
         if (sentinel.exists() && (!romBase.exists() || romBase.length() < 4096)) {
             Log.w(TAG, "False sentinel detected (Silent Abort). Wiping corrupt state.");
             sentinel.delete();
@@ -174,7 +175,9 @@ public class MainActivity extends AppCompatActivity {
         Intent serviceIntent = new Intent(this, OtrService.class);
         serviceIntent.putExtra("uri",    romUri.toString());
         serviceIntent.putExtra("outDir", getFilesDir().getAbsolutePath());
-        startService(serviceIntent);
+        
+        // Upgraded to startForegroundService for Target SDK 34 compliance
+        ContextCompat.startForegroundService(this, serviceIntent);
     }
 
     private void updateUI(int percent, String fileName) {
