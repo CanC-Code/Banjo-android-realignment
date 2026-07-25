@@ -53,6 +53,7 @@ jobs:
         run: |
           pip3 install pyyaml
           python3 scripts/otr_start_corrections.py
+          python3 fix_bka_startup.py
 
       - name: 🐘 Build Verification APK
         run: |
