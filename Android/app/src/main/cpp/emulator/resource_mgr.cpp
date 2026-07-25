@@ -29,6 +29,10 @@ struct ManifestRecord {
 static ManifestRecord* g_manifestRecords = nullptr;
 static uint32_t g_manifestCount = 0;
 
+// Define global ROM base pointer instance referenced across modules outside anonymous linkage blocks
+uint8_t* gN64_ROM_Base = nullptr;
+static size_t g_romSize = 0; 
+
 extern "C" void BKA_SignalResourcesReady(void);
 
 // External implementation of BKA_InflateCodeSegment to satisfy linker requirements
@@ -39,7 +43,7 @@ extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint3
     }
 
     uint8_t* srcStream = gN64_ROM_Base + romOffset;
-    
+
     // Construct inline metadata workspace expectation headers for rare decompression
     // Structural layout: [0..3] Compressed Size, [4..7] Expected Uncompressed Workspace Size
     uint8_t headerMeta[8];
@@ -70,9 +74,6 @@ extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint3
 }
 
 extern "C" {
-
-uint8_t* gN64_ROM_Base = nullptr;
-static size_t g_romSize = 0; 
 
 /**
  * Initializes the Resource Manager in Absolute Self-Building Mode and parses manifest_us.bin.
@@ -169,7 +170,7 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
                 if (strncmp(g_manifestRecords[i].type, "code_bin", 8) == 0) {
                     LOGI("ResourceMgr: Intercepted specialized code_bin record '%s' at offset %08X. Routing to decompression flow.", 
                          g_manifestRecords[i].name, relativeRomOffset);
-                    
+
                     // Route away from standard memcpy/raw asset loading to custom decompression handler
                     if (gN64_ROM_Base != nullptr) {
                         BKA_InflateCodeSegment(dramAddr, relativeRomOffset, g_manifestRecords[i].size);
