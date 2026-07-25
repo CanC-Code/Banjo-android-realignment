@@ -16,7 +16,22 @@
 
 static std::string g_assetDir;
 
+// Binary manifest record structure matching generator layout (48 bytes)
+struct ManifestRecord {
+    uint32_t offset;
+    uint32_t size;
+    char name[32];
+    char type[8];
+};
+
+// Global manifest registry cache
+static ManifestRecord* g_manifestRecords = nullptr;
+static uint32_t g_manifestCount = 0;
+
 extern "C" void BKA_SignalResourcesReady(void);
+
+// External prototype for the specialized code decompression / boot loader handler
+extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint32_t size);
 
 extern "C" {
 
@@ -24,7 +39,7 @@ uint8_t* gN64_ROM_Base = nullptr;
 static size_t g_romSize = 0; 
 
 /**
- * Initializes the Resource Manager in Absolute Self-Building Mode.
+ * Initializes the Resource Manager in Absolute Self-Building Mode and parses manifest_us.bin.
  */
 void ResourceMgr_Init(const char* assetDir) {
     if (!assetDir) {
@@ -39,9 +54,26 @@ void ResourceMgr_Init(const char* assetDir) {
 
     LOGI("ResourceMgr: Activated in Absolute Self-Building Mode at location %s", g_assetDir.c_str());
 
+    // --- Load manifest_us.bin ---
+    char manifestPath[512];
+    snprintf(manifestPath, sizeof(manifestPath), "%smanifest_us.bin", g_assetDir.c_str());
+    FILE* mf = fopen(manifestPath, "rb");
+    if (mf) {
+        if (fread(&g_manifestCount, sizeof(uint32_t), 1, mf) == 1) {
+            g_manifestRecords = static_cast<ManifestRecord*>(malloc(g_manifestCount * sizeof(ManifestRecord)));
+            if (g_manifestRecords) {
+                size_t readCount = fread(g_manifestRecords, sizeof(ManifestRecord), g_manifestCount, mf);
+                LOGI("ResourceMgr: Successfully loaded %zu / %u manifest records from %s", readCount, g_manifestCount, manifestPath);
+            }
+        }
+        fclose(mf);
+    } else {
+        LOGW("ResourceMgr: Warning - Could not open manifest file at %s. Falling back to default routing.", manifestPath);
+    }
+
     char romPath[512];
     snprintf(romPath, sizeof(romPath), "%srom_base.bin", g_assetDir.c_str());
-    
+
     LOGI("ResourceMgr: Open file pointer tracking target: %s", romPath);
     FILE* f = fopen(romPath, "rb");
 
@@ -77,7 +109,7 @@ void ResourceMgr_Init(const char* assetDir) {
     LOGI("ResourceMgr: Streaming binary database targets into virtual memory locations...");
     size_t bytesRead = fread(gN64_ROM_Base, 1, g_romSize, f);
     LOGI("ResourceMgr: Verification validation sequence populated %zu bytes into ROM base block.", bytesRead);
-    
+
     fclose(f);
 }
 
@@ -91,6 +123,27 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
 
     // Isolate clean 28-bit relative offset mapping layers for tracking extraction files
     uint32_t relativeRomOffset = devAddr & 0x0FFFFFFF;
+
+    // --- Check Manifest Records for Specialized Handlers ---
+    if (g_manifestRecords) {
+        for (uint32_t i = 0; i < g_manifestCount; ++i) {
+            // Match record by ROM offset range or exact entry offset
+            if (g_manifestRecords[i].offset == relativeRomOffset || g_manifestRecords[i].offset == devAddr) {
+                // Check if type matches our specialized code identifier
+                if (strncmp(g_manifestRecords[i].type, "code_bin", 8) == 0) {
+                    LOGI("ResourceMgr: Intercepted specialized code_bin record '%s' at offset %08X. Routing to decompression flow.", 
+                         g_manifestRecords[i].name, relativeRomOffset);
+                    
+                    // Route away from standard memcpy/raw asset loading to custom decompression handler
+                    if (gN64_ROM_Base != nullptr) {
+                        BKA_InflateCodeSegment(dramAddr, relativeRomOffset, g_manifestRecords[i].size);
+                    }
+                    sched_yield();
+                    return;
+                }
+            }
+        }
+    }
 
     snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), relativeRomOffset);
     f = fopen(path, "rb");
@@ -126,11 +179,11 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
 
             // Nested Pointer Descriptor Validation
             uintptr_t* potentialNestedPtr = reinterpret_cast<uintptr_t*>(reconstructedHostPointer);
-            
+
             // Check for 8-byte pointer alignment before dereferencing to prevent platform exceptions
             if (potentialNestedPtr && ((reconstructedHostPointer & 0x7) == 0)) {
                 uintptr_t nestedVal = *potentialNestedPtr;
-                
+
                 // Explicit 32-bit heap page validation to verify matching host address structures
                 if ((nestedVal >> 32) == (reconstructedHostPointer >> 32)) {
                     LOGW("ResourceMgr: Unwrapping nested descriptor layer reference %p -> %p", 
