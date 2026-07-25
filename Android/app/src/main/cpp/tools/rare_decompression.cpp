@@ -86,7 +86,6 @@ uint32_t decompress_rare_runtime_hle(const uint8_t* in, uint8_t* out_start, cons
 
     // Strategy A: Parse standard raw un-stripped 0x1172 asset file payload block
     if (in[0] == 0x11 && in[1] == 0x72) {
-        decSize = ((uint32_t)in[2] << 16) | ((uint32_t)in[3] << 8) | (uint32_t)src_size_safe_check(in)); // handled via header bytes below
         decSize = ((uint32_t)in[2] << 16) | ((uint32_t)in[3] << 8) | (uint32_t)in[4];
         bitstream = in + 5;
         // Bound stream size safely to prevent overflow reads into unmapped memory regions
