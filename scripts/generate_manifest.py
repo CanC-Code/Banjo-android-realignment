@@ -55,7 +55,7 @@ def parse_splat_yaml(yaml_path: str):
     # Everything else (.bss, .data, .rodata, linker_offset, textbin,
     # rodatabin) is a virtual section marker for the linker only.
     ROM_RESIDENT_TYPES = {
-        'bin', 'c', 'hasm', 'asm', 'header', 'code',
+        'bin', 'c', 'hasm', 'asm', 'header',
     }
 
     if not os.path.exists(yaml_path):
