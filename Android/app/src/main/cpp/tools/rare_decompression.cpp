@@ -32,7 +32,6 @@ static uint32_t inflate_raw_deflate(const uint8_t* src, uint32_t src_size, uint8
     strm.next_out = static_cast<Bytef*>(dst);
     strm.avail_out = dst_size;
 
-    // Guard against internal zlib state corruption or null pointer initialization issues
     if (!strm.next_in || !strm.next_out) {
         inflateEnd(&strm);
         return 0;
@@ -43,11 +42,9 @@ static uint32_t inflate_raw_deflate(const uint8_t* src, uint32_t src_size, uint8
 
     inflateEnd(&strm);
 
-    if (ret != Z_STREAM_END) {
-        __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "inflate_raw_deflate: Stream did not reach Z_STREAM_END cleanly (ret=%d). Inflated partial: %u bytes", ret, totalOut);
-        // If we extracted partial bytes safely without crashing, we can choose to accept or reject based on strictness.
-        // Returning 0 forces fallback handlers if incomplete.
-        if (ret != Z_OK) return 0;
+    if (ret != Z_STREAM_END && ret != Z_OK) {
+        __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "inflate_raw_deflate: Stream error or incomplete chunk (ret=%d). Extracted: %u bytes", ret, totalOut);
+        return 0;
     }
 
     return totalOut;
@@ -113,7 +110,7 @@ void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint32_t size) {
 
     const uint8_t* srcStream = gN64_ROM_Base + romOffset;
     
-    // Safety boundary validation before jumping into decompression streams
+    // Safely attempt decompression; fallback to direct copy if stream parsing fails
     uint32_t finalSize = decompress_rare_runtime_hle(srcStream, static_cast<uint8_t*>(dramAddr), nullptr);
 
     if (finalSize == 0) {
