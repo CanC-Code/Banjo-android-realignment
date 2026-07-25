@@ -317,6 +317,21 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 {
     (void)thiz;
 
+    // -----------------------------------------------------------------------
+    // Variable Hoisting block
+    // Declarations are pulled up here to avoid 'goto bypasses initialization' errors
+    // -----------------------------------------------------------------------
+    off_t romSizeOff = 0;
+    size_t romSize = 0;
+    uint8_t* romData = nullptr;
+    size_t totalRead = 0;
+    FILE* mFile = nullptr;
+    uint32_t entryCount = 0;
+    uint32_t extracted = 0;
+    uint32_t compressed = 0;
+    uint32_t failed = 0;
+    int lastPercent = -1;
+
 
     if (!env ||
         romFd < 0 ||
@@ -431,7 +446,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
 
 
-    off_t romSizeOff =
+    romSizeOff =
             lseek(
                     romFd,
                     0,
@@ -450,7 +465,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
 
 
-    size_t romSize =
+    romSize =
             static_cast<size_t>(
                     romSizeOff);
 
@@ -480,7 +495,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
 
 
-    uint8_t* romData =
+    romData =
             static_cast<uint8_t*>(
                     malloc(romSize));
 
@@ -497,7 +512,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
 
 
-    size_t totalRead = 0;
+    totalRead = 0;
 
 
 
@@ -651,7 +666,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 // Open manifest
 // -----------------------------------------------------------------------
 
-FILE* mFile =
+mFile =
         fopen(
                 cManifestPath,
                 "rb");
@@ -679,7 +694,7 @@ if (!mFile)
 
 
 
-uint32_t entryCount = 0;
+entryCount = 0;
 
 
 if (fread(
@@ -729,12 +744,12 @@ LOGI(
 // Extract assets
 // -----------------------------------------------------------------------
 
-uint32_t extracted = 0;
-uint32_t compressed = 0;
-uint32_t failed = 0;
+extracted = 0;
+compressed = 0;
+failed = 0;
 
 
-int lastPercent = -1;
+lastPercent = -1;
 
 
 
