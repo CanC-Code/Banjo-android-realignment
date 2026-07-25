@@ -13,7 +13,7 @@ extern uint8_t* gN64_ROM_Base;
 extern "C" {
 
 /**
- * Robust Raw Deflate wrapper with strict boundary validation and safe state unwinding.
+ * Robust Raw Deflate wrapper with strict pointer validation and safe state unwinding.
  */
 static uint32_t inflate_raw_deflate(const uint8_t* src, uint32_t src_size, uint8_t* dst, uint32_t dst_size) {
     if (!src || src_size < 2 || !dst || dst_size == 0) return 0;
@@ -32,6 +32,7 @@ static uint32_t inflate_raw_deflate(const uint8_t* src, uint32_t src_size, uint8
     strm.next_out = static_cast<Bytef*>(dst);
     strm.avail_out = dst_size;
 
+    // Guard against internal state nullification bugs
     if (!strm.next_in || !strm.next_out) {
         inflateEnd(&strm);
         return 0;
@@ -42,8 +43,9 @@ static uint32_t inflate_raw_deflate(const uint8_t* src, uint32_t src_size, uint8
 
     inflateEnd(&strm);
 
-    if (ret != Z_STREAM_END && ret != Z_OK) {
-        __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "inflate_raw_deflate: Stream error or incomplete chunk (ret=%d). Extracted: %u bytes", ret, totalOut);
+    if (ret != Z_STREAM_END) {
+        __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "inflate_raw_deflate: Stream validation warning (ret=%d). Extracted: %u / Expected: %u", ret, totalOut, dst_size);
+        // If it didn't finish cleanly, return 0 to trigger the fallback copy handler
         return 0;
     }
 
@@ -106,14 +108,14 @@ uint32_t decompress_rare_runtime_hle(const uint8_t* in, uint8_t* out_start, cons
 }
 
 void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint32_t size) {
-    if (!gN64_ROM_Base) return;
+    if (!gN64_ROM_Base || !dramAddr) return;
 
     const uint8_t* srcStream = gN64_ROM_Base + romOffset;
     
-    // Safely attempt decompression; fallback to direct copy if stream parsing fails
+    // Safely attempt decompression; fallback to direct copy if stream parsing fails or returns 0
     uint32_t finalSize = decompress_rare_runtime_hle(srcStream, static_cast<uint8_t*>(dramAddr), nullptr);
 
-    if (finalSize == 0) {
+    if (finalSize == 0 && size > 0) {
         __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "BKA_InflateCodeSegment: Safe fallback triggered for offset %08X (size: %u)", romOffset, size);
         memcpy(dramAddr, srcStream, size);
     }
