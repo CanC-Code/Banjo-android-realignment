@@ -48,6 +48,12 @@ jobs:
           pip3 install pyyaml
           python3 scripts/generate_manifest.py
 
+
+      - name: OTR corrections
+        run: |
+          pip3 install pyyaml
+          python3 scripts/otr_start_corrections.py
+
       - name: 🐘 Build Verification APK
         run: |
           cd Android
