@@ -102,6 +102,22 @@ def parse_splat_yaml(yaml_path: str):
                 rom_end = seg_start
 
         subsegments = seg.get('subsegments', [])
+        
+        # -------------------------------------------------------------------
+        # [FIX] Capture top-level segments lacking subsegments
+        # Without this, standalone binary assets like 'header' and 
+        # 'soundfont' segment arrays will be completely omitted.
+        # -------------------------------------------------------------------
+        if not subsegments:
+            offset = seg.get('start')
+            if offset is not None:
+                subsegments = [{
+                    'offset': offset,
+                    'type': seg.get('type', 'unk'),
+                    'name': seg.get('name', f'asset_{offset:#010x}'),
+                    'size': seg.get('size')
+                }]
+
         for sub in subsegments:
             # Splat subsegment formats:
             #   [offset, type, name]          — 3-element list  (most common)
