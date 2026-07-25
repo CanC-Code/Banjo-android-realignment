@@ -19,6 +19,9 @@ extern "C" {
 static uint32_t inflate_raw_deflate(const uint8_t* src, uint32_t src_size, uint8_t* dst, uint32_t dst_size) {
     if (!src || src_size == 0 || !dst || dst_size == 0) return 0;
 
+    // Guard against malformed or truncated inputs that could crash zlib
+    if (src_size < 2) return 0;
+
     z_stream strm;
     memset(&strm, 0, sizeof(strm));
 
@@ -35,11 +38,12 @@ static uint32_t inflate_raw_deflate(const uint8_t* src, uint32_t src_size, uint8
 
     int ret = inflate(&strm, Z_FINISH);
     uint32_t totalOut = strm.total_out;
-    
+
     inflateEnd(&strm);
 
     if (ret != Z_STREAM_END && ret != Z_OK) {
-        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "inflate_raw_deflate: inflation failed with error code %d.", ret);
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "inflate_raw_deflate: inflation failed with error code %d (avail_in=%u, avail_out=%u).", 
+                            ret, strm.avail_in, strm.avail_out);
         return 0;
     }
 
