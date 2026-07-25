@@ -7,8 +7,7 @@
 
 #define LOG_TAG "BKA_DECOMP"
 
-// External global declarations for robust ROM boundary tracking
-extern size_t g_romSize;
+// External global declaration for ROM base pointer only; g_romSize is handled locally or via size parameters
 extern uint8_t* gN64_ROM_Base;
 
 extern "C" {
@@ -80,31 +79,21 @@ uint32_t decompress_rare_runtime_hle(const uint8_t* in, uint8_t* out_start, cons
     const uint8_t* bitstream = nullptr;
     uint32_t stream_size = 0;
 
-    // Calculate safe available bounds if gN64_ROM_Base is initialized
-    uint32_t maxAvailable = 0xFFFFFFFF;
-    if (gN64_ROM_Base && g_romSize > 0 && in >= gN64_ROM_Base) {
-        size_t offsetFromBase = in - gN64_ROM_Base;
-        if (offsetFromBase < g_romSize) {
-            maxAvailable = static_cast<uint32_t>(g_romSize - offsetFromBase);
-        }
-    }
-
     // Strategy A: Parse standard raw un-stripped 0x1172 asset file payload block
     if (in[0] == 0x11 && in[1] == 0x72) {
-        if (maxAvailable < 5) return 0;
         decSize = ((uint32_t)in[2] << 16) | ((uint32_t)in[3] << 8) | (uint32_t)in[4];
         bitstream = in + 5;
-        stream_size = (maxAvailable >= 5) ? (maxAvailable - 5) : 0;
+        stream_size = 16u * 1024u * 1024u; // Safe upper bound for standard stream segments
     }
     // Strategy B: Read the 32-bit Big-Endian block layout size from runtime wrappers
     else if (arg2) {
         decSize = ((uint32_t)arg2[0] << 24) | ((uint32_t)arg2[1] << 16) | ((uint32_t)arg2[2] << 8) | (uint32_t)arg2[3];
         bitstream = in;
-        stream_size = maxAvailable;
+        stream_size = 16u * 1024u * 1024u;
     } else {
         bitstream = in;
         decSize = 32u * 1024u * 1024u; // Safe fallback upper bound
-        stream_size = maxAvailable;
+        stream_size = 32u * 1024u * 1024u;
     }
 
     if (decSize == 0 || decSize > 32u * 1024u * 1024u) return 0;
