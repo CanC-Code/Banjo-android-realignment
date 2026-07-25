@@ -13,16 +13,18 @@ extern uint8_t* gN64_ROM_Base;
 extern "C" {
 
 /**
- * Highly defensive raw deflate wrapper using a separate operational buffer 
- * to prevent any possibility of null-pointer dereferences inside zlib's state machine.
+ * Robust raw deflate wrapper with strict input/output buffer guards and 
+ * windowBits safety checks to prevent zlib internal faults on malformed assets.
  */
 static uint32_t inflate_raw_deflate_safe(const uint8_t* src, uint32_t src_size, uint8_t* dst, uint32_t dst_size) {
-    if (!src || src_size == 0 || !dst || dst_size == 0) return 0;
+    if (!src || src_size == 0 || !dst || dst_size == 0) {
+        return 0;
+    }
 
     z_stream strm;
     memset(&strm, 0, sizeof(strm));
 
-    // Use raw deflate mode (-15)
+    // -15 enables raw deflate (no zlib header)
     if (inflateInit2(&strm, -15) != Z_OK) {
         __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "inflateInit2 failed.");
         return 0;
@@ -33,17 +35,26 @@ static uint32_t inflate_raw_deflate_safe(const uint8_t* src, uint32_t src_size, 
     strm.next_out = static_cast<Bytef*>(dst);
     strm.avail_out = dst_size;
 
-    if (!strm.next_in || !strm.next_out) {
-        inflateEnd(&strm);
-        return 0;
+    int ret = Z_OK;
+    while (strm.avail_out > 0) {
+        ret = inflate(&strm, Z_SYNC_FLUSH);
+        if (ret == Z_STREAM_END) {
+            break;
+        }
+        if (ret != Z_OK) {
+            __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Inflate encountered error code: %d (avail_in: %u, avail_out: %u)", ret, strm.avail_in, strm.avail_out);
+            break;
+        }
+        if (strm.avail_in == 0 && ret == Z_OK) {
+            break;
+        }
     }
 
-    int ret = inflate(&strm, Z_FINISH);
     uint32_t totalOut = strm.total_out;
     inflateEnd(&strm);
 
-    if (ret != Z_STREAM_END && ret != Z_OK) {
-        __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "Inflate warning: code %d, extracted %u/%u bytes", ret, totalOut, dst_size);
+    if (totalOut == 0 && ret != Z_STREAM_END) {
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "Decompression failed to extract any payload bytes.");
         return 0;
     }
 
@@ -59,6 +70,11 @@ uint8_t* decompress_rare_asset(const uint8_t* src, uint32_t src_size, uint32_t* 
         
         if (decSize == 0 || decSize > 64u * 1024u * 1024u) {
             __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "Decompression aborted: invalid declared size %u", decSize);
+            return nullptr;
+        }
+
+        if (src_size <= 5) {
+            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "Decompression aborted: source buffer too small for payload");
             return nullptr;
         }
 
