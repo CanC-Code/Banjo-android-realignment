@@ -41,7 +41,7 @@ static inline uintptr_t BKA_Validate_And_Translate(
     }
 
     uintptr_t ram = (uintptr_t)ram_ptr;
-    
+
     /* 1. RDRAM Translation */
     if (mask32 < BKA_RDRAM_ALLOC_SIZE)             return ram + mask32;
     if (mask32 >= 0x80000000u && mask32 < 0x81000000u) return ram + (mask32 - 0x80000000u);
