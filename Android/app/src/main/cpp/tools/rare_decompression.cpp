@@ -36,6 +36,13 @@ static uint32_t inflate_raw_deflate(const uint8_t* src, uint32_t src_size, uint8
     strm.next_out = static_cast<Bytef*>(dst);
     strm.avail_out = dst_size;
 
+    // Pre-flight safety check to prevent null pointer faults inside zlib low-level blocks
+    if (!strm.next_in || !strm.next_out) {
+        __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, "inflate_raw_deflate: Null pointer detected in z_stream buffers.");
+        inflateEnd(&strm);
+        return 0;
+    }
+
     int ret = inflate(&strm, Z_FINISH);
     uint32_t totalOut = strm.total_out;
 
@@ -88,7 +95,6 @@ uint32_t decompress_rare_runtime_hle(const uint8_t* in, uint8_t* out_start, cons
     if (in[0] == 0x11 && in[1] == 0x72) {
         decSize = ((uint32_t)in[2] << 16) | ((uint32_t)in[3] << 8) | (uint32_t)in[4];
         bitstream = in + 5;
-        // Bound stream size safely to prevent overflow reads into unmapped memory regions
         stream_size = 0x00FFFFFF; 
     }
     // Strategy B: Read the 32-bit Big-Endian block layout size from runtime wrappers
