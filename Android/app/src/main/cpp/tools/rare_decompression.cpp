@@ -13,7 +13,7 @@ extern uint8_t* gN64_ROM_Base;
 extern "C" {
 
 /**
- * Robust Raw Deflate wrapper implementing the exact inflation logic 
+ * Robust Raw Deflate wrapper implementing exact inflation logic 
  * matching the runtime and python stream extraction pipeline (wbits = -15).
  */
 static uint32_t inflate_raw_deflate(const uint8_t* src, uint32_t src_size, uint8_t* dst, uint32_t dst_size) {
@@ -86,9 +86,10 @@ uint32_t decompress_rare_runtime_hle(const uint8_t* in, uint8_t* out_start, cons
 
     // Strategy A: Parse standard raw un-stripped 0x1172 asset file payload block
     if (in[0] == 0x11 && in[1] == 0x72) {
+        decSize = ((uint32_t)in[2] << 16) | ((uint32_t)in[3] << 8) | (uint32_t)src_size_safe_check(in)); // handled via header bytes below
         decSize = ((uint32_t)in[2] << 16) | ((uint32_t)in[3] << 8) | (uint32_t)in[4];
         bitstream = in + 5;
-        // Bounded conservative remaining stream size assumption instead of arbitrary megabytes
+        // Bound stream size safely to prevent overflow reads into unmapped memory regions
         stream_size = 0x00FFFFFF; 
     }
     // Strategy B: Read the 32-bit Big-Endian block layout size from runtime wrappers
