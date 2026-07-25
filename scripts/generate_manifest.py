@@ -129,10 +129,13 @@ def parse_splat_yaml(yaml_path: str):
                 print(f"  WARNING: Non-integer offset in subsegment {sub!r} — skipped")
                 continue
 
-            # Skip virtual linker sections — they have no ROM bytes.
             # Strip leading dot so '.bss' and 'bss' both match.
             bare_type = seg_type.lstrip('.')
-            if bare_type not in ROM_RESIDENT_TYPES:
+
+            # Intercept code segments and assign a specialized identifier
+            if seg_type == 'code' or bare_type == 'code':
+                seg_type = 'code_bin'  # Specialized identifier for the runtime handler
+            elif bare_type not in ROM_RESIDENT_TYPES:
                 continue
 
             if offset in seen_offsets:
