@@ -8,6 +8,7 @@
 #include <string>
 
 #include "bka_safe_base.h"
+#include "rare_decompression.h"
 
 #define LOG_TAG "NativeBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
@@ -30,8 +31,43 @@ static uint32_t g_manifestCount = 0;
 
 extern "C" void BKA_SignalResourcesReady(void);
 
-// External prototype for the specialized code decompression / boot loader handler
-extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint32_t size);
+// External implementation of BKA_InflateCodeSegment to satisfy linker requirements
+extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint32_t size) {
+    if (!gN64_ROM_Base || !dramAddr) {
+        LOGE("BKA_InflateCodeSegment: Invalid base pointers for inflation.");
+        return;
+    }
+
+    uint8_t* srcStream = gN64_ROM_Base + romOffset;
+    
+    // Construct inline metadata workspace expectation headers for rare decompression
+    // Structural layout: [0..3] Compressed Size, [4..7] Expected Uncompressed Workspace Size
+    uint8_t headerMeta[8];
+    headerMeta[0] = (size >> 24) & 0xFF;
+    headerMeta[1] = (size >> 16) & 0xFF;
+    headerMeta[2] = (size >> 8) & 0xFF;
+    headerMeta[3] = size & 0xFF;
+
+    // Allocate 8MB default expansion workspace bound for code segments
+    uint32_t expectedWorkspaceSize = 0x800000; 
+    headerMeta[4] = (expectedWorkspaceSize >> 24) & 0xFF;
+    headerMeta[5] = (expectedWorkspaceSize >> 16) & 0xFF;
+    headerMeta[6] = (expectedWorkspaceSize >> 8) & 0xFF;
+    headerMeta[7] = expectedWorkspaceSize & 0xFF;
+
+    uint32_t decompressedBytes = decompress_rare_runtime_hle(
+        srcStream, 
+        static_cast<uint8_t*>(dramAddr), 
+        headerMeta
+    );
+
+    if (decompressedBytes == 0) {
+        LOGW("BKA_InflateCodeSegment: Decompression returned 0 bytes. Falling back to direct memory copy.");
+        memcpy(dramAddr, srcStream, size);
+    } else {
+        LOGI("BKA_InflateCodeSegment: Successfully inflated %u bytes into DRAM destination %p.", decompressedBytes, dramAddr);
+    }
+}
 
 extern "C" {
 
