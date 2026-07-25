@@ -7,6 +7,9 @@
 
 #define LOG_TAG "BKA_DECOMP"
 
+// External global declaration for ROM base pointer
+extern uint8_t* gN64_ROM_Base;
+
 extern "C" {
 
 /**
@@ -25,7 +28,6 @@ static uint32_t inflate_raw_deflate_safe(const uint8_t* src, uint32_t src_size, 
         return 0;
     }
 
-    // Allocate a localized staging window to ensure valid source boundaries
     strm.next_in = const_cast<Bytef*>(src);
     strm.avail_in = src_size;
     strm.next_out = static_cast<Bytef*>(dst);
@@ -98,6 +100,18 @@ uint32_t decompress_rare_runtime_hle(const uint8_t* in, uint8_t* out_start, cons
     if (decSize == 0 || decSize > 32u * 1024u * 1024u) return 0;
 
     return inflate_raw_deflate_safe(bitstream, stream_size, out_start, decSize);
+}
+
+void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint32_t size) {
+    if (!gN64_ROM_Base || !dramAddr) return;
+
+    const uint8_t* srcStream = gN64_ROM_Base + romOffset;
+    uint32_t finalSize = decompress_rare_runtime_hle(srcStream, static_cast<uint8_t*>(dramAddr), nullptr);
+
+    if (finalSize == 0 && size > 0) {
+        __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "BKA_InflateCodeSegment: Fallback copy triggered for offset %08X (size: %u)", romOffset, size);
+        memcpy(dramAddr, srcStream, size);
+    }
 }
 
 } // extern "C"
