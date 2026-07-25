@@ -7,7 +7,7 @@
 
 #define LOG_TAG "BKA_DECOMP"
 
-// External global declaration for ROM base pointer only; g_romSize is handled locally or via size parameters
+// External global declaration for ROM base pointer
 extern uint8_t* gN64_ROM_Base;
 
 extern "C" {
@@ -17,6 +17,8 @@ extern "C" {
  * matching the runtime and python stream extraction pipeline (wbits = -15).
  */
 static uint32_t inflate_raw_deflate(const uint8_t* src, uint32_t src_size, uint8_t* dst, uint32_t dst_size) {
+    if (!src || src_size == 0 || !dst || dst_size == 0) return 0;
+
     z_stream strm;
     memset(&strm, 0, sizeof(strm));
 
@@ -52,7 +54,6 @@ uint8_t* decompress_rare_asset(const uint8_t* src, uint32_t src_size, uint32_t* 
 
     // Handle standard Rare 0x1172 container header and 3-byte big-endian uncompressed size
     if (src[0] == 0x11 && src[1] == 0x72) {
-        if (src_size < 5) return nullptr;
         uint32_t decSize = ((uint32_t)src[2] << 16) | ((uint32_t)src[3] << 8) | (uint32_t)src[4];
         if (decSize == 0 || decSize > 64u * 1024u * 1024u) return nullptr;
 
@@ -83,22 +84,20 @@ uint32_t decompress_rare_runtime_hle(const uint8_t* in, uint8_t* out_start, cons
     if (in[0] == 0x11 && in[1] == 0x72) {
         decSize = ((uint32_t)in[2] << 16) | ((uint32_t)in[3] << 8) | (uint32_t)in[4];
         bitstream = in + 5;
-        stream_size = 16u * 1024u * 1024u; // Safe upper bound for standard stream segments
+        // Bounded conservative remaining stream size assumption instead of arbitrary megabytes
+        stream_size = 0x00FFFFFF; 
     }
     // Strategy B: Read the 32-bit Big-Endian block layout size from runtime wrappers
     else if (arg2) {
         decSize = ((uint32_t)arg2[0] << 24) | ((uint32_t)arg2[1] << 16) | ((uint32_t)arg2[2] << 8) | (uint32_t)arg2[3];
         bitstream = in;
-        stream_size = 16u * 1024u * 1024u;
+        stream_size = 0x00FFFFFF;
     } else {
-        bitstream = in;
-        decSize = 32u * 1024u * 1024u; // Safe fallback upper bound
-        stream_size = 32u * 1024u * 1024u;
+        return 0;
     }
 
     if (decSize == 0 || decSize > 32u * 1024u * 1024u) return 0;
 
-    // Use bounded zlib-backed raw DEFLATE stream extraction for strict memory safety
     uint32_t inflatedSize = inflate_raw_deflate(bitstream, stream_size, out_start, decSize);
     return inflatedSize;
 }
@@ -109,7 +108,7 @@ void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint32_t size) {
 
     const uint8_t* srcStream = gN64_ROM_Base + romOffset;
     uint32_t finalSize = decompress_rare_runtime_hle(srcStream, static_cast<uint8_t*>(dramAddr), nullptr);
-    
+
     if (finalSize == 0) {
         __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "BKA_InflateCodeSegment: Decompression returned 0 size for offset %08X, falling back to memcpy.", romOffset);
         memcpy(dramAddr, srcStream, size);
