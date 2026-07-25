@@ -247,7 +247,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
         if (entry.size == 0 || entry.offset >= (uint32_t)romSize) {
             continue;
         }
-        
+
         // Clamp size to prevent reading past ROM end
         uint32_t readSize = entry.size;
         if ((uint64_t)entry.offset + readSize > (uint64_t)romSize) {
@@ -259,9 +259,14 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
         snprintf(outPath, sizeof(outPath), "%s/asset_%08X.bin", cOutDir, entry.offset);
 
         // Check for Rare compression magic: 0x1172
-        if (readSize >= 2 && assetBuffer[0] == 0x11 && assetBuffer[1] == 0x72) {
-            uint32_t outSize = 0;
-            uint8_t* outBuf  = decompress_rare_asset(assetBuffer, readSize, &outSize);
+        if (readSize >= 6 && assetBuffer[0] == 0x11 && assetBuffer[1] == 0x72) {
+            // Parse out the uncompressed size correctly from the Rare compression header (big-endian 32-bit field at offset 2)
+            uint32_t outSize = ((uint32_t)assetBuffer[2] << 24) |
+                               ((uint32_t)assetBuffer[3] << 16) |
+                               ((uint32_t)assetBuffer[4] << 8)  |
+                               (uint32_t)assetBuffer[5];
+
+            uint8_t* outBuf = decompress_rare_asset(assetBuffer, readSize, &outSize);
 
             if (outBuf && outSize > 0) {
                 FILE* out = fopen(outPath, "wb");
@@ -276,7 +281,6 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
                 }
                 free(outBuf); // Ensure we free regardless of fopen success
             } else {
-                // Fixed buffer overflow vulnerability here by explicitly limiting to 32 chars
                 LOGE("Decompression failed for '%.32s'", entry.name);
                 failed++;
             }
