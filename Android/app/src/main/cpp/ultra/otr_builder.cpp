@@ -260,12 +260,8 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
 
         // Check for Rare compression magic: 0x1172
         if (readSize >= 6 && assetBuffer[0] == 0x11 && assetBuffer[1] == 0x72) {
-            // Parse out the uncompressed size correctly from the Rare compression header (big-endian 32-bit field at offset 2)
-            uint32_t outSize = ((uint32_t)assetBuffer[2] << 24) |
-                               ((uint32_t)assetBuffer[3] << 16) |
-                               ((uint32_t)assetBuffer[4] << 8)  |
-                               (uint32_t)assetBuffer[5];
-
+            // Pass 0 or an expected output size placeholder; decompress_rare_asset safely handles allocation/sizing internally
+            uint32_t outSize = 0;
             uint8_t* outBuf = decompress_rare_asset(assetBuffer, readSize, &outSize);
 
             if (outBuf && outSize > 0) {
