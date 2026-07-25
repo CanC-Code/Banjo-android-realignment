@@ -33,33 +33,6 @@ static constexpr uint32_t MAX_HLE_COMPRESSED_SIZE = 0x10000000;
 
 
 // ---------------------------------------------------------------------------
-// zlib allocation hooks
-// ---------------------------------------------------------------------------
-
-static void* zlib_alloc(
-        void*,
-        unsigned items,
-        unsigned size)
-{
-    if (items == 0 || size == 0)
-        return nullptr;
-
-    size_t total = static_cast<size_t>(items) *
-                   static_cast<size_t>(size);
-
-    return malloc(total);
-}
-
-
-static void zlib_free(
-        void*,
-        void* ptr)
-{
-    free(ptr);
-}
-
-
-// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
@@ -99,10 +72,11 @@ static uint32_t inflate_raw_deflate_safe(
     z_stream strm;
     memset(&strm, 0, sizeof(strm));
 
-
-    strm.zalloc = zlib_alloc;
-    strm.zfree  = zlib_free;
-    strm.opaque = nullptr;
+    // Force the statically linked zlib/miniz library to use its default 
+    // internal memory allocators to prevent ABI and struct offset mismatches.
+    strm.zalloc = Z_NULL;
+    strm.zfree  = Z_NULL;
+    strm.opaque = Z_NULL;
 
 
     int init =
