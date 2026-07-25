@@ -30,16 +30,30 @@ static_assert(sizeof(ManifestEntry) == 48, "ManifestEntry layout mismatch");
 // Helpers
 // ---------------------------------------------------------------------------
 
-static void debug_ui(JNIEnv* env, jobject callbackObj, jmethodID progressMid,
+// Returns false if a Java exception occurred and extraction should abort
+static bool debug_ui(JNIEnv* env, jobject callbackObj, jmethodID progressMid,
                      int percent, const char* msg) {
+    if (!callbackObj || !progressMid) return true;
+
     jstring jMsg = env->NewStringUTF(msg ? msg : "");
+    if (!jMsg) return false; // Out of memory creating string
+
     env->CallVoidMethod(callbackObj, progressMid, (jint)percent, jMsg);
     env->DeleteLocalRef(jMsg);
+
+    // CRITICAL: Prevent JNI crash if the Java callback throws an exception
+    if (env->ExceptionCheck()) {
+        LOGE("Java callback threw an exception. Aborting extraction.");
+        env->ExceptionClear(); 
+        return false;
+    }
+    return true;
 }
 
 // In-place byte swap for v64 (BADC -> ABCD)
 static void byteswap_v64(uint8_t* data, size_t size) {
-    for (size_t i = 0; i < size; i += 2) {
+    size_t safe_size = size & ~1; // Ensure multiple of 2 to prevent segfaults on truncated ROMs
+    for (size_t i = 0; i < safe_size; i += 2) {
         uint8_t temp = data[i];
         data[i] = data[i+1];
         data[i+1] = temp;
@@ -48,7 +62,8 @@ static void byteswap_v64(uint8_t* data, size_t size) {
 
 // In-place byte swap for n64/Little Endian (DCBA -> ABCD)
 static void byteswap_n64(uint8_t* data, size_t size) {
-    for (size_t i = 0; i < size; i += 4) {
+    size_t safe_size = size & ~3; // Ensure multiple of 4 to prevent segfaults on truncated ROMs
+    for (size_t i = 0; i < safe_size; i += 4) {
         uint8_t temp0 = data[i];
         uint8_t temp1 = data[i+1];
         data[i] = data[i+3];
@@ -99,6 +114,11 @@ JNIEXPORT void JNICALL
 Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
                                                       jobject callback, jint romFd,
                                                       jstring outDir, jstring manifestPath) {
+    if (!outDir || !manifestPath) {
+        LOGE("Invalid arguments: outDir or manifestPath is null");
+        return;
+    }
+
     const char* cOutDir       = env->GetStringUTFChars(outDir,       nullptr);
     const char* cManifestPath = env->GetStringUTFChars(manifestPath, nullptr);
 
@@ -113,7 +133,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
 
     off_t romSizeOff = lseek((int)romFd, 0, SEEK_END);
     if (romSizeOff <= 0) {
-        LOGE("Failed to determine ROM size (errno=%d)", errno);
+        LOGE("Failed to determine ROM size via lseek (errno=%d)", errno);
         debug_ui(env, callback, progressMid, 0, "ERROR: Failed to determine ROM size");
         env->ReleaseStringUTFChars(outDir,       cOutDir);
         env->ReleaseStringUTFChars(manifestPath, cManifestPath);
@@ -131,11 +151,15 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
         return;
     }
 
-    // Read full ROM into buffer
+    // Read full ROM into buffer securely, accounting for POSIX interruptions
     size_t totalRead = 0;
     while (totalRead < romSize) {
         ssize_t n = read((int)romFd, romData + totalRead, romSize - totalRead);
-        if (n <= 0) break;
+        if (n < 0) {
+            if (errno == EINTR) continue; // Recoverable interrupt
+            break; // Fatal read error
+        }
+        if (n == 0) break; // Unexpected EOF
         totalRead += n;
     }
 
@@ -206,14 +230,11 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
 
     // ------------------------------------------------------------------
     // STEP 4: Per-asset extraction
-    //
-    // Using the normalized in-memory ROM buffer to prevent thousands
-    // of pread() calls and to ensure the extracted assets have correct
-    // endianness.
     // ------------------------------------------------------------------
     uint32_t extracted   = 0;
     uint32_t compressed  = 0;
     uint32_t failed      = 0;
+    int lastPercent      = -1; // Track percentage to avoid JNI flooding
 
     for (uint32_t i = 0; i < entryCount; i++) {
         ManifestEntry entry;
@@ -226,6 +247,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
         if (entry.size == 0 || entry.offset >= (uint32_t)romSize) {
             continue;
         }
+        
         // Clamp size to prevent reading past ROM end
         uint32_t readSize = entry.size;
         if ((uint64_t)entry.offset + readSize > (uint64_t)romSize) {
@@ -233,7 +255,6 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
         }
 
         uint8_t* assetBuffer = romData + entry.offset;
-
         char outPath[512];
         snprintf(outPath, sizeof(outPath), "%s/asset_%08X.bin", cOutDir, entry.offset);
 
@@ -253,9 +274,10 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
                     LOGE("fopen failed for compressed output: %s", outPath);
                     failed++;
                 }
-                free(outBuf);
+                free(outBuf); // Ensure we free regardless of fopen success
             } else {
-                LOGE("Decompression failed for '%s'", entry.name);
+                // Fixed buffer overflow vulnerability here by explicitly limiting to 32 chars
+                LOGE("Decompression failed for '%.32s'", entry.name);
                 failed++;
             }
         } else {
@@ -271,13 +293,15 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(JNIEnv* env, jobject thiz,
             }
         }
 
-        // Progress update every 10 entries to avoid flooding the UI thread
-        if (i % 10 == 0) {
+        // Efficient progress update: Only call JNI when the integer percentage actually ticks up
+        int progressPercent = 10 + (int)(((uint64_t)i * 89) / entryCount);
+        if (progressPercent != lastPercent) {
             char status[64];
-            snprintf(status, sizeof(status), "Extracting: %.28s", entry.name);
-            // Map progress from 10% to 99%
-            int progressPercent = 10 + (int)((i * 89) / entryCount);
-            debug_ui(env, callback, progressMid, progressPercent, status);
+            snprintf(status, sizeof(status), "Extracting: %.32s", entry.name);
+            if (!debug_ui(env, callback, progressMid, progressPercent, status)) {
+                break; // Break the loop if the Java UI callback throws an exception
+            }
+            lastPercent = progressPercent;
         }
     }
 
