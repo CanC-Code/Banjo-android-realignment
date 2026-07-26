@@ -17,9 +17,6 @@
 // ---------------------------------------------------------------------------
 // Explicit Forward Declarations
 // ---------------------------------------------------------------------------
-// Injected to resolve the 'undeclared identifier' compilation failure.
-// C-linkage is applied to prevent name mangling. If the target implementation 
-// is compiled strictly as C++, the extern "C" wrapper should be removed.
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -173,7 +170,6 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     (void)thiz;
 
-    // Declare ALL variables at the beginning of the function
     off_t romSizeOff = 0;
     size_t romSize = 0;
     uint8_t* romData = nullptr;
@@ -266,9 +262,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     LOGI("Loaded ROM size=%zu", romSize);
 
-    // -----------------------------------------------------------------------
     // Normalize ROM byte order
-    // -----------------------------------------------------------------------
     if (romSize >= 4) {
         if (romData[0] == 0x37 && romData[1] == 0x80 && romData[2] == 0x40 && romData[3] == 0x12) {
             LOGI("Detected v64 ROM. Swapping bytes.");
@@ -292,7 +286,6 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         goto cleanup;
     }
 
-    // Copy the ROM header to preserve byte order
     if (romSize >= 4) {
         memcpy(romBaseBuffer, romData, 4);
     }
@@ -312,24 +305,31 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         goto cleanup;
     }
 
-    // Adaptively determine Endianness
-    if (entryCount > MAX_MANIFEST_ENTRIES) {
-        uint32_t swappedCount = swap_uint32(entryCount);
-        if (swappedCount <= MAX_MANIFEST_ENTRIES) {
+    // Robust Endianness detection
+    {
+        uint32_t rawCount = entryCount;
+        uint32_t swappedCount = swap_uint32(rawCount);
+        if (swappedCount > 0 && swappedCount <= MAX_MANIFEST_ENTRIES && rawCount > MAX_MANIFEST_ENTRIES) {
             entryCount = swappedCount;
             manifestNeedsSwap = true;
+        } else if (rawCount > MAX_MANIFEST_ENTRIES && swappedCount <= MAX_MANIFEST_ENTRIES) {
+            entryCount = swappedCount;
+            manifestNeedsSwap = true;
+        } else {
+            entryCount = rawCount;
+            manifestNeedsSwap = false;
         }
     }
 
     if (entryCount == 0 || entryCount > MAX_MANIFEST_ENTRIES) {
-        LOGE("Invalid manifest entry count: %u", entryCount);
+        LOGE("Invalid manifest entry count: %u (raw read)", entryCount);
         goto cleanup;
     }
 
     LOGI("Processing %u manifest entries (Needs Swap: %s)", entryCount, manifestNeedsSwap ? "Yes" : "No");
 
     // -----------------------------------------------------------------------
-    // STEP 4: Extract assets in-place
+    // STEP 4: Extract assets in-place with robust offset verification
     // -----------------------------------------------------------------------
     extracted = 0;
     compressed = 0;
@@ -352,10 +352,16 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         entry.name[sizeof(entry.name) - 1] = '\0';
         entry.type[sizeof(entry.type) - 1] = '\0';
 
+        // Fix: Handle unaligned or redirected structural table offsets safely
         if (entry.offset >= romSize) {
-            LOGW("Skipping invalid offset asset %.32s offset=%u", entry.name, entry.offset);
-            failed++;
-            continue;
+            // Attempt fallback normalization if offset references absolute address space vs relative
+            if (entry.offset >= 0x10000000 && (entry.offset - 0x10000000) < romSize) {
+                entry.offset -= 0x10000000;
+            } else {
+                LOGW("Skipping invalid offset asset %.32s offset=%u", entry.name, entry.offset);
+                failed++;
+                continue;
+            }
         }
 
         if (entry.size == 0) {
@@ -378,8 +384,6 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
                                    (srcBuffer[4] << 8) | srcBuffer[5];
             if (declaredSize > 0 && declaredSize <= MAX_ASSET_SIZE) {
                 isRareCompressed = true;
-                LOGI("Decompressing %.32s (offset=%u, size=%u -> %u)",
-                     entry.name, entry.offset, entry.size, declaredSize);
             }
         }
 
@@ -387,7 +391,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
             uint32_t written = 0;
             uint8_t* decompressedData = decompress_rare_asset(srcBuffer, entry.size, &written);
             if (decompressedData && written > 0) {
-                if (written <= entry.size) {
+                if (written <= entry.size || (entry.offset + written <= romSize)) {
                     memcpy(destBuffer, decompressedData, written);
                     extracted++;
                     compressed++;
@@ -405,7 +409,6 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
             extracted++;
         }
 
-        // Progress update
         int percent = 10 + static_cast<int>(((uint64_t)i * 89) / entryCount);
         if (percent != lastPercent) {
             char status[128];
