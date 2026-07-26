@@ -1,13 +1,10 @@
-// File: Android/app/src/main/cpp/otr_builder.cpp
+// File: Android/app/src/main/cpp/ultra/otr_builder.cpp
 
 #include <jni.h>
-
 #include <unistd.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-
 #include <android/log.h>
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -17,18 +14,11 @@
 
 #include "rare_decompression.h"
 
-
 #define LOG_TAG "BKA_OTR"
 
-#define LOGI(...) \
-    __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
-
-#define LOGE(...) \
-    __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
-
-#define LOGW(...) \
-    __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
-
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 
 // ---------------------------------------------------------------------------
 // Manifest format
@@ -36,32 +26,23 @@
 
 #pragma pack(push, 1)
 
-struct ManifestEntry
-{
+struct ManifestEntry {
     uint32_t offset;
     uint32_t size;
-
     char name[32];
     char type[8];
 };
 
 #pragma pack(pop)
 
-
-static_assert(
-        sizeof(ManifestEntry) == 48,
-        "ManifestEntry layout mismatch");
-
+static_assert(sizeof(ManifestEntry) == 48, "ManifestEntry layout mismatch");
 
 // ---------------------------------------------------------------------------
 // Safety constants
 // ---------------------------------------------------------------------------
 
 static constexpr uint32_t MAX_MANIFEST_ENTRIES = 100000;
-
-static constexpr uint32_t MAX_ASSET_SIZE =
-        0x10000000; // 256 MB
-
+static constexpr uint32_t MAX_ASSET_SIZE = 0x10000000; // 256 MB
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -69,24 +50,22 @@ static constexpr uint32_t MAX_ASSET_SIZE =
 
 static inline uint32_t swap_uint32(uint32_t val) {
     return ((val & 0xFF000000u) >> 24) |
-           ((val & 0x00FF0000u) >>  8) |
-           ((val & 0x0000FF00u) <<  8) |
+           ((val & 0x00FF0000u) >> 8) |
+           ((val & 0x0000FF00u) << 8) |
            ((val & 0x000000FFu) << 24);
 }
 
 static bool debug_ui(
-        JNIEnv* env,
-        jobject callbackObj,
-        jmethodID progressMid,
-        int percent,
-        const char* message)
-{
+    JNIEnv* env,
+    jobject callbackObj,
+    jmethodID progressMid,
+    int percent,
+    const char* message) {
     if (!env || !callbackObj || !progressMid) {
         return true;
     }
 
     jstring jMsg = env->NewStringUTF(message ? message : "");
-
     if (!jMsg) {
         LOGE("Failed creating JNI status string");
         return false;
@@ -103,7 +82,6 @@ static bool debug_ui(
 
     return true;
 }
-
 
 // ---------------------------------------------------------------------------
 // ROM byte order normalization
@@ -129,16 +107,14 @@ static void byteswap_n64(uint8_t* data, size_t size) {
     }
 }
 
-
 // ---------------------------------------------------------------------------
 // ROM writer
 // ---------------------------------------------------------------------------
 
 static bool write_rom_base_from_memory(
-        const uint8_t* romData,
-        size_t romSize,
-        const char* outDir)
-{
+    const uint8_t* romData,
+    size_t romSize,
+    const char* outDir) {
     if (!romData || romSize == 0 || !outDir) {
         LOGE("write_rom_base invalid arguments");
         return false;
@@ -154,8 +130,6 @@ static bool write_rom_base_from_memory(
     }
 
     size_t written = fwrite(romData, 1, romSize, file);
-    
-    // Force disk synchronization
     fflush(file);
     fsync(fileno(file));
     fclose(file);
@@ -169,7 +143,6 @@ static bool write_rom_base_from_memory(
     return true;
 }
 
-
 // ---------------------------------------------------------------------------
 // JNI entry point
 // ---------------------------------------------------------------------------
@@ -177,18 +150,20 @@ static bool write_rom_base_from_memory(
 extern "C"
 JNIEXPORT void JNICALL
 Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
-        JNIEnv* env,
-        jobject thiz,
-        jobject callback,
-        jint romFd,
-        jstring outDir,
-        jstring manifestPath)
-{
+    JNIEnv* env,
+    jobject thiz,
+    jobject callback,
+    jint romFd,
+    jstring outDir,
+    jstring manifestPath) {
+
     (void)thiz;
 
+    // Declare all variables at the beginning of the function
     off_t romSizeOff = 0;
     size_t romSize = 0;
     uint8_t* romData = nullptr;
+    uint8_t* romBaseBuffer = nullptr;
     size_t totalRead = 0;
     FILE* mFile = nullptr;
     uint32_t entryCount = 0;
@@ -196,24 +171,24 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
     uint32_t compressed = 0;
     uint32_t failed = 0;
     int lastPercent = -1;
+    bool manifestNeedsSwap = false;
+    const char* cOutDir = nullptr;
+    const char* cManifestPath = nullptr;
+    jclass callbackClass = nullptr;
+    jmethodID progressMid = nullptr;
 
     if (!env || romFd < 0 || !outDir || !manifestPath) {
         LOGE("Invalid JNI arguments");
         return;
     }
 
-    const char* cOutDir = env->GetStringUTFChars(outDir, nullptr);
-    const char* cManifestPath = env->GetStringUTFChars(manifestPath, nullptr);
+    cOutDir = env->GetStringUTFChars(outDir, nullptr);
+    cManifestPath = env->GetStringUTFChars(manifestPath, nullptr);
 
     if (!cOutDir || !cManifestPath) {
         LOGE("Failed obtaining JNI strings");
-        if (cOutDir) env->ReleaseStringUTFChars(outDir, cOutDir);
-        if (cManifestPath) env->ReleaseStringUTFChars(manifestPath, cManifestPath);
-        return;
+        goto cleanup_strings;
     }
-
-    jclass callbackClass = nullptr;
-    jmethodID progressMid = nullptr;
 
     if (callback) {
         callbackClass = env->GetObjectClass(callback);
@@ -264,8 +239,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         if (count < 0) {
             if (errno == EINTR) continue;
             LOGE("ROM read failed errno=%d", errno);
-            free(romData);
-            goto cleanup_strings;
+            goto cleanup_romData;
         }
         if (count == 0) break;
         totalRead += static_cast<size_t>(count);
@@ -273,8 +247,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     if (totalRead != romSize) {
         LOGE("Incomplete ROM read %zu/%zu", totalRead, romSize);
-        free(romData);
-        goto cleanup_strings;
+        goto cleanup_romData;
     }
 
     LOGI("Loaded ROM size=%zu", romSize);
@@ -286,62 +259,63 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         if (romData[0] == 0x37 && romData[1] == 0x80 && romData[2] == 0x40 && romData[3] == 0x12) {
             LOGI("Detected v64 ROM. Swapping bytes.");
             byteswap_v64(romData, romSize);
-        }
-        else if (romData[0] == 0x40 && romData[1] == 0x12 && romData[2] == 0x37 && romData[3] == 0x80) {
+        } else if (romData[0] == 0x40 && romData[1] == 0x12 && romData[2] == 0x37 && romData[3] == 0x80) {
             LOGI("Detected n64 ROM. Swapping bytes.");
             byteswap_n64(romData, romSize);
-        }
-        else if (romData[0] == 0x80 && romData[1] == 0x37 && romData[2] == 0x12 && romData[3] == 0x40) {
+        } else if (romData[0] == 0x80 && romData[1] == 0x37 && romData[2] == 0x12 && romData[3] == 0x40) {
             LOGI("Detected z64 ROM. No swap needed.");
         }
     }
 
-    debug_ui(env, callback, progressMid, 10, "Writing normalized ROM base...");
+    // -----------------------------------------------------------------------
+    // STEP 2: Allocate output buffer for rom_base.bin
+    // -----------------------------------------------------------------------
+    debug_ui(env, callback, progressMid, 10, "Allocating output buffer...");
 
-    if (!write_rom_base_from_memory(romData, romSize, cOutDir)) {
-        LOGE("Failed writing rom_base.bin");
-        free(romData);
-        goto cleanup_strings;
+    romBaseBuffer = static_cast<uint8_t*>(calloc(romSize, 1));
+    if (!romBaseBuffer) {
+        LOGE("Failed to allocate rom_base buffer (size=%zu)", romSize);
+        goto cleanup_romData;
+    }
+
+    // Copy the ROM header to preserve byte order
+    if (romSize >= 4) {
+        memcpy(romBaseBuffer, romData, 4);
     }
 
     // -----------------------------------------------------------------------
-    // STEP 2: Open manifest
+    // STEP 3: Open manifest
     // -----------------------------------------------------------------------
     mFile = fopen(cManifestPath, "rb");
     if (!mFile) {
         LOGW("Manifest missing: %s", cManifestPath);
         debug_ui(env, callback, progressMid, 100, "Extraction complete (ROM-only mode)");
-        free(romData);
-        goto cleanup_strings;
+        goto cleanup_romBaseBuffer;
     }
 
-    entryCount = 0;
     if (fread(&entryCount, sizeof(uint32_t), 1, mFile) != 1) {
         LOGE("Unable reading manifest header");
-        fclose(mFile);
-        free(romData);
-        goto cleanup_strings;
+        goto cleanup_manifest;
     }
 
-    // Safety check on header (swap only if header itself was Big-Endian)
+    // Adaptively determine Endianness
     if (entryCount > MAX_MANIFEST_ENTRIES) {
         uint32_t swappedCount = swap_uint32(entryCount);
         if (swappedCount <= MAX_MANIFEST_ENTRIES) {
             entryCount = swappedCount;
+            manifestNeedsSwap = true;
         }
     }
 
     if (entryCount == 0 || entryCount > MAX_MANIFEST_ENTRIES) {
         LOGE("Invalid manifest entry count: %u", entryCount);
-        fclose(mFile);
-        free(romData);
-        goto cleanup_strings;
+        goto cleanup_manifest;
     }
 
-    LOGI("Processing %u manifest entries", entryCount);
+    LOGI("Processing %u manifest entries (Needs Swap: %s)", entryCount, manifestNeedsSwap ? "Yes" : "No");
 
     // -----------------------------------------------------------------------
-    // STEP 3: Extract assets
+    // STEP 4: Extract assets in-place
     // -----------------------------------------------------------------------
     extracted = 0;
     compressed = 0;
@@ -350,19 +324,19 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     for (uint32_t i = 0; i < entryCount; i++) {
         ManifestEntry entry;
-
         if (fread(&entry, sizeof(ManifestEntry), 1, mFile) != 1) {
             LOGE("Manifest read failed at entry %u", i);
             failed++;
             break;
         }
 
-        // Unconditionally swap payload variables - the struct properties are packed Big-Endian
-        entry.offset = swap_uint32(entry.offset);
-        entry.size = swap_uint32(entry.size);
+        if (manifestNeedsSwap) {
+            entry.offset = swap_uint32(entry.offset);
+            entry.size = swap_uint32(entry.size);
+        }
 
-        entry.name[sizeof(entry.name)-1] = '\0';
-        entry.type[sizeof(entry.type)-1] = '\0';
+        entry.name[sizeof(entry.name) - 1] = '\0';
+        entry.type[sizeof(entry.type) - 1] = '\0';
 
         if (entry.offset >= romSize) {
             LOGW("Skipping invalid offset asset %.32s offset=%u", entry.name, entry.offset);
@@ -375,75 +349,46 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
             continue;
         }
 
-        uint64_t endOffset = static_cast<uint64_t>(entry.offset) + static_cast<uint64_t>(entry.size);
-
+        uint64_t endOffset = static_cast<uint64_t>(entry.offset) + entry.size;
         if (endOffset > romSize) {
             LOGW("Clamping oversized asset %.32s", entry.name);
             entry.size = static_cast<uint32_t>(romSize - entry.offset);
         }
 
-        if (entry.size == 0) {
-            failed++;
-            continue;
-        }
-
-        uint8_t* assetBuffer = romData + entry.offset;
-        char outputPath[512];
-        snprintf(outputPath, sizeof(outputPath), "%s/asset_%08X.bin", cOutDir, entry.offset);
-
-        LOGI("Asset %u/%u %.32s offset=%08X size=%u", i + 1, entryCount, entry.name, entry.offset, entry.size);
+        uint8_t* srcBuffer = romData + entry.offset;
+        uint8_t* destBuffer = romBaseBuffer + entry.offset;
 
         bool isRareCompressed = false;
-        if (entry.size >= 8 && assetBuffer[0] == 0x11 && assetBuffer[1] == 0x72) {
-            uint32_t declaredSize = ((uint32_t)assetBuffer[2] << 24) |
-                                    ((uint32_t)assetBuffer[3] << 16) |
-                                    ((uint32_t)assetBuffer[4] << 8) |
-                                    ((uint32_t)assetBuffer[5]);
-
+        if (entry.size >= 8 && srcBuffer[0] == 0x11 && srcBuffer[1] == 0x72) {
+            uint32_t declaredSize = (srcBuffer[2] << 24) | (srcBuffer[3] << 16) |
+                                   (srcBuffer[4] << 8) | srcBuffer[5];
             if (declaredSize > 0 && declaredSize <= MAX_ASSET_SIZE) {
                 isRareCompressed = true;
-                LOGI("Rare compression detected %.32s output=%u", entry.name, declaredSize);
+                LOGI("Decompressing %.32s (offset=%u, size=%u -> %u)",
+                     entry.name, entry.offset, entry.size, declaredSize);
             }
         }
 
         if (isRareCompressed) {
-            uint32_t outputSize = 0;
-            uint64_t remainingInRom = (romSize > entry.offset) ? (romSize - entry.offset) : 0;
-            uint32_t availableSize = static_cast<uint32_t>(remainingInRom > MAX_ASSET_SIZE ? MAX_ASSET_SIZE : remainingInRom);
-
-            uint8_t* output = decompress_rare_asset(assetBuffer, availableSize, &outputSize);
-
-            if (output && outputSize > 0) {
-                FILE* out = fopen(outputPath, "wb");
-                if (out) {
-                    size_t written = fwrite(output, 1, outputSize, out);
-                    fclose(out);
-                    if (written == outputSize) {
-                        extracted++;
-                        compressed++;
-                    } else {
-                        failed++;
-                    }
+            uint32_t written = 0;
+            uint8_t* decompressedData = decompress_rare_asset(srcBuffer, entry.size, &written);
+            if (decompressedData && written > 0) {
+                if (written <= entry.size) {
+                    memcpy(destBuffer, decompressedData, written);
+                    extracted++;
+                    compressed++;
                 } else {
+                    LOGE("Decompressed size exceeds buffer for %.32s", entry.name);
                     failed++;
                 }
-                free(output);
+                free(decompressedData);
             } else {
+                LOGE("Decompression failed for %.32s", entry.name);
                 failed++;
             }
         } else {
-            FILE* out = fopen(outputPath, "wb");
-            if (out) {
-                size_t written = fwrite(assetBuffer, 1, entry.size, out);
-                fclose(out);
-                if (written == entry.size) {
-                    extracted++;
-                } else {
-                    failed++;
-                }
-            } else {
-                failed++;
-            }
+            memcpy(destBuffer, srcBuffer, entry.size);
+            extracted++;
         }
 
         // Progress update
@@ -459,17 +404,31 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
     }
 
     // -----------------------------------------------------------------------
-    // STEP 4: Finalize extraction
+    // STEP 5: Write rom_base.bin to disk
     // -----------------------------------------------------------------------
-    fclose(mFile);
-    free(romData);
+    debug_ui(env, callback, progressMid, 90, "Writing rom_base.bin...");
 
-    LOGI("Extraction complete: extracted=%u compressed=%u failed=%u total=%u", extracted, compressed, failed, entryCount);
+    if (!write_rom_base_from_memory(romBaseBuffer, romSize, cOutDir)) {
+        LOGE("Failed writing rom_base.bin");
+        goto cleanup_manifest;
+    }
+
+    LOGI("Extraction complete: extracted=%u compressed=%u failed=%u total=%u",
+         extracted, compressed, failed, entryCount);
 
     char summary[256];
-    snprintf(summary, sizeof(summary), "Extraction complete! %u assets extracted, %u failed", extracted, failed);
-
+    snprintf(summary, sizeof(summary),
+             "Extraction complete! %u assets extracted, %u failed", extracted, failed);
     debug_ui(env, callback, progressMid, 100, summary);
+
+cleanup_manifest:
+    if (mFile) fclose(mFile);
+
+cleanup_romBaseBuffer:
+    if (romBaseBuffer) free(romBaseBuffer);
+
+cleanup_romData:
+    if (romData) free(romData);
 
 cleanup_strings:
     if (cOutDir) env->ReleaseStringUTFChars(outDir, cOutDir);
