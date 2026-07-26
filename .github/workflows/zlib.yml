@@ -1,0 +1,94 @@
+name: Setup Vendored zlib and Commit
+
+on:
+  workflow_dispatch:
+
+jobs:
+  setup-zlib:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout Repository Branch
+        uses: actions/checkout@v4
+        with:
+          ref: static-build
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: ⚙️ Download and Extract Standard zlib Sources
+        run: |
+          TARGET_DIR="Android/app/src/main/cpp/ultra/zlib"
+          mkdir -p "$TARGET_DIR"
+          
+          # Fetch zlib source release tarball (v1.3.1)
+          ZLIB_VERSION="1.3.1"
+          curl -L "https://github.com/madler/zlib/archive/refs/tags/v${ZLIB_VERSION}.tar.gz" -o zlib.tar.gz
+          tar -xzf zlib.tar.gz
+          
+          # Copy essential compilation source files and headers
+          ZLIB_SRC_DIR="zlib-${ZLIB_VERSION}"
+          cp "${ZLIB_SRC_DIR}"/*.h "$TARGET_DIR/"
+          cp "${ZLIB_SRC_DIR}"/*.c "$TARGET_DIR/"
+          
+          # Clean up temp archive
+          rm -rf zlib.tar.gz "${ZLIB_SRC_DIR}"
+          
+          echo "Successfully populated zlib sources in $TARGET_DIR"
+
+      - name: 📝 Update CMakeLists.txt to Include Vendored zlib
+        run: |
+          CMAKE_PATH="Android/app/src/main/cpp/CMakeLists.txt"
+          
+          # Use python to safely update the bridge sources and remove system z dependency
+          python3 - << 'EOF'
+          import re
+
+          with open("Android/app/src/main/cpp/CMakeLists.txt", "r") as f:
+              content = f.read()
+
+          # 1. Add zlib sources to BRIDGE_SOURCES if not already present
+          zlib_files = [
+              "ultra/zlib/adler32.c",
+              "ultra/zlib/compress.c",
+              "ultra/zlib/crc32.c",
+              "ultra/zlib/deflate.c",
+              "ultra/zlib/infback.c",
+              "ultra/zlib/inffast.c",
+              "ultra/zlib/inflate.c",
+              "ultra/zlib/inftrees.c",
+              "ultra/zlib/trees.c",
+              "ultra/zlib/uncompr.c",
+              "ultra/zlib/zutil.c"
+          ]
+          
+          # Check if already added
+          if "ultra/zlib/inflate.c" not in content:
+              # Inject right before tools/rare_decompression.cpp or ultra/missing_stubs.c
+              insertion = "    tools/rare_decompression.cpp\n"
+              zlib_block = "".join([f"    {f}\n" for f in zlib_files])
+              content = content.replace(insertion, insertion + zlib_block)
+
+          # 2. Remove find_library(z-lib z) and ${z-lib} linkage
+          content = re.sub(r'find_library\(z-lib z\)\n?', '', content)
+          content = content.replace('${z-lib}', '')
+
+          # 3. Add zlib include directory target
+          if "ultra/zlib" not in content:
+              content = content.replace(
+                  '${CMAKE_CURRENT_SOURCE_DIR}/ultra',
+                  '${CMAKE_CURRENT_SOURCE_DIR}/ultra\n    ${CMAKE_CURRENT_SOURCE_DIR}/ultra/zlib'
+              )
+
+          with open("Android/app/src/main/cpp/CMakeLists.txt", "w") as f:
+              f.write(content)
+          print("CMakeLists.txt updated successfully.")
+          EOF
+
+      - name: 🚀 Commit and Push Files to Branch
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          
+          git add Android/app/src/main/cpp/ultra/zlib/ Android/app/src/main/cpp/CMakeLists.txt
+          git status
+          
+          git commit -m "chore: vendor standard zlib statically and update CMake configuration"
+          git push origin static-build
