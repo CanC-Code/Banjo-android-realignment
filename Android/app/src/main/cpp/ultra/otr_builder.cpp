@@ -154,7 +154,7 @@ static bool write_rom_base_from_memory(
     }
 
     size_t written = fwrite(romData, 1, romSize, file);
-    
+
     // Force disk synchronization
     fflush(file);
     fsync(fileno(file));
@@ -196,6 +196,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
     uint32_t compressed = 0;
     uint32_t failed = 0;
     int lastPercent = -1;
+    bool manifestNeedsSwap = false;
 
     if (!env || romFd < 0 || !outDir || !manifestPath) {
         LOGE("Invalid JNI arguments");
@@ -323,11 +324,12 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         goto cleanup_strings;
     }
 
-    // Safety check on header (swap only if header itself was Big-Endian)
+    // Adaptively determine Endianness using safety check on header
     if (entryCount > MAX_MANIFEST_ENTRIES) {
         uint32_t swappedCount = swap_uint32(entryCount);
         if (swappedCount <= MAX_MANIFEST_ENTRIES) {
             entryCount = swappedCount;
+            manifestNeedsSwap = true;
         }
     }
 
@@ -338,7 +340,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         goto cleanup_strings;
     }
 
-    LOGI("Processing %u manifest entries", entryCount);
+    LOGI("Processing %u manifest entries (Needs Swap: %s)", entryCount, manifestNeedsSwap ? "Yes" : "No");
 
     // -----------------------------------------------------------------------
     // STEP 3: Extract assets
@@ -357,9 +359,11 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
             break;
         }
 
-        // Unconditionally swap payload variables - the struct properties are packed Big-Endian
-        entry.offset = swap_uint32(entry.offset);
-        entry.size = swap_uint32(entry.size);
+        // Apply endianness swap ONLY if the manifest structure requires it
+        if (manifestNeedsSwap) {
+            entry.offset = swap_uint32(entry.offset);
+            entry.size = swap_uint32(entry.size);
+        }
 
         entry.name[sizeof(entry.name)-1] = '\0';
         entry.type[sizeof(entry.type)-1] = '\0';
