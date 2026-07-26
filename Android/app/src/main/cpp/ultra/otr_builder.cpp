@@ -1,4 +1,3 @@
-
 // File: Android/app/src/main/cpp/ultra/otr_builder.cpp
 
 #include <jni.h>
@@ -14,6 +13,20 @@
 #include <cstdlib>
 
 #include "rare_decompression.h"
+
+// ---------------------------------------------------------------------------
+// Explicit Forward Declarations
+// ---------------------------------------------------------------------------
+// Injected to resolve the 'undeclared identifier' compilation failure.
+// C-linkage is applied to prevent name mangling. If the target implementation 
+// is compiled strictly as C++, the extern "C" wrapper should be removed.
+#ifdef __cplusplus
+extern "C" {
+#endif
+uint8_t* decompress_rare_asset(uint8_t* srcBuffer, uint32_t srcSize, uint32_t* bytesWritten);
+#ifdef __cplusplus
+}
+#endif
 
 #define LOG_TAG "BKA_OTR"
 
