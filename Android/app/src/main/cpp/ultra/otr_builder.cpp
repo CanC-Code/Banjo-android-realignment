@@ -76,6 +76,12 @@ static constexpr uint32_t MAX_ASSET_SIZE =
 // Helpers
 // ---------------------------------------------------------------------------
 
+static inline uint32_t swap_uint32(uint32_t val) {
+    return ((val & 0xFF000000u) >> 24) |
+           ((val & 0x00FF0000u) >>  8) |
+           ((val & 0x0000FF00u) <<  8) |
+           ((val & 0x000000FFu) << 24);
+}
 
 static bool debug_ui(
         JNIEnv* env,
@@ -147,7 +153,7 @@ static void byteswap_v64(uint8_t* data, size_t size) {
     }
 }
 
-// n64 format (Big Endian):
+// n64 format (Little Endian):
 // 32-bit word swap (DCBA -> ABCD)
 static void byteswap_n64(uint8_t* data, size_t size) {
     if (!data) return;
@@ -155,10 +161,7 @@ static void byteswap_n64(uint8_t* data, size_t size) {
     size_t count = size / 4;
     for (size_t i = 0; i < count; ++i) {
         uint32_t val = d32[i];
-        d32[i] = ((val & 0xFF000000u) >> 24) |
-                 ((val & 0x00FF0000u) >>  8) |
-                 ((val & 0x0000FF00u) <<  8) |
-                 ((val & 0x000000FFu) << 24);
+        d32[i] = swap_uint32(val);
     }
 }
 
@@ -272,26 +275,15 @@ static bool parse_memory_map(
 
     while (currOffset + sizeof(MemoryMapEntry) <= romSize && count < maxEntries) {
         const MemoryMapEntry* src = reinterpret_cast<const MemoryMapEntry*>(romData + currOffset);
-        
+
         // Check for table end marker
         if (src->romOffset == 0xFFFFFFFF || src->romOffset == 0) {
             break;
         }
 
-        entries[count].romOffset = ((src->romOffset & 0x000000FF) << 24) |
-                                   ((src->romOffset & 0x0000FF00) << 8) |
-                                   ((src->romOffset & 0x00FF0000) >> 8) |
-                                   ((src->romOffset & 0xFF000000) >> 24);
-
-        entries[count].compressedSize = ((src->compressedSize & 0x000000FF) << 24) |
-                                         ((src->compressedSize & 0x0000FF00) << 8) |
-                                         ((src->compressedSize & 0x00FF0000) >> 8) |
-                                         ((src->compressedSize & 0xFF000000) >> 24);
-
-        entries[count].decompressedSize = ((src->decompressedSize & 0x000000FF) << 24) |
-                                           ((src->decompressedSize & 0x0000FF00) << 8) |
-                                           ((src->decompressedSize & 0x00FF0000) >> 8) |
-                                           ((src->decompressedSize & 0xFF000000) >> 24);
+        entries[count].romOffset = swap_uint32(src->romOffset);
+        entries[count].compressedSize = swap_uint32(src->compressedSize);
+        entries[count].decompressedSize = swap_uint32(src->decompressedSize);
 
         currOffset += sizeof(MemoryMapEntry);
         count++;
@@ -711,7 +703,15 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         goto cleanup_strings;
     }
 
-
+    // Convert manifest entry count from Big-Endian if needed
+    if (entryCount > MAX_MANIFEST_ENTRIES)
+    {
+        uint32_t swappedCount = swap_uint32(entryCount);
+        if (swappedCount <= MAX_MANIFEST_ENTRIES)
+        {
+            entryCount = swappedCount;
+        }
+    }
 
     if (entryCount == 0 ||
         entryCount > MAX_MANIFEST_ENTRIES)
@@ -771,7 +771,16 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
             break;
         }
 
-
+        // Convert Big-Endian manifest offset and size to host endianness
+        if (entry.offset >= romSize)
+        {
+            uint32_t swappedOffset = swap_uint32(entry.offset);
+            if (swappedOffset < romSize)
+            {
+                entry.offset = swappedOffset;
+                entry.size = swap_uint32(entry.size);
+            }
+        }
 
         // Ensure strings are terminated before logging
         entry.name[sizeof(entry.name)-1] = '\0';
