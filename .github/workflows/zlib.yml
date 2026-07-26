@@ -25,7 +25,7 @@ jobs:
           with open(file_path, "r", encoding="utf-8") as f:
               content = f.read()
 
-          # Replacement functions for byteswap_v64 and byteswap_n64
+          # Target fixed functions
           new_byteswap_code = """// ---------------------------------------------------------------------------
           // ROM byte order normalization
           // ---------------------------------------------------------------------------
@@ -57,23 +57,22 @@ jobs:
               }
           }"""
 
-          # Match existing byteswap_v64 through byteswap_n64 implementations
-          pattern = r'//\s*-*\n//\s*ROM byte order normalization\n//\s*-*[\s\S]*?static void byteswap_n64\(uint8_t\* data, size_t size\) \{[\s\S]*?\n\}'
+          # Regex to match byteswap_v64 and byteswap_n64 function bodies regardless of surrounding comments
+          func_pattern = r'static void byteswap_v64\([^)]*\)\s*\{[\s\S]*?\n\}\s*static void byteswap_n64\([^)]*\)\s*\{[\s\S]*?\n\}'
 
-          if re.search(pattern, content):
-              updated_content = re.sub(pattern, new_byteswap_code, content, count=1)
+          if re.search(func_pattern, content):
+              content = re.sub(func_pattern, new_byteswap_code, content, count=1)
+              print("Successfully matched and replaced existing byteswap routines.")
           else:
-              # Fallback: Replace standalone functions directly if header comment pattern differs
-              v64_pattern = r'static void byteswap_v64\(uint8_t\* data, size_t size\) \{[\s\S]*?\n\}'
-              n64_pattern = r'static void byteswap_n64\(uint8_t\* data, size_t size\) \{[\s\S]*?\n\}'
-              
-              updated_content = re.sub(v64_pattern, '', content)
-              updated_content = re.sub(n64_pattern, new_byteswap_code, updated_content)
+              # Secondary fallback matching functions individually
+              v64_pat = r'static void byteswap_v64\([^)]*\)\s*\{[\s\S]*?\n\}'
+              n64_pat = r'static void byteswap_n64\([^)]*\)\s*\{[\s\S]*?\n\}'
+              content = re.sub(v64_pat, '', content)
+              content = re.sub(n64_pat, new_byteswap_code, content)
+              print("Replaced functions via fallback individual match.")
 
           with open(file_path, "w", encoding="utf-8") as f:
-              f.write(updated_content)
-
-          print(f"Successfully patched {file_path}")
+              f.write(content)
           EOF
 
       - name: 🚀 Commit and Push Files to Branch
@@ -84,5 +83,10 @@ jobs:
           git add Android/app/src/main/cpp/ultra/otr_builder.cpp
           git status
 
-          git commit -m "fix(otr): update n64 and v64 byteswapping routines in otr_builder"
-          git push origin static-build
+          # Only commit if there are actual changes staged
+          if git diff-index --quiet HEAD --; then
+            echo "No changes detected to commit."
+          else
+            git commit -m "fix(otr): update n64 and v64 byteswapping routines in otr_builder"
+            git push origin static-build
+          fi
