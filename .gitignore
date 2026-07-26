@@ -18,6 +18,8 @@ build/
 #binaries ripped from the ROMs
 assets/
 assets/*
+!Android/app/src/main/assets/
+!Android/app/src/main/assets/**
 bin/
 bin/*
 tools/bk_crc/bk_crc
