@@ -1,0 +1,31 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+#include <n64_types.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
+OVERLAY(core2,0)
+OVERLAY(emptyLvl,1)
+OVERLAY(CC,2)
+OVERLAY(MMM,3)
+OVERLAY(GV,4)
+OVERLAY(TTC,5)
+OVERLAY(MM,6)
+OVERLAY(BGS,7)
+OVERLAY(RBB,8)
+OVERLAY(FP,9)
+OVERLAY(CCW,10)
+OVERLAY(SM,11)
+OVERLAY(cutscenes,12)
+OVERLAY(lair,13)
+OVERLAY(fight,14)
+
+
+#ifdef __cplusplus
+}
+#endif

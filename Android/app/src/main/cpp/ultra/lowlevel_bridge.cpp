@@ -1,0 +1,176 @@
+#include <sys/mman.h>
+#include <errno.h>
+#include <android/log.h>
+#include <cstdlib>
+#include <cstdio>
+#include <cstring>
+#include <stdint.h>
+
+#define LOG_TAG "BKA_MEM"
+
+// Size allocations matching the expectations of bka_safe_base.h
+#define BKA_RDRAM_ALLOC_SIZE  0x1000000 // 16MB (Covers speculative over-reads)
+#define N64_REG_SPACE_SIZE    0x1000000 // 16MB (Covers RCP/RCP register ranges)
+#define N64_PIF_SPACE_SIZE    0x0010000 // 64KB (Abundantly covers PIF ROM/RAM)
+#define N64_ROM_SPACE_SIZE    0x04000000 // 64MB (Covers the full N64 physical ROM limit)
+
+// CRITICAL CORRECTION: MI_INTR_REG physical offset is 0x04300008.
+// Mapped against our 0x04000000 register allocation block base, the correct byte offset is 0x300008. 
+// Offset 0x30000C maps to MI_INTR_MASK_REG, which broke signal updates.
+#define MI_INTR_REG_IDX       (0x00300008 / 4)
+#define MI_INTR_VI            0x08
+
+// Instantiate the global translation pointers defined as externs by the sanitizer
+uint8_t* gN64_RDRAM    = nullptr;
+uint32_t* gN64_Reg_Base = nullptr;
+uint32_t* gN64_PIF_Base = nullptr;
+uint8_t* gN64_ROM_Base = nullptr;
+
+extern "C" {
+
+    // Forward declaration of the native event routing bridge from emulator/stubs.cpp
+    void HLE_TriggerN64Event(int event_id);
+
+    // Signature updated to capture the dynamic asset path string
+    void InitN64Registers(const char* assetDir) {
+        // Idempotency guard: Prevent double allocation if called repeatedly
+        if (gN64_RDRAM != nullptr && gN64_Reg_Base != nullptr && 
+            gN64_PIF_Base != nullptr && gN64_ROM_Base != nullptr) {
+            return;
+        }
+
+        // 1. Allocate Main N64 RDRAM Memory Space
+        gN64_RDRAM = (uint8_t*)mmap(
+            nullptr, 
+            BKA_RDRAM_ALLOC_SIZE, 
+            PROT_READ | PROT_WRITE, 
+            MAP_PRIVATE | MAP_ANONYMOUS, 
+            -1, 0
+        );
+
+        // 2. Allocate N64 Hardware Emulation Register Space
+        gN64_Reg_Base = (uint32_t*)mmap(
+            nullptr, 
+            N64_REG_SPACE_SIZE, 
+            PROT_READ | PROT_WRITE, 
+            MAP_PRIVATE | MAP_ANONYMOUS, 
+            -1, 0
+        );
+
+        // 3. Allocate N64 PIF Subsystem Memory Space
+        gN64_PIF_Base = (uint32_t*)mmap(
+            nullptr, 
+            N64_PIF_SPACE_SIZE, 
+            PROT_READ | PROT_WRITE, 
+            MAP_PRIVATE | MAP_ANONYMOUS, 
+            -1, 0
+        );
+
+        // 4. Allocate Virtual Cartridge ROM Header Space (Now 64MB)
+        gN64_ROM_Base = (uint8_t*)mmap(
+            nullptr, 
+            N64_ROM_SPACE_SIZE, 
+            PROT_READ | PROT_WRITE, 
+            MAP_PRIVATE | MAP_ANONYMOUS, 
+            -1, 0
+        );
+
+        // Hard Fail Verification: Ensure the Android kernel granted all spaces securely
+        if (gN64_RDRAM == MAP_FAILED || gN64_Reg_Base == MAP_FAILED || 
+            gN64_PIF_Base == MAP_FAILED || gN64_ROM_Base == MAP_FAILED) {
+            __android_log_print(ANDROID_LOG_FATAL, LOG_TAG, 
+                "Critical virtual memory mapping failure: %s", strerror(errno));
+
+            // Cleanup any partial allocations before panicking
+            if (gN64_RDRAM    != MAP_FAILED && gN64_RDRAM    != nullptr) munmap(gN64_RDRAM,    BKA_RDRAM_ALLOC_SIZE);
+            if (gN64_Reg_Base != MAP_FAILED && gN64_Reg_Base != nullptr) munmap(gN64_Reg_Base, N64_REG_SPACE_SIZE);
+            if (gN64_PIF_Base != MAP_FAILED && gN64_PIF_Base != nullptr) munmap(gN64_PIF_Base, N64_PIF_SPACE_SIZE);
+            if (gN64_ROM_Base != MAP_FAILED && gN64_ROM_Base != nullptr) munmap(gN64_ROM_Base, N64_ROM_SPACE_SIZE);
+
+            gN64_RDRAM    = nullptr;
+            gN64_Reg_Base = nullptr;
+            gN64_PIF_Base = nullptr;
+            gN64_ROM_Base = nullptr;
+            abort();
+        }
+
+        // Zero out all allocated pools to guarantee clean emulation states
+        memset(gN64_RDRAM,    0, BKA_RDRAM_ALLOC_SIZE);
+        memset(gN64_Reg_Base, 0, N64_REG_SPACE_SIZE);
+        memset(gN64_PIF_Base, 0, N64_PIF_SPACE_SIZE);
+        memset(gN64_ROM_Base, 0, N64_ROM_SPACE_SIZE);
+
+        // CRITICAL CORRECTION: Map the physical ROM base dumped by the OTR Builder directly 
+        // into the emulated cartridge memory block so raw PI Subsystem reads succeed.
+        char romPath[512];
+        snprintf(romPath, sizeof(romPath), "%s/rom_base.bin", assetDir);
+        
+        FILE* f = fopen(romPath, "rb");
+        if (f) {
+            fread(gN64_ROM_Base, 1, N64_ROM_SPACE_SIZE, f);
+            fclose(f);
+            __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Memory Engine Stabilized: physical ROM mapped from %s.", romPath);
+        } else {
+            // Safe fallback if the dump is somehow missing or unreadable
+            __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "WARNING: rom_base.bin missing, fallback memory will be zeroed.");
+            gN64_ROM_Base[0x3B] = 'N';
+            gN64_ROM_Base[0x3C] = 'B';
+            gN64_ROM_Base[0x3D] = 'K';
+            gN64_ROM_Base[0x3E] = 'E';
+        }
+    }
+
+    void HardwareRegs_Shutdown() {
+        if (gN64_RDRAM != nullptr) {
+            munmap(gN64_RDRAM, BKA_RDRAM_ALLOC_SIZE);
+            gN64_RDRAM = nullptr;
+        }
+        if (gN64_Reg_Base != nullptr) {
+            munmap(gN64_Reg_Base, N64_REG_SPACE_SIZE);
+            gN64_Reg_Base = nullptr;
+        }
+        if (gN64_PIF_Base != nullptr) {
+            munmap(gN64_PIF_Base, N64_PIF_SPACE_SIZE);
+            gN64_PIF_Base = nullptr;
+        }
+        if (gN64_ROM_Base != nullptr) {
+            munmap(gN64_ROM_Base, N64_ROM_SPACE_SIZE);
+            gN64_ROM_Base = nullptr;
+        }
+        __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Memory Engine Closed down cleanly.");
+    }
+
+    // -------------------------------------------------------------------------
+    // ANDROID NATIVE BRIDGE HOOKS
+    // -------------------------------------------------------------------------
+
+    struct BKA_ControllerPad {
+        uint16_t button;
+        int8_t   stick_x;
+        int8_t   stick_y;
+        uint8_t  errno_val;
+    };
+
+    // Allocate the physical memory array for all 4 standard controller ports.
+    BKA_ControllerPad gN64_ControllerData[4] = {{0, 0, 0, 0}};
+
+    // Engine Clock Signal Pass:
+    // Connects the asynchronous Android OpenGL thread to the synchronous N64 OS.
+    void N64_TriggerVirtualVBlankInterrupt(void) {
+        if (gN64_Reg_Base == nullptr) return;
+
+        // Assert the VI Interrupt bit inside the emulated hardware register space.
+        gN64_Reg_Base[MI_INTR_REG_IDX] |= MI_INTR_VI;
+
+        // Pump the OS_EVENT_VI (ID: 14) message straight into the POSIX HLE event queues.
+        // This instantly wakes up the blocked scheduler threads to step the system forward.
+        HLE_TriggerN64Event(14);
+    }
+
+    // Hardware Renderer Stub:
+    // Connects the recompiled N64 Display List executor to the Android GL surface.
+    void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId) {
+        // STUB: Routes active RDP render targets to the Android GL texture context.
+    }
+
+} // end extern "C"

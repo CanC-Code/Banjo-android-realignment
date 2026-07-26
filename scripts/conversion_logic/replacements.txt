@@ -1,0 +1,12 @@
+\bu8\b ::: unsigned char
+\bs8\b ::: signed char
+\bu16\b ::: unsigned short
+\bs16\b ::: short
+\bu32\b ::: unsigned int
+\bs32\b ::: int
+\bu64\b ::: unsigned long long
+\bs64\b ::: long long
+\bf32\b ::: float
+\bf64\b ::: double
+->errno ::: ->errnum
+\.errno ::: .errnum
