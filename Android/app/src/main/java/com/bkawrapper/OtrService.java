@@ -56,9 +56,8 @@ public class OtrService extends Service {
         String version   = intent.getStringExtra("version");
         if (version == null) version = "us";
         
-        // CORRECTION: Update the extension to point to your Splat YAML file.
-        // Ensure that a file named "manifest_us.yaml" exists in src/main/assets/
-        final String manifestFilename = "manifest_" + version + ".yaml";
+        // CORRECTION: Update to match the exact YAML asset filename pattern in assets directory
+        final String manifestFilename = "decompressed." + version + ".v10.yaml";
 
         startForeground(NOTIFICATION_ID,
             new NotificationCompat.Builder(this, CHANNEL_ID)
