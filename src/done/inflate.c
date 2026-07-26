@@ -1,5 +1,18 @@
 #include <ultra64.h>
 #include "rarezip.h"
+#include <android/log.h>
+
+#define LOG_TAG "BKA_INFLATE"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
+
+/* FIX: capacity of the huft table pool that D_80007270/D_80007290 point at.
+ * MUST match the size of s_huft_pool declared in rarezip.c. The original
+ * N64 code pointed this at a real reserved RDRAM scratch region; the Android
+ * port was pointing it at the address of a single pointer variable, which
+ * had no real capacity at all. */
+#define HUFT_POOL_CAPACITY 4096
 
 u8 border[] = {    /* Order of the bit length code lengths */
     16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15};
@@ -41,6 +54,14 @@ u32 bk;
 u32 crc1;
 u32 crc2;
 u32 hufts;
+
+/* FIX: output buffer capacity for the currently-active decompression call.
+ * Set by func_800005C0 in rarezip.c before invoking bkboot_inflate(). Every
+ * write into D_80007284 is checked against this so a mismatch between the
+ * declared/decoded size and the real destination buffer can't walk off the
+ * end of the buffer. Defaults to "unbounded" so behavior is unchanged if a
+ * caller forgets to set it -- but rarezip.c now always sets it in Path D. */
+u32 g_decomp_out_cap = 0xFFFFFFFFu;
 
 int huft_build(b, n, s, d, e, t, m)
 unsigned *b;            /* code lengths in bits (all assumed <= BMAX) */
@@ -170,9 +191,19 @@ int *m;                 /* maximum lookup bits, returns actual */
         }
         z = 1 << j;             /* table entries for j-bit table */
 
+        /* FIX: bounds-check the pool before ever writing into it. This is
+         * the check the original "return 3 if not enough memory" contract
+         * promised but never implemented -- D_80007290 used to point at a
+         * single pointer-sized variable with no real capacity behind it. */
+        if (hufts + z + 1 > HUFT_POOL_CAPACITY) {
+          LOGE("huft_build: pool exhausted (need %u, capacity %u)",
+               hufts + z + 1, (unsigned)HUFT_POOL_CAPACITY);
+          return 3;
+        }
+
          /* allocate and link in new table */
         q = D_80007290 + hufts;
-        
+
         hufts += z + 1;         /* track memory usage */
         *t = q + 1;             /* link to list for huft_free() */
         *(t = &(q->v.t)) = (struct huft *)NULL;
@@ -198,7 +229,7 @@ int *m;                 /* maximum lookup bits, returns actual */
       {
         r.e = (u8)(*p < 256 ? 16 : 15);    /* 256 is end-of-block code */
         r.v.n = *p;             /* simple code is just the value */
-	      p++;                   /* one compiler does not like *p++ */
+              p++;                   /* one compiler does not like *p++ */
       }
       else
       {
@@ -263,6 +294,12 @@ int *m;                 /* maximum lookup bits, returns actual */
     DUMPBITS(t->b)
     if (e == 16)                /* then it's a literal */
     {
+      /* FIX: never write past the caller's real output buffer */
+      if (w >= g_decomp_out_cap) {
+        LOGE("inflate_codes: output overflow prevented (w=%u cap=%u)", w, g_decomp_out_cap);
+        wp = w; bb = b; bk = k;
+        return 4;
+      }
 
       tmp = (u8)t->v.n;
       D_80007284[w++] = tmp;
@@ -293,9 +330,15 @@ int *m;                 /* maximum lookup bits, returns actual */
       NEEDBITS(e) //L80000FE0 - L80001008
       d = w - t->v.n - ((unsigned)b & mask_bits[e]);
       DUMPBITS(e)
-      
+
        /* do the copy */
       do{
+        /* FIX: same overflow guard for the copy loop */
+        if (w >= g_decomp_out_cap) {
+          LOGE("inflate_codes: output overflow prevented during copy (w=%u cap=%u)", w, g_decomp_out_cap);
+          wp = w; bb = b; bk = k;
+          return 4;
+        }
         tmp =  D_80007284[d++];
         D_80007284[w++] = tmp;
         crc1 += tmp;
@@ -341,6 +384,13 @@ int *m;                 /* maximum lookup bits, returns actual */
    /* read and output the compressed data */
    while (n--)
    {
+     /* FIX: overflow guard */
+     if (w >= g_decomp_out_cap) {
+       LOGE("inflate_stored: output overflow prevented (w=%u cap=%u)", w, g_decomp_out_cap);
+       wp = w; bb = b; bk = k;
+       return 4;
+     }
+
      NEEDBITS(8)
      D_80007284[w++] = (u8) b;
      crc1 += b & 0xFF;
@@ -366,6 +416,7 @@ int *m;                 /* maximum lookup bits, returns actual */
   int bl;               /* lookup bits for tl */
   int bd;               /* lookup bits for td */
   unsigned l[288];      /* length list for huft_build */
+  int r;                /* FIX: capture huft_build result */
 
 
   /* set up literal table */
@@ -378,18 +429,24 @@ int *m;                 /* maximum lookup bits, returns actual */
   for (; i < 288; i++)          /* make a complete, but wrong code set */
     l[i] = 8;
   bl = 7;
-  huft_build(l, 288, 257, cplens, cplext, &tl, &bl);
+  r = huft_build(l, 288, 257, cplens, cplext, &tl, &bl);
+  if (r == 3) {
+    LOGE("inflate_fixed: literal/length huft_build failed (pool exhausted)");
+    return 3;
+  }
 
    /* set up distance table */
    for (i = 0; i < 30; i++)      /* make an incomplete code set */
      l[i] = 5;
    bd = 5;
-   huft_build(l, 30, 0, cpdist, cpdext, &td, &bd);
+   r = huft_build(l, 30, 0, cpdist, cpdext, &td, &bd);
+   if (r == 3) {
+     LOGE("inflate_fixed: distance huft_build failed (pool exhausted)");
+     return 3;
+   }
 
    /* decompress until an end-of-block code */
-    inflate_codes(tl, td, bl, bd);
-
-  return 0;
+    return inflate_codes(tl, td, bl, bd);
 }
 
 /* static */ int inflate_dynamic(void)/* decompress an inflated type 2 (dynamic Huffman codes) block. */
@@ -406,6 +463,7 @@ int *m;                 /* maximum lookup bits, returns actual */
   unsigned nb;          /* number of bit length codes */
   unsigned nl;          /* number of literal/length codes */
   unsigned nd;          /* number of distance codes */
+  int r;                /* FIX: capture huft_build result */
 
   register unsigned k;  /* number of bits in bit buffer */
 
@@ -442,7 +500,12 @@ int *m;                 /* maximum lookup bits, returns actual */
 
     /* build decoding table for trees--single level, 7 bit lookup */
     bl = 7;
-    huft_build(ll, 19, 19, NULL, NULL, &tl, &bl);
+    r = huft_build(ll, 19, 19, NULL, NULL, &tl, &bl);
+    if (r == 3) {
+      LOGE("inflate_dynamic: code-length huft_build failed (pool exhausted)");
+      bb = b; bk = k;
+      return 3;
+    }
 
 
    /* read in literal and distance code lengths */
@@ -491,14 +554,20 @@ int *m;                 /* maximum lookup bits, returns actual */
 
    /* build the decoding tables for literal/length and distance codes */
    bl = lbits;
-   huft_build(ll, nl, 257, cplens, cplext, &tl, &bl);
+   r = huft_build(ll, nl, 257, cplens, cplext, &tl, &bl);
+   if (r == 3) {
+     LOGE("inflate_dynamic: literal/length huft_build failed (pool exhausted)");
+     return 3;
+   }
    bd = dbits;
-   huft_build(ll + nl, nd, 0, cpdist, cpdext, &td, &bd);
+   r = huft_build(ll + nl, nd, 0, cpdist, cpdext, &td, &bd);
+   if (r == 3) {
+     LOGE("inflate_dynamic: distance huft_build failed (pool exhausted)");
+     return 3;
+   }
 
    /* decompress until an end-of-block code */
-   inflate_codes(tl, td, bl, bd);
-
-  return 0;
+   return inflate_codes(tl, td, bl, bd);
 }
 
 /* static */ int inflate_block(int *e)
@@ -550,6 +619,21 @@ int bkboot_inflate(void) //int inflate()
   int e;                /* last block flag */
   int r;                /* result code */
   unsigned h;           /* maximum struct huft's malloc'ed */
+
+  /* FIX: fail loudly and early if the huft pool was never wired up, instead
+   * of silently running with a null/garbage base pointer. */
+  if (!D_80007290) {
+    LOGE("bkboot_inflate: D_80007290 (huft pool) is NULL -- aborting");
+    return 3;
+  }
+  if (!inbuf) {
+    LOGE("bkboot_inflate: inbuf is NULL -- aborting");
+    return 2;
+  }
+  if (!D_80007284) {
+    LOGE("bkboot_inflate: D_80007284 (output buffer) is NULL -- aborting");
+    return 2;
+  }
 
   /* initialize window, bit buffer */
   wp = 0;
