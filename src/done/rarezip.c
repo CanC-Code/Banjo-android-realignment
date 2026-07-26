@@ -118,7 +118,7 @@ u32 func_800005C0(u8* in, u8* out, struct huft *arg2){
     u8* p_arg2 = bka_resolve_ptr((uintptr_t)arg2);
 
     /* Safely catch NULL pointers or blank memory boundaries */
-    if (!p_in || (p_in[0] == 0x00 && p_in[1] == 0x00 && p_in[2] == 0x00 && p_in[3] == 0x00)) {
+    if (!p_in || !p_out || (p_in[0] == 0x00 && p_in[1] == 0x00 && p_in[2] == 0x00 && p_in[3] == 0x00)) {
         wp = 0;
         inptr = 0;
         return wp;
@@ -190,16 +190,26 @@ u32 func_800005C0(u8* in, u8* out, struct huft *arg2){
         return wp;
     }
 
-    /* PATH D: Fallback - Rebuild expected state sequence EXACTLY for bkboot_inflate */
-    inbuf = p_in + 6;
-    D_80007284 = p_out;
-    D_80007290 = (struct huft*)p_arg2;
+    /* PATH D: Fallback - Safe Guarded Call to Legacy Inflate */
+    if (!p_arg2) {
+        p_arg2 = bka_resolve_ptr((uintptr_t)D_80007270);
+    }
+
+    if (p_arg2 != NULL) {
+        inbuf = p_in + 6;
+        D_80007284 = p_out;
+        D_80007290 = (struct huft*)p_arg2;
+        wp = 0;
+        inptr = 0;
+        bkboot_inflate();
+        return wp;
+    }
+
+    /* Clean abort if Huffman state is unavailable */
     wp = 0;
     inptr = 0;
-    bkboot_inflate();
     return wp;
 }
-
 
 u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2){
     u32 size = func_800005C0(*inPtr, *outPtr, arg2);
