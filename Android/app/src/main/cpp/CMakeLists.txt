@@ -22,6 +22,17 @@ set(BRIDGE_SOURCES
     emulator/pi_hle.cpp
     emulator/resource_mgr.cpp
     tools/rare_decompression.cpp
+    ultra/zlib/adler32.c
+    ultra/zlib/compress.c
+    ultra/zlib/crc32.c
+    ultra/zlib/deflate.c
+    ultra/zlib/infback.c
+    ultra/zlib/inffast.c
+    ultra/zlib/inflate.c
+    ultra/zlib/inftrees.c
+    ultra/zlib/trees.c
+    ultra/zlib/uncompr.c
+    ultra/zlib/zutil.c
     ultra/missing_stubs.c
 )
 
@@ -114,13 +125,12 @@ find_library(log-lib log)
 find_library(android-lib android)
 find_library(gles3-lib GLESv3)
 find_library(gles2-lib GLESv2)
-find_library(z-lib z)
 
 target_link_libraries(bkawrapper
     ${log-lib} 
     ${android-lib} 
     ${gles3-lib} 
     ${gles2-lib} 
-    ${z-lib}
+    
     atomic m
 )
