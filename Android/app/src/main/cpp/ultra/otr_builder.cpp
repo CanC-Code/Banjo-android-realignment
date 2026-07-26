@@ -131,28 +131,6 @@ static bool debug_ui(
 }
 
 
-
-// ---------------------------------------------------------------------------
-// ROM byte order normalization
-// ---------------------------------------------------------------------------
-
-
-// v64 format:
-// 37 80 40 12
-//
-// Convert:
-// BADC -> ABCD
-
-
-
-
-
-// n64 format:
-// 40 12 37 80
-//
-// Convert:
-// DCBA -> ABCD
-
 // ---------------------------------------------------------------------------
 // ROM byte order normalization
 // ---------------------------------------------------------------------------
@@ -183,7 +161,6 @@ static void byteswap_n64(uint8_t* data, size_t size) {
                  ((val & 0x000000FFu) << 24);
     }
 }
-
 
 
 // ---------------------------------------------------------------------------
@@ -268,8 +245,63 @@ static bool write_rom_base_from_memory(
 
 
 // ---------------------------------------------------------------------------
-// JNI entry point begins in Segment 2
+// Memory Mapping Verification Structures & Utilities
 // ---------------------------------------------------------------------------
+
+struct MemoryMapEntry {
+    uint32_t romOffset;
+    uint32_t compressedSize;
+    uint32_t decompressedSize;
+    uint16_t flags;
+};
+
+static bool parse_memory_map(
+        const uint8_t* romData,
+        size_t romSize,
+        uint32_t mapOffset,
+        MemoryMapEntry* entries,
+        size_t maxEntries,
+        size_t* outCount)
+{
+    if (!romData || !entries || !outCount || mapOffset + 8 > romSize) {
+        return false;
+    }
+
+    size_t count = 0;
+    uint32_t currOffset = mapOffset;
+
+    while (currOffset + sizeof(MemoryMapEntry) <= romSize && count < maxEntries) {
+        const MemoryMapEntry* src = reinterpret_cast<const MemoryMapEntry*>(romData + currOffset);
+        
+        // Check for table end marker
+        if (src->romOffset == 0xFFFFFFFF || src->romOffset == 0) {
+            break;
+        }
+
+        entries[count].romOffset = ((src->romOffset & 0x000000FF) << 24) |
+                                   ((src->romOffset & 0x0000FF00) << 8) |
+                                   ((src->romOffset & 0x00FF0000) >> 8) |
+                                   ((src->romOffset & 0xFF000000) >> 24);
+
+        entries[count].compressedSize = ((src->compressedSize & 0x000000FF) << 24) |
+                                         ((src->compressedSize & 0x0000FF00) << 8) |
+                                         ((src->compressedSize & 0x00FF0000) >> 8) |
+                                         ((src->compressedSize & 0xFF000000) >> 24);
+
+        entries[count].decompressedSize = ((src->decompressedSize & 0x000000FF) << 24) |
+                                           ((src->decompressedSize & 0x0000FF00) << 8) |
+                                           ((src->decompressedSize & 0x00FF0000) >> 8) |
+                                           ((src->decompressedSize & 0xFF000000) >> 24);
+
+        currOffset += sizeof(MemoryMapEntry);
+        count++;
+    }
+
+    *outCount = count;
+    return true;
+}
+
+
 // ---------------------------------------------------------------------------
 // JNI entry point
 // ---------------------------------------------------------------------------
@@ -286,10 +318,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 {
     (void)thiz;
 
-    // -----------------------------------------------------------------------
     // Variable Hoisting block
-    // Declarations are pulled up here to avoid 'goto bypasses initialization' errors
-    // -----------------------------------------------------------------------
     off_t romSizeOff = 0;
     size_t romSize = 0;
     uint8_t* romData = nullptr;
@@ -629,423 +658,341 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
 
 
-    // Manifest processing begins in Segment 3.
-// -----------------------------------------------------------------------
-// STEP 2:
-// Open manifest
-// -----------------------------------------------------------------------
+    // -----------------------------------------------------------------------
+    // STEP 2:
+    // Open manifest
+    // -----------------------------------------------------------------------
 
-mFile =
-        fopen(
-                cManifestPath,
-                "rb");
-
-
-if (!mFile)
-{
-    LOGW(
-        "Manifest missing: %s",
-        cManifestPath);
+    mFile =
+            fopen(
+                    cManifestPath,
+                    "rb");
 
 
-    debug_ui(
-            env,
-            callback,
-            progressMid,
-            100,
-            "Extraction complete (ROM-only mode)");
+    if (!mFile)
+    {
+        LOGW(
+            "Manifest missing: %s",
+            cManifestPath);
 
 
-    free(romData);
-
-    goto cleanup_strings;
-}
-
-
-
-entryCount = 0;
+        debug_ui(
+                env,
+                callback,
+                progressMid,
+                100,
+                "Extraction complete (ROM-only mode)");
 
 
-if (fread(
-        &entryCount,
-        sizeof(uint32_t),
-        1,
-        mFile) != 1)
-{
-    LOGE(
-        "Unable reading manifest header");
+        free(romData);
 
-
-    fclose(mFile);
-
-    free(romData);
-
-    goto cleanup_strings;
-}
+        goto cleanup_strings;
+    }
 
 
 
-if (entryCount == 0 ||
-    entryCount > MAX_MANIFEST_ENTRIES)
-{
-    LOGE(
-        "Invalid manifest entry count: %u",
-        entryCount);
-
-
-    fclose(mFile);
-
-    free(romData);
-
-    goto cleanup_strings;
-}
-
-
-
-LOGI(
-    "Processing %u manifest entries",
-    entryCount);
-
-
-
-// -----------------------------------------------------------------------
-// STEP 3:
-// Extract assets
-// -----------------------------------------------------------------------
-
-extracted = 0;
-compressed = 0;
-failed = 0;
-
-
-lastPercent = -1;
-
-
-
-for (uint32_t i = 0;
-     i < entryCount;
-     i++)
-{
-    ManifestEntry entry;
+    entryCount = 0;
 
 
     if (fread(
-            &entry,
-            sizeof(ManifestEntry),
+            &entryCount,
+            sizeof(uint32_t),
             1,
             mFile) != 1)
     {
         LOGE(
-            "Manifest read failed at entry %u",
-            i);
+            "Unable reading manifest header");
 
-        failed++;
 
-        break;
+        fclose(mFile);
+
+        free(romData);
+
+        goto cleanup_strings;
     }
 
 
 
-    // Ensure strings are terminated before logging
-    entry.name[sizeof(entry.name)-1] = '\0';
-    entry.type[sizeof(entry.type)-1] = '\0';
-
-
-
-    /*
-     * Validate ROM location.
-     *
-     * Prevent:
-     *  - integer overflow
-     *  - reading beyond ROM buffer
-     */
-
-    if (entry.offset >= romSize)
+    if (entryCount == 0 ||
+        entryCount > MAX_MANIFEST_ENTRIES)
     {
-        LOGW(
-            "Skipping invalid offset asset %.32s offset=%u",
-            entry.name,
-            entry.offset);
+        LOGE(
+            "Invalid manifest entry count: %u",
+            entryCount);
 
-        failed++;
 
-        continue;
+        fclose(mFile);
+
+        free(romData);
+
+        goto cleanup_strings;
     }
-
-
-
-    if (entry.size == 0)
-    {
-        LOGW(
-            "Skipping empty asset %.32s",
-            entry.name);
-
-        failed++;
-
-        continue;
-    }
-
-
-
-    uint64_t endOffset =
-            static_cast<uint64_t>(entry.offset) +
-            static_cast<uint64_t>(entry.size);
-
-
-
-    if (endOffset > romSize)
-    {
-        LOGW(
-            "Clamping oversized asset %.32s",
-            entry.name);
-
-
-        entry.size =
-            static_cast<uint32_t>(
-                    romSize - entry.offset);
-    }
-
-
-
-    if (entry.size == 0)
-    {
-        failed++;
-        continue;
-    }
-
-
-
-    uint8_t* assetBuffer =
-            romData + entry.offset;
-
-
-
-    char outputPath[512];
-
-
-    snprintf(
-            outputPath,
-            sizeof(outputPath),
-            "%s/asset_%08X.bin",
-            cOutDir,
-            entry.offset);
 
 
 
     LOGI(
-        "Asset %u/%u %.32s offset=%08X size=%u",
-        i + 1,
-        entryCount,
-        entry.name,
-        entry.offset,
-        entry.size);
+        "Processing %u manifest entries",
+        entryCount);
 
 
 
-    bool isRareCompressed =
-            false;
+    // -----------------------------------------------------------------------
+    // STEP 3:
+    // Extract assets
+    // -----------------------------------------------------------------------
+
+    extracted = 0;
+    compressed = 0;
+    failed = 0;
+
+    lastPercent = -1;
 
 
 
-    /*
-     * Do not assume every 0x1172 occurrence
-     * is valid compression.
-     *
-     * Require:
-     *  - magic
-     *  - minimum header
-     *  - sane declared output size
-     */
-
-    if (entry.size >= 8 &&
-        assetBuffer[0] == 0x11 &&
-        assetBuffer[1] == 0x72)
+    for (uint32_t i = 0;
+         i < entryCount;
+         i++)
     {
-        uint32_t declaredSize =
-                ((uint32_t)assetBuffer[2] << 24) |
-                ((uint32_t)assetBuffer[3] << 16) |
-                ((uint32_t)assetBuffer[4] << 8) |
-                ((uint32_t)assetBuffer[5]);
+        ManifestEntry entry;
 
 
-        if (declaredSize > 0 &&
-            declaredSize <= MAX_ASSET_SIZE)
+        if (fread(
+                &entry,
+                sizeof(ManifestEntry),
+                1,
+                mFile) != 1)
         {
-            isRareCompressed = true;
+            LOGE(
+                "Manifest read failed at entry %u",
+                i);
 
+            failed++;
 
-            LOGI(
-                "Rare compression detected %.32s output=%u",
-                entry.name,
-                declaredSize);
+            break;
         }
-        else
-        {
-            LOGW(
-                "Ignoring invalid Rare header %.32s declared=%u",
-                entry.name,
-                declaredSize);
-        }
-    }
 
 
 
-    if (isRareCompressed)
-    {
-        uint32_t outputSize = 0;
+        // Ensure strings are terminated before logging
+        entry.name[sizeof(entry.name)-1] = '\0';
+        entry.type[sizeof(entry.type)-1] = '\0';
+
 
 
         /*
-         * IMPORTANT: entry.size from the manifest is NOT a reliable bound
-         * on the true compressed stream length for Rare-compressed blobs.
+         * Validate ROM location.
          *
-         * For manifest entries generated from `type: code` YAML segments
-         * (e.g. overlay/core segments like `core1`), the Python generator
-         * derives `size` as the byte-distance to the *next listed
-         * subsegment* (a decompiled function/symbol boundary), not the
-         * real end of the compressed data. Those two boundaries have no
-         * reason to coincide, and in practice they don't -- a manifest
-         * entry can report a few hundred/thousand bytes while the actual
-         * Rare-compressed stream runs for well over a hundred KB past it.
-         *
-         * Passing that undersized entry.size straight into the decompressor
-         * truncates the DEFLATE stream mid-symbol, which corrupts zlib's
-         * internal decode state and can crash inside inflate_block() rather
-         * than failing cleanly.
-         *
-         * Rare's compressed streams are self-terminating raw DEFLATE
-         * (decompress_rare_asset relies on zlib's Z_STREAM_END to know when
-         * it's done). So instead of trusting entry.size as a hard ceiling
-         * on how much compressed input is available, hand the decompressor
-         * everything remaining in the loaded ROM buffer from this offset
-         * onward (capped at MAX_ASSET_SIZE for safety) and let zlib itself
-         * decide how many bytes it actually needs to consume.
+         * Prevent:
+         *  - integer overflow
+         *  - reading beyond ROM buffer
          */
 
-        uint64_t remainingInRom =
-                (romSize > entry.offset)
-                        ? (romSize - entry.offset)
-                        : 0;
-
-        uint32_t availableSize =
-                static_cast<uint32_t>(
-                        remainingInRom > MAX_ASSET_SIZE
-                                ? MAX_ASSET_SIZE
-                                : remainingInRom);
-
-
-        uint8_t* output =
-                decompress_rare_asset(
-                        assetBuffer,
-                        availableSize,
-                        &outputSize);
-
-
-
-        if (output &&
-            outputSize > 0)
+        if (entry.offset >= romSize)
         {
-            FILE* out =
-                    fopen(
-                            outputPath,
-                            "wb");
+            LOGW(
+                "Skipping invalid offset asset %.32s offset=%u",
+                entry.name,
+                entry.offset);
+
+            failed++;
+
+            continue;
+        }
 
 
 
-            if (out)
+        if (entry.size == 0)
+        {
+            LOGW(
+                "Skipping empty asset %.32s",
+                entry.name);
+
+            failed++;
+
+            continue;
+        }
+
+
+
+        uint64_t endOffset =
+                static_cast<uint64_t>(entry.offset) +
+                static_cast<uint64_t>(entry.size);
+
+
+
+        if (endOffset > romSize)
+        {
+            LOGW(
+                "Clamping oversized asset %.32s",
+                entry.name);
+
+
+            entry.size =
+                static_cast<uint32_t>(
+                        romSize - entry.offset);
+        }
+
+
+
+        if (entry.size == 0)
+        {
+            failed++;
+            continue;
+        }
+
+
+
+        uint8_t* assetBuffer =
+                romData + entry.offset;
+
+
+
+        char outputPath[512];
+
+
+        snprintf(
+                outputPath,
+                sizeof(outputPath),
+                "%s/asset_%08X.bin",
+                cOutDir,
+                entry.offset);
+
+
+
+        LOGI(
+            "Asset %u/%u %.32s offset=%08X size=%u",
+            i + 1,
+            entryCount,
+            entry.name,
+            entry.offset,
+            entry.size);
+
+
+
+        bool isRareCompressed =
+                false;
+
+
+        if (entry.size >= 8 &&
+            assetBuffer[0] == 0x11 &&
+            assetBuffer[1] == 0x72)
+        {
+            uint32_t declaredSize =
+                    ((uint32_t)assetBuffer[2] << 24) |
+                    ((uint32_t)assetBuffer[3] << 16) |
+                    ((uint32_t)assetBuffer[4] << 8) |
+                    ((uint32_t)assetBuffer[5]);
+
+
+            if (declaredSize > 0 &&
+                declaredSize <= MAX_ASSET_SIZE)
             {
-                size_t written =
-                        fwrite(
-                                output,
-                                1,
-                                outputSize,
-                                out);
+                isRareCompressed = true;
 
 
-                fclose(out);
+                LOGI(
+                    "Rare compression detected %.32s output=%u",
+                    entry.name,
+                    declaredSize);
+            }
+            else
+            {
+                LOGW(
+                    "Ignoring invalid Rare header %.32s declared=%u",
+                    entry.name,
+                    declaredSize);
+            }
+        }
 
 
 
-                if (written == outputSize)
+        if (isRareCompressed)
+        {
+            uint32_t outputSize = 0;
+
+            uint64_t remainingInRom =
+                    (romSize > entry.offset)
+                            ? (romSize - entry.offset)
+                            : 0;
+
+            uint32_t availableSize =
+                    static_cast<uint32_t>(
+                            remainingInRom > MAX_ASSET_SIZE
+                                    ? MAX_ASSET_SIZE
+                                    : remainingInRom);
+
+
+            uint8_t* output =
+                    decompress_rare_asset(
+                            assetBuffer,
+                            availableSize,
+                            &outputSize);
+
+
+
+            if (output &&
+                outputSize > 0)
+            {
+                FILE* out =
+                        fopen(
+                                outputPath,
+                                "wb");
+
+
+
+                if (out)
                 {
-                    extracted++;
-                    compressed++;
+                    size_t written =
+                            fwrite(
+                                    output,
+                                    1,
+                                    outputSize,
+                                    out);
 
 
-                    LOGI(
-                        "Extracted compressed asset %.32s bytes=%u",
-                        entry.name,
-                        outputSize);
+                    fclose(out);
+
+
+
+                    if (written == outputSize)
+                    {
+                        extracted++;
+                        compressed++;
+
+
+                        LOGI(
+                            "Extracted compressed asset %.32s bytes=%u",
+                            entry.name,
+                            outputSize);
+                    }
+                    else
+                    {
+                        LOGE(
+                            "Short write %.32s %zu/%u",
+                            entry.name,
+                            written,
+                            outputSize);
+
+                        failed++;
+                    }
                 }
                 else
                 {
                     LOGE(
-                        "Short write %.32s %zu/%u",
+                        "Cannot open output %.32s errno=%d",
                         entry.name,
-                        written,
-                        outputSize);
+                        errno);
 
                     failed++;
                 }
+
+
+                free(output);
             }
             else
             {
                 LOGE(
-                    "Cannot open output %.32s errno=%d",
-                    entry.name,
-                    errno);
-
-                failed++;
-            }
-
-
-            free(output);
-        }
-        else
-        {
-            LOGE(
-                "Rare decompression failed %.32s",
-                entry.name);
-
-            failed++;
-        }
-    }
-    else
-    {
-        FILE* out =
-                fopen(
-                        outputPath,
-                        "wb");
-
-
-        if (out)
-        {
-            size_t written =
-                    fwrite(
-                            assetBuffer,
-                            1,
-                            entry.size,
-                            out);
-
-
-            fclose(out);
-
-
-
-            if (written == entry.size)
-            {
-                extracted++;
-
-
-                LOGI(
-                    "Extracted raw asset %.32s bytes=%u",
-                    entry.name,
-                    entry.size);
-            }
-            else
-            {
-                LOGE(
-                    "Raw asset write failed %.32s",
+                    "Rare decompression failed %.32s",
                     entry.name);
 
                 failed++;
@@ -1053,56 +1000,98 @@ for (uint32_t i = 0;
         }
         else
         {
-            LOGE(
-                "Cannot create raw asset %.32s errno=%d",
-                entry.name,
-                errno);
+            FILE* out =
+                    fopen(
+                            outputPath,
+                            "wb");
 
-            failed++;
+
+            if (out)
+            {
+                size_t written =
+                        fwrite(
+                                assetBuffer,
+                                1,
+                                entry.size,
+                                out);
+
+
+                fclose(out);
+
+
+
+                if (written == entry.size)
+                {
+                    extracted++;
+
+
+                    LOGI(
+                        "Extracted raw asset %.32s bytes=%u",
+                        entry.name,
+                        entry.size);
+                }
+                else
+                {
+                    LOGE(
+                        "Raw asset write failed %.32s",
+                        entry.name);
+
+                    failed++;
+                }
+            }
+            else
+            {
+                LOGE(
+                    "Cannot create raw asset %.32s errno=%d",
+                    entry.name,
+                    errno);
+
+                failed++;
+            }
         }
-    }
 
 
 
-    // Progress update
-    int percent =
-            10 +
-            static_cast<int>(
-                    ((uint64_t)i * 89) /
-                    entryCount);
+        // Progress update
+        int percent =
+                10 +
+                static_cast<int>(
+                        ((uint64_t)i * 89) /
+                        entryCount);
 
 
 
-    if (percent != lastPercent)
-    {
-        char status[128];
-
-
-        snprintf(
-                status,
-                sizeof(status),
-                "Extracting: %.32s",
-                entry.name);
-
-
-
-        if (!debug_ui(
-                env,
-                callback,
-                progressMid,
-                percent,
-                status))
+        if (percent != lastPercent)
         {
-            LOGW(
-                "UI callback stopped extraction");
+            char status[128];
 
-            break;
+
+            snprintf(
+                    status,
+                    sizeof(status),
+                    "Extracting: %.32s",
+                    entry.name);
+
+
+
+            if (!debug_ui(
+                    env,
+                    callback,
+                    progressMid,
+                    percent,
+                    status))
+            {
+                LOGW(
+                    "UI callback stopped extraction");
+
+                break;
+            }
+
+
+            lastPercent = percent;
         }
-
-
-        lastPercent = percent;
     }
-}
+
     // -----------------------------------------------------------------------
     // STEP 4:
     // Finalize extraction
