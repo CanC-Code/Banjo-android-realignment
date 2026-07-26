@@ -143,32 +143,7 @@ static bool debug_ui(
 // Convert:
 // BADC -> ABCD
 
-static void byteswap_v64(
-        uint8_t* data,
-        size_t size)
-{
-    if (!data)
-        return;
 
-
-    size_t safe =
-            size & ~1ULL;
-
-
-    for (size_t i = 0;
-         i < safe;
-         i += 2)
-    {
-        uint8_t t =
-                data[i];
-
-        data[i] =
-                data[i + 1];
-
-        data[i + 1] =
-                t;
-    }
-}
 
 
 
@@ -178,40 +153,34 @@ static void byteswap_v64(
 // Convert:
 // DCBA -> ABCD
 
-static void byteswap_n64(
-        uint8_t* data,
-        size_t size)
-{
-    if (!data)
-        return;
+// ---------------------------------------------------------------------------
+// ROM byte order normalization
+// ---------------------------------------------------------------------------
 
+// v64 format:
+// Byte pair swap (BADC -> ABCD)
+static void byteswap_v64(uint8_t* data, size_t size) {
+    if (!data) return;
+    uint16_t* d16 = reinterpret_cast<uint16_t*>(data);
+    size_t count = size / 2;
+    for (size_t i = 0; i < count; ++i) {
+        uint16_t val = d16[i];
+        d16[i] = static_cast<uint16_t>((val >> 8) | (val << 8));
+    }
+}
 
-    size_t safe =
-            size & ~3ULL;
-
-
-    for (size_t i = 0;
-         i < safe;
-         i += 4)
-    {
-        uint8_t a =
-                data[i];
-
-        uint8_t b =
-                data[i + 1];
-
-
-        data[i] =
-                data[i + 3];
-
-        data[i + 1] =
-                data[i + 2];
-
-        data[i + 2] =
-                b;
-
-        data[i + 3] =
-                a;
+// n64 format (Big Endian):
+// 32-bit word swap (DCBA -> ABCD)
+static void byteswap_n64(uint8_t* data, size_t size) {
+    if (!data) return;
+    uint32_t* d32 = reinterpret_cast<uint32_t*>(data);
+    size_t count = size / 4;
+    for (size_t i = 0; i < count; ++i) {
+        uint32_t val = d32[i];
+        d32[i] = ((val & 0xFF000000u) >> 24) |
+                 ((val & 0x00FF0000u) >>  8) |
+                 ((val & 0x0000FF00u) <<  8) |
+                 ((val & 0x000000FFu) << 24);
     }
 }
 
