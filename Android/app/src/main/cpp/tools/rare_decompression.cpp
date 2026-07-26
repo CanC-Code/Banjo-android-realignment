@@ -184,167 +184,39 @@ static uint32_t inflate_raw_deflate_safe(
 extern "C"
 {
 
-
-uint8_t* decompress_rare_asset(
-        const uint8_t* src,
-        uint32_t src_size,
-        uint32_t* out_size)
+uint32_t decompress_rare_to_offset(
+    const uint8_t* src,
+    uint32_t src_size,
+    uint8_t* out_buffer,
+    uint32_t out_offset,
+    uint32_t out_size)
 {
-    if (out_size)
-        *out_size = 0;
-
-
-    if (!src || !out_size)
+    if (!src || !out_buffer)
     {
-        LOGE(
-            "decompress_rare_asset invalid arguments");
-
-        return nullptr;
-    }
-
-
-    if (src_size < 8)
-    {
-        LOGE(
-            "Rare asset too small: %u bytes",
-            src_size);
-
-        return nullptr;
-    }
-
-
-    if (src[0] != 0x11 ||
-        src[1] != 0x72)
-    {
-        LOGE(
-            "Missing Rare magic: %02X %02X",
-            src[0],
-            src[1]);
-
-        return nullptr;
-    }
-
-
-    uint32_t uncompressed_size =
-        read_be32(src + 2);
-
-
-    LOGI(
-        "Rare asset header compressed=%u expected_output=%u",
-        src_size,
-        uncompressed_size);
-
-
-    if (uncompressed_size == 0 ||
-        uncompressed_size > MAX_RARE_OUTPUT_SIZE)
-    {
-        LOGE(
-            "Invalid Rare output size: %u",
-            uncompressed_size);
-
-        return nullptr;
-    }
-
-
-    uint8_t* dst =
-        static_cast<uint8_t*>(
-            malloc(uncompressed_size));
-
-
-    if (!dst)
-    {
-        LOGE(
-            "Allocation failed: %u bytes",
-            uncompressed_size);
-
-        return nullptr;
-    }
-
-
-    uint32_t result =
-        inflate_raw_deflate_safe(
-            src + 6,
-            src_size - 6,
-            dst,
-            uncompressed_size);
-
-
-    if (result == 0)
-    {
-        LOGE(
-            "Rare decompression failed");
-
-        free(dst);
-        return nullptr;
-    }
-
-
-    *out_size = result;
-
-
-    return dst;
-}
-
-
-
-uint32_t decompress_rare_runtime_hle(
-        const uint8_t* in,
-        uint8_t* out_start,
-        const uint8_t* arg2)
-{
-    if (!in ||
-        !out_start ||
-        !arg2)
-    {
-        LOGE(
-            "HLE invalid pointer");
-
+        LOGE("decompress_rare_to_offset invalid pointer");
         return 0;
     }
 
+    LOGI("Decompressing to offset %u (compressed=%u, expected=%u)", out_offset, src_size, out_size);
 
-    uint32_t compressed_size =
-        read_be32(arg2);
-
-
-    uint32_t expected_size =
-        read_be32(arg2 + 4);
-
-
-    LOGI(
-        "HLE decompress compressed=%u expected=%u",
-        compressed_size,
-        expected_size);
-
-
-    if (compressed_size == 0 ||
-        compressed_size > MAX_HLE_COMPRESSED_SIZE)
+    if (src_size == 0 || src_size > MAX_HLE_COMPRESSED_SIZE)
     {
-        LOGE(
-            "Invalid HLE compressed size=%u",
-            compressed_size);
-
+        LOGE("Invalid compressed size=%u", src_size);
         return 0;
     }
 
-
-    if (expected_size == 0 ||
-        expected_size > MAX_RARE_OUTPUT_SIZE)
+    if (out_size == 0 || out_size > MAX_RARE_OUTPUT_SIZE)
     {
-        LOGE(
-            "Invalid HLE output size=%u",
-            expected_size);
-
+        LOGE("Invalid output size=%u", out_size);
         return 0;
     }
 
-
+    // Decompress raw deflate payload directly to the pre-allocated buffer at the specified offset
     return inflate_raw_deflate_safe(
-            in,
-            compressed_size,
-            out_start,
-            expected_size);
+            src,
+            src_size,
+            out_buffer + out_offset,
+            out_size);
 }
-
 
 }
