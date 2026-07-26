@@ -44,25 +44,16 @@ extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint3
 
     uint8_t* srcStream = gN64_ROM_Base + romOffset;
 
-    // Construct inline metadata workspace expectation headers for rare decompression
-    // Structural layout: [0..3] Compressed Size, [4..7] Expected Uncompressed Workspace Size
-    uint8_t headerMeta[8];
-    headerMeta[0] = (size >> 24) & 0xFF;
-    headerMeta[1] = (size >> 16) & 0xFF;
-    headerMeta[2] = (size >> 8) & 0xFF;
-    headerMeta[3] = size & 0xFF;
-
     // Allocate 8MB default expansion workspace bound for code segments
     uint32_t expectedWorkspaceSize = 0x800000; 
-    headerMeta[4] = (expectedWorkspaceSize >> 24) & 0xFF;
-    headerMeta[5] = (expectedWorkspaceSize >> 16) & 0xFF;
-    headerMeta[6] = (expectedWorkspaceSize >> 8) & 0xFF;
-    headerMeta[7] = expectedWorkspaceSize & 0xFF;
 
-    uint32_t decompressedBytes = decompress_rare_runtime_hle(
-        srcStream, 
-        static_cast<uint8_t*>(dramAddr), 
-        headerMeta
+    // Call the updated pre-embedded offset function to extract directly into the DRAM workspace
+    uint32_t decompressedBytes = decompress_rare_to_offset(
+        srcStream,                          // src: Compressed payload pointer
+        size,                               // src_size: Compressed size from manifest
+        static_cast<uint8_t*>(dramAddr),    // out_buffer: Destination DRAM memory buffer
+        0,                                  // out_offset: 0 relative to the start of the DRAM allocation
+        expectedWorkspaceSize               // out_size: Expected upper bound for the workspace
     );
 
     if (decompressedBytes == 0) {
