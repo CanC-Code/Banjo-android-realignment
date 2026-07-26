@@ -23,17 +23,24 @@ static u8* bka_resolve_ptr(uintptr_t addr) {
         (addr >= 0xA0000000u && addr < 0xA0800000u)) {
         return rdram + (addr & 0x00FFFFFFu);
     }
-    
+
     /* Case B: Valid 64-bit Host Pointer (Untruncated AArch64 alloc) */
     if (addr > 0xFFFFFFFFull) {
         return (u8*)addr; 
     }
-    
-    /* Case C: Truncated 64-bit Host Pointer */
-    uintptr_t host_upper = ((uintptr_t)rdram) & 0xFFFFFFFF00000000ull;
-    u8* reconstructed = (u8*)(host_upper | addr);
-    
-    return reconstructed;
+
+    /* Case C: Check host lower space or handle safely */
+    if (rdram) {
+        uintptr_t host_lower = addr & 0xFFFFFFFF00000000ull;
+        if (host_lower == 0) {
+            /* Treat lower 32-bit addresses directly as host pointers when outside N64 range */
+            return (u8*)addr;
+        }
+        uintptr_t host_upper = ((uintptr_t)rdram) & 0xFFFFFFFF00000000ull;
+        return (u8*)(host_upper | addr);
+    }
+
+    return (u8*)addr;
 }
 
 /* ── Rare LZSS decompressor ───────────────────────────────────────────── */
