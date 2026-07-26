@@ -29,17 +29,19 @@ static u8* bka_resolve_ptr(uintptr_t addr) {
         return (u8*)addr; 
     }
 
-    /* Case C: Check host lower space or handle safely */
+    /* Case C: 32-bit Host/Heap Pointer Check 
+     * If RDRAM is allocated, check if the address falls inside RDRAM's actual buffer range 
+     * or if it's a separate native host userspace/heap allocation (like 0x7d77d3d0).
+     */
     if (rdram) {
-        uintptr_t host_lower = addr & 0xFFFFFFFF00000000ull;
-        if (host_lower == 0) {
-            /* Treat lower 32-bit addresses directly as host pointers when outside N64 range */
+        uintptr_t rdram_start = (uintptr_t)rdram;
+        uintptr_t rdram_end = rdram_start + (8u * 1024u * 1024u);
+        if (addr >= rdram_start && addr < rdram_end) {
             return (u8*)addr;
         }
-        uintptr_t host_upper = ((uintptr_t)rdram) & 0xFFFFFFFF00000000ull;
-        return (u8*)(host_upper | addr);
     }
 
+    /* If it's a general 32-bit host heap allocation outside N64 ranges, pass through directly */
     return (u8*)addr;
 }
 
