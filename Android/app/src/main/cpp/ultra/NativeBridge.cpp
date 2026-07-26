@@ -21,6 +21,7 @@ AAssetManager* g_assetManager = nullptr;
 
 static int g_surfaceWidth  = 320;
 static int g_surfaceHeight = 240;
+static bool g_engineThreadActive = false;
 
 struct BKA_ControllerPad {
     uint16_t button;
@@ -72,7 +73,7 @@ extern "C" {
         // CRITICAL FIX: Relinquish the VBlank mutex before attempting to reclaim the Engine Lock 
         // to prevent lock-order inversion and hard deadlocks against the render thread.
         pthread_mutex_unlock(&g_vblankMutex);
-        
+
         BKA_ClaimEngineLock();
     }
 }
@@ -121,6 +122,8 @@ void* game_thread_fn(void* arg) {
     if (attached && g_jvm != nullptr) {
         g_jvm->DetachCurrentThread();
     }
+    
+    g_engineThreadActive = false;
     return nullptr;
 }
 
@@ -168,18 +171,25 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
     env->ReleaseStringUTFChars(otrPathStr, otrPath);
 
     LOGI("NativeBridge: Base tracking path resolved cleanly to: %s", g_otrPath.c_str());
-    LOGI("NativeBridge: Initializing N64 virtual architecture registers...");
-    InitN64Registers(g_otrPath.c_str());
+    
+    // Check if the engine thread is already active to prevent multi-spawning on Activity recreation
+    if (!g_engineThreadActive) {
+        LOGI("NativeBridge: Initializing N64 virtual architecture registers...");
+        InitN64Registers(g_otrPath.c_str());
 
-    pthread_t gameThread;
-    LOGI("NativeBridge: Allocating background worker thread contexts...");
-    if (pthread_create(&gameThread, nullptr, game_thread_fn, nullptr) == 0) {
-        pthread_detach(gameThread);
-        LOGI("NativeBridge: Engine thread spawned and bound to waiting sequence state.");
+        pthread_t gameThread;
+        LOGI("NativeBridge: Allocating background worker thread contexts...");
+        if (pthread_create(&gameThread, nullptr, game_thread_fn, nullptr) == 0) {
+            pthread_detach(gameThread);
+            g_engineThreadActive = true;
+            LOGI("NativeBridge: Engine thread spawned and bound to waiting sequence state.");
+        } else {
+            LOGE("NativeBridge: FATAL ERROR - Engine execution context thread creation failed.");
+            HardwareRegs_Shutdown();
+            return;
+        }
     } else {
-        LOGE("NativeBridge: FATAL ERROR - Engine execution context thread creation failed.");
-        HardwareRegs_Shutdown();
-        return;
+        LOGI("NativeBridge: Engine thread is already active. Bypassing redundant creation.");
     }
 
     // Execute synchronous asset checking and file configuration mapping
