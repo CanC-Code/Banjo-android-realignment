@@ -926,10 +926,49 @@ for (uint32_t i = 0;
         uint32_t outputSize = 0;
 
 
+        /*
+         * IMPORTANT: entry.size from the manifest is NOT a reliable bound
+         * on the true compressed stream length for Rare-compressed blobs.
+         *
+         * For manifest entries generated from `type: code` YAML segments
+         * (e.g. overlay/core segments like `core1`), the Python generator
+         * derives `size` as the byte-distance to the *next listed
+         * subsegment* (a decompiled function/symbol boundary), not the
+         * real end of the compressed data. Those two boundaries have no
+         * reason to coincide, and in practice they don't -- a manifest
+         * entry can report a few hundred/thousand bytes while the actual
+         * Rare-compressed stream runs for well over a hundred KB past it.
+         *
+         * Passing that undersized entry.size straight into the decompressor
+         * truncates the DEFLATE stream mid-symbol, which corrupts zlib's
+         * internal decode state and can crash inside inflate_block() rather
+         * than failing cleanly.
+         *
+         * Rare's compressed streams are self-terminating raw DEFLATE
+         * (decompress_rare_asset relies on zlib's Z_STREAM_END to know when
+         * it's done). So instead of trusting entry.size as a hard ceiling
+         * on how much compressed input is available, hand the decompressor
+         * everything remaining in the loaded ROM buffer from this offset
+         * onward (capped at MAX_ASSET_SIZE for safety) and let zlib itself
+         * decide how many bytes it actually needs to consume.
+         */
+
+        uint64_t remainingInRom =
+                (romSize > entry.offset)
+                        ? (romSize - entry.offset)
+                        : 0;
+
+        uint32_t availableSize =
+                static_cast<uint32_t>(
+                        remainingInRom > MAX_ASSET_SIZE
+                                ? MAX_ASSET_SIZE
+                                : remainingInRom);
+
+
         uint8_t* output =
                 decompress_rare_asset(
                         assetBuffer,
-                        entry.size,
+                        availableSize,
                         &outputSize);
 
 
