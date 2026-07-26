@@ -187,7 +187,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     if (!cOutDir || !cManifestPath) {
         LOGE("Failed obtaining JNI strings");
-        goto cleanup_strings;
+        goto cleanup;
     }
 
     if (callback) {
@@ -207,30 +207,30 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     if (lseek(romFd, 0, SEEK_SET) < 0) {
         LOGE("Unable to seek ROM fd errno=%d", errno);
-        goto cleanup_strings;
+        goto cleanup;
     }
 
     romSizeOff = lseek(romFd, 0, SEEK_END);
     if (romSizeOff <= 0) {
         LOGE("Unable determining ROM size errno=%d", errno);
-        goto cleanup_strings;
+        goto cleanup;
     }
 
     romSize = static_cast<size_t>(romSizeOff);
     if (romSize > MAX_ASSET_SIZE) {
         LOGE("ROM exceeds safety limit: %zu bytes", romSize);
-        goto cleanup_strings;
+        goto cleanup;
     }
 
     if (lseek(romFd, 0, SEEK_SET) < 0) {
         LOGE("Unable resetting ROM position");
-        goto cleanup_strings;
+        goto cleanup;
     }
 
     romData = static_cast<uint8_t*>(malloc(romSize));
     if (!romData) {
         LOGE("ROM allocation failed size=%zu", romSize);
-        goto cleanup_strings;
+        goto cleanup;
     }
 
     totalRead = 0;
@@ -239,7 +239,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         if (count < 0) {
             if (errno == EINTR) continue;
             LOGE("ROM read failed errno=%d", errno);
-            goto cleanup_romData;
+            goto cleanup;
         }
         if (count == 0) break;
         totalRead += static_cast<size_t>(count);
@@ -247,7 +247,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     if (totalRead != romSize) {
         LOGE("Incomplete ROM read %zu/%zu", totalRead, romSize);
-        goto cleanup_romData;
+        goto cleanup;
     }
 
     LOGI("Loaded ROM size=%zu", romSize);
@@ -275,7 +275,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
     romBaseBuffer = static_cast<uint8_t*>(calloc(romSize, 1));
     if (!romBaseBuffer) {
         LOGE("Failed to allocate rom_base buffer (size=%zu)", romSize);
-        goto cleanup_romData;
+        goto cleanup;
     }
 
     // Copy the ROM header to preserve byte order
@@ -290,12 +290,12 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
     if (!mFile) {
         LOGW("Manifest missing: %s", cManifestPath);
         debug_ui(env, callback, progressMid, 100, "Extraction complete (ROM-only mode)");
-        goto cleanup_romBaseBuffer;
+        goto cleanup;
     }
 
     if (fread(&entryCount, sizeof(uint32_t), 1, mFile) != 1) {
         LOGE("Unable reading manifest header");
-        goto cleanup_manifest;
+        goto cleanup;
     }
 
     // Adaptively determine Endianness
@@ -309,7 +309,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     if (entryCount == 0 || entryCount > MAX_MANIFEST_ENTRIES) {
         LOGE("Invalid manifest entry count: %u", entryCount);
-        goto cleanup_manifest;
+        goto cleanup;
     }
 
     LOGI("Processing %u manifest entries (Needs Swap: %s)", entryCount, manifestNeedsSwap ? "Yes" : "No");
@@ -410,7 +410,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     if (!write_rom_base_from_memory(romBaseBuffer, romSize, cOutDir)) {
         LOGE("Failed writing rom_base.bin");
-        goto cleanup_manifest;
+        goto cleanup;
     }
 
     LOGI("Extraction complete: extracted=%u compressed=%u failed=%u total=%u",
@@ -421,16 +421,10 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
              "Extraction complete! %u assets extracted, %u failed", extracted, failed);
     debug_ui(env, callback, progressMid, 100, summary);
 
-cleanup_manifest:
+cleanup:
     if (mFile) fclose(mFile);
-
-cleanup_romBaseBuffer:
     if (romBaseBuffer) free(romBaseBuffer);
-
-cleanup_romData:
     if (romData) free(romData);
-
-cleanup_strings:
     if (cOutDir) env->ReleaseStringUTFChars(outDir, cOutDir);
     if (cManifestPath) env->ReleaseStringUTFChars(manifestPath, cManifestPath);
     if (callbackClass) env->DeleteLocalRef(callbackClass);
