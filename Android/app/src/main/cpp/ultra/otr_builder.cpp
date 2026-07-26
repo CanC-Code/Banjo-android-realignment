@@ -220,7 +220,10 @@ static bool write_rom_base_from_memory(
                     romSize,
                     file);
 
-
+    
+    // Force disk synchronization so the game thread doesn't miss the file
+    fflush(file);
+    fsync(fileno(file));
     fclose(file);
 
 
@@ -321,6 +324,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
     uint32_t compressed = 0;
     uint32_t failed = 0;
     int lastPercent = -1;
+    bool manifestNeedsSwap = false;
 
 
     if (!env ||
@@ -703,13 +707,14 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         goto cleanup_strings;
     }
 
-    // Convert manifest entry count from Big-Endian if needed
+    // Convert manifest entry count from Big-Endian if needed and set global swap flag
     if (entryCount > MAX_MANIFEST_ENTRIES)
     {
         uint32_t swappedCount = swap_uint32(entryCount);
         if (swappedCount <= MAX_MANIFEST_ENTRIES)
         {
             entryCount = swappedCount;
+            manifestNeedsSwap = true;
         }
     }
 
@@ -771,15 +776,11 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
             break;
         }
 
-        // Convert Big-Endian manifest offset and size to host endianness
-        if (entry.offset >= romSize)
+        // Apply swap globally based on header determination
+        if (manifestNeedsSwap)
         {
-            uint32_t swappedOffset = swap_uint32(entry.offset);
-            if (swappedOffset < romSize)
-            {
-                entry.offset = swappedOffset;
-                entry.size = swap_uint32(entry.size);
-            }
+            entry.offset = swap_uint32(entry.offset);
+            entry.size = swap_uint32(entry.size);
         }
 
         // Ensure strings are terminated before logging
