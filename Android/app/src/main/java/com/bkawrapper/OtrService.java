@@ -55,7 +55,10 @@ public class OtrService extends Service {
         // Pull version from intent, default to "us" if not specified
         String version   = intent.getStringExtra("version");
         if (version == null) version = "us";
-        final String manifestFilename = "manifest_" + version + ".bin";
+        
+        // CORRECTION: Update the extension to point to your Splat YAML file.
+        // Ensure that a file named "manifest_us.yaml" exists in src/main/assets/
+        final String manifestFilename = "manifest_" + version + ".yaml";
 
         startForeground(NOTIFICATION_ID,
             new NotificationCompat.Builder(this, CHANNEL_ID)
@@ -103,8 +106,6 @@ public class OtrService extends Service {
         }
     }
 
-    // ... (onProgressUpdate, updateOtrProgress, writeSentinel, createNotificationChannel methods remain unchanged)
-    
     public void onProgressUpdate(int percent, String status) {
         if (status != null && status.startsWith("ERROR")) {
             throw new RuntimeException("C++ Pipeline Abort: " + status);
