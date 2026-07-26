@@ -29,10 +29,12 @@ static u8* bka_resolve_ptr(uintptr_t addr) {
         return (u8*)addr; 
     }
 
-    /* Case C: 32-bit Host/Heap Pointer Check 
-     * If RDRAM is allocated, check if the address falls inside RDRAM's actual buffer range 
-     * or if it's a separate native host userspace/heap allocation (like 0x7d77d3d0).
-     */
+    /* Case C: Low absolute address or raw segment offset (e.g. 0x011a43e0) */
+    if (rdram && addr < 0x80000000u) {
+        return rdram + (addr & 0x00FFFFFFu);
+    }
+
+    /* Case D: Host lower space / direct heap fallback */
     if (rdram) {
         uintptr_t rdram_start = (uintptr_t)rdram;
         uintptr_t rdram_end = rdram_start + (8u * 1024u * 1024u);
@@ -41,7 +43,6 @@ static u8* bka_resolve_ptr(uintptr_t addr) {
         }
     }
 
-    /* If it's a general 32-bit host heap allocation outside N64 ranges, pass through directly */
     return (u8*)addr;
 }
 
