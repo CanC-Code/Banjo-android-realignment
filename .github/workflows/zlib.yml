@@ -6,6 +6,8 @@ on:
 jobs:
   setup-zlib:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: 📥 Checkout Repository Branch
         uses: actions/checkout@v4
@@ -90,5 +92,5 @@ jobs:
           git add Android/app/src/main/cpp/ultra/zlib/ Android/app/src/main/cpp/CMakeLists.txt
           git status
           
-          git commit -m "chore: vendor standard zlib statically and update CMake configuration"
+          git commit -m "chore: vendor standard zlib statically and update CMake configuration [skip ci]"
           git push origin static-build
