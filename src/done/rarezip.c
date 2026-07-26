@@ -21,6 +21,10 @@ extern int bkboot_inflate(void);
 struct huft *D_80007270 = NULL;
 extern void *D_803FBE00;
 
+/* ── Forward Declarations ─────────────────────────────────────────────── */
+u32 func_800005C0(u8* in, u8* out, struct huft *arg2);
+u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2);
+
 /* ── Universal Address Resolver ────────────────────────────────────────── */
 static u8* bka_resolve_ptr(uintptr_t addr) {
     if (addr == 0) return NULL;
