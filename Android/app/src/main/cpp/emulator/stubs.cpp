@@ -315,7 +315,7 @@ static void* HLE_PiManagerWorker(void* arg) {
 
         OSIoMesg* ioMsg = reinterpret_cast<OSIoMesg*>(msg);
         s32 direction = OS_READ;
-        
+
         // Handle DMA types
         if (ioMsg->hdr.type == 16 || ioMsg->hdr.type == 2) {
             direction = OS_WRITE;
@@ -383,8 +383,8 @@ s32 osEepromWrite(OSMesgQueue *mq, u8 address, u8 *buffer) { return 0; }
    ============================================================ */
 
 extern "C" {
-    // Declare external RDRAM pointer defined in your memory subsystem
     extern uint8_t* gN64_RDRAM;
+    extern uint8_t* gN64_ROM_Base;
 }
 
 extern void func_80000450(int32_t arg0);
@@ -392,28 +392,31 @@ extern void func_80000450(int32_t arg0);
 void BKA_StartEngine(void) {
     LOGI("BKA-STUBS: Waiting for resource gate before engine ignition...");
     WaitForResourcesReady();
-    LOGI("BKA-STUBS: Resource gate passed. >>> SECURE CONCURRENT IGNITION <<<");
 
-    // 1. Verify and load the extracted asset/ROM container into RDRAM to prevent SIGSEGV in bzero
-    FILE* f = fopen("rom_base.bin", "rb");
-    if (f) {
-        fseek(f, 0, SEEK_END);
-        size_t size = ftell(f);
-        fseek(f, 0, SEEK_SET);
+    LOGI("BKA-STUBS: Resource gate passed.");
 
-        if (gN64_RDRAM != nullptr && size > 0) {
-            fread(gN64_RDRAM, 1, size, f);
-            LOGI("BKA-STUBS: Successfully loaded rom_base.bin (%zu bytes) into RDRAM.", size);
-        } else {
-            LOGE("BKA-STUBS: FATAL: gN64_RDRAM is null or file size is 0!");
-        }
-        fclose(f);
-    } else {
-        LOGW("BKA-STUBS: Warning: rom_base.bin not found directly in working directory. Checking SAF streams...");
+    if (gN64_RDRAM == nullptr) {
+        LOGE("BKA-STUBS: FATAL: gN64_RDRAM is null.");
+        return;
     }
 
+    if (gN64_ROM_Base == nullptr) {
+        LOGE("BKA-STUBS: FATAL: gN64_ROM_Base is null. ResourceMgr failed to load ROM.");
+        return;
+    }
+
+    LOGI(
+        "BKA-STUBS: ROM verification successful. "
+        "RDRAM=%p ROM=%p",
+        gN64_RDRAM,
+        gN64_ROM_Base
+    );
+
     s_n64_gil.lock();
+
+    LOGI("BKA-STUBS: Launching engine entry func_80000450.");
     func_80000450(0);
+
     s_n64_gil.unlock();
 }
 
