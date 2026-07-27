@@ -172,7 +172,7 @@ static std::vector<SplatSegment> parse_splat_yaml(const char* yamlPath) {
         // Trim leading spaces
         char* ptr = line;
         while (*ptr == ' ' || *ptr == '\t') ptr++;
-        
+
         // Skip comments and empty lines
         if (*ptr == '#' || *ptr == '\n' || *ptr == '\r' || *ptr == '\0') {
             continue;
@@ -209,10 +209,10 @@ static std::vector<SplatSegment> parse_splat_yaml(const char* yamlPath) {
             unsigned int startVal = 0;
             char typeBuf[32] = {0};
             char nameBuf[64] = {0};
-            
+
             if (sscanf(ptr, "[%x, %31s , %63[^]]", &startVal, typeBuf, nameBuf) >= 2 ||
                 sscanf(ptr, "[%x, %31s]", &startVal, typeBuf) >= 2) {
-                
+
                 // Clean trailing formatting or quotes from type/name
                 for(int i = 0; typeBuf[i]; i++) if(typeBuf[i] == ',' || typeBuf[i] == ' ') typeBuf[i] = '\0';
                 for(int i = 0; nameBuf[i]; i++) if(nameBuf[i] == ' ' || nameBuf[i] == '\'' || nameBuf[i] == '\"') nameBuf[i] = '\0';
@@ -465,10 +465,13 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
                 uint8_t* srcBuffer = romData + offset;
                 uint8_t* destBuffer = romBaseBuffer + offset;
 
+                // Replicate exact decompression byte matching and header check rules (wbits=-15 stream unpack / 0x1172 magic)
                 bool isRareCompressed = false;
                 if (size >= 8 && srcBuffer[0] == 0x11 && srcBuffer[1] == 0x72) {
-                    uint32_t declaredSize = (srcBuffer[2] << 24) | (srcBuffer[3] << 16) |
-                                           (srcBuffer[4] << 8) | srcBuffer[5];
+                    uint32_t declaredSize = (static_cast<uint32_t>(srcBuffer[2]) << 24) | 
+                                           (static_cast<uint32_t>(srcBuffer[3]) << 16) |
+                                           (static_cast<uint32_t>(srcBuffer[4]) << 8)  | 
+                                           static_cast<uint32_t>(srcBuffer[5]);
                     if (declaredSize > 0 && declaredSize <= MAX_ASSET_SIZE) {
                         isRareCompressed = true;
                     }
