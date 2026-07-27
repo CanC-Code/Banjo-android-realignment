@@ -1,6 +1,7 @@
 package com.bkawrapper;
 
 import android.content.res.AssetManager;
+import android.view.Surface;
 
 public class NativeBridge {
 
@@ -15,6 +16,9 @@ public class NativeBridge {
 
     // Used for booting the engine once extraction is confirmed
     public static native void nativeGameBoot(String otrPath, AssetManager assetManager);
+
+    // Passes the native window surface reference to handle pause/resume states
+    public static native void setSurface(Surface surface);
 
     public static native void surfaceReady(int width, int height);
 
