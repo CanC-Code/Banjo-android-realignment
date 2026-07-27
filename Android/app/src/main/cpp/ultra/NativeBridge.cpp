@@ -70,7 +70,7 @@ extern "C" {
             pthread_cond_wait(&g_vblankCond, &g_vblankMutex);
         }
 
-        // CRITICAL FIX: Relinquish the VBlank mutex before attempting to reclaim the Engine Lock 
+        // Relinquish the VBlank mutex before attempting to reclaim the Engine Lock 
         // to prevent lock-order inversion and hard deadlocks against the render thread.
         pthread_mutex_unlock(&g_vblankMutex);
 
@@ -98,15 +98,22 @@ void* game_thread_fn(void* arg) {
         }
     }
 
-    // AIRTIGHT LOCK: Intercept thread execution before it can reach engine ignition
-    LOGI("NativeBridge: Game thread evaluating bridge verification lock state...");
+    // Heavy initialization moved off the UI thread onto the background game worker thread
+    LOGI("NativeBridge: Executing ResourceMgr_Init sequence components on background thread...");
+    ResourceMgr_Init(g_otrPath.c_str());
+    LOGI("NativeBridge: ResourceMgr structural mapping complete.");
+
+    LOGI("NativeBridge: Initializing N64 virtual architecture registers...");
+    InitN64Registers(g_otrPath.c_str());
+
+    // Signal safe unlocking states to allow render thread calls to proceed
+    LOGI("NativeBridge: Synchronizing resource gate states to release execution threads...");
     pthread_mutex_lock(&g_bridgeGateMutex);
-    while (!g_bridgeResourcesReady) {
-        LOGI("NativeBridge: Resource mapping incomplete. Holding engine ignition thread state.");
-        pthread_cond_wait(&g_bridgeGateCond, &g_bridgeGateMutex);
-    }
+    g_bridgeResourcesReady = true;
+    pthread_cond_broadcast(&g_bridgeGateCond);
     pthread_mutex_unlock(&g_bridgeGateMutex);
-    LOGI("NativeBridge: Bridge resource lock released safely. Igniting runtime translation engine.");
+
+    BKA_SignalResourcesReady();
 
     LOGI("NativeBridge: Invoking BKA_StartEngine runtime entry point.");
     BKA_StartEngine();
@@ -155,11 +162,6 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
         LOGE("NativeBridge: WARNING - AssetManager object is null. Pre-embedded assets may fail to deploy.");
     }
 
-    // Reset initialization state flags safely
-    pthread_mutex_lock(&g_bridgeGateMutex);
-    g_bridgeResourcesReady = false;
-    pthread_mutex_unlock(&g_bridgeGateMutex);
-
     const char* otrPath = env->GetStringUTFChars(otrPathStr, nullptr);
     if (!otrPath) {
         LOGE("NativeBridge: FATAL ERROR - JNI string layout conversion sequence failed.");
@@ -170,17 +172,11 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
 
     LOGI("NativeBridge: Base tracking path resolved cleanly to: %s", g_otrPath.c_str());
 
-    // CRITICAL FIX: Initialize resources and register mappings BEFORE spawning the game thread.
-    // This guarantees that decompression blocks, lookup tables, and file handles are fully 
-    // valid prior to BKA_StartEngine() attempting to execute inflate_block().
-    LOGI("NativeBridge: Executing ResourceMgr_Init sequence components prior to thread launch...");
-    ResourceMgr_Init(g_otrPath.c_str());
-    LOGI("NativeBridge: ResourceMgr structural mapping complete.");
-
-    // Check if the engine thread is already active to prevent multi-spawning on Activity recreation
+    // Prevent re-initialization if thread is already running (e.g., Activity recreation)
     if (!g_engineThreadActive) {
-        LOGI("NativeBridge: Initializing N64 virtual architecture registers...");
-        InitN64Registers(g_otrPath.c_str());
+        pthread_mutex_lock(&g_bridgeGateMutex);
+        g_bridgeResourcesReady = false;
+        pthread_mutex_unlock(&g_bridgeGateMutex);
 
         pthread_t gameThread;
         LOGI("NativeBridge: Allocating background worker thread contexts...");
@@ -190,22 +186,11 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
             LOGI("NativeBridge: Engine thread spawned and bound to waiting sequence state.");
         } else {
             LOGE("NativeBridge: FATAL ERROR - Engine execution context thread creation failed.");
-            HardwareRegs_Shutdown();
             return;
         }
     } else {
         LOGI("NativeBridge: Engine thread is already active. Bypassing redundant creation.");
     }
-
-    // Signal safe unlocking states to allow the waiting game thread to proceed into BKA_StartEngine()
-    LOGI("NativeBridge: Synchronizing resource gate states to release execution threads...");
-    pthread_mutex_lock(&g_bridgeGateMutex);
-    g_bridgeResourcesReady = true;
-    pthread_cond_broadcast(&g_bridgeGateCond);
-    pthread_mutex_unlock(&g_bridgeGateMutex);
-
-    // Maintain native stub fallback signals
-    BKA_SignalResourcesReady();
 }
 
 JNIEXPORT void JNICALL
@@ -218,6 +203,16 @@ Java_com_bkawrapper_NativeBridge_surfaceReady(JNIEnv* env, jclass clazz, jint w,
 JNIEXPORT void JNICALL
 Java_com_bkawrapper_NativeBridge_updateTexture(JNIEnv* env, jclass clazz, jint textureId) {
     if (gN64_RDRAM == nullptr || gN64_Reg_Base == nullptr) return;
+
+    // Fast-path bypass: return immediately if engine resources are still initializing
+    // Prevents GL thread stall while game_thread_fn is unpacking ROM/YAML assets
+    pthread_mutex_lock(&g_bridgeGateMutex);
+    bool ready = g_bridgeResourcesReady;
+    pthread_mutex_unlock(&g_bridgeGateMutex);
+
+    if (!ready) {
+        return;
+    }
 
     BKA_ClaimEngineLock();
 
