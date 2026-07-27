@@ -11,6 +11,8 @@
 #include <mutex>
 #include <deque>
 #include <condition_variable>
+#include <memory>
+#include <thread>
 
 #include "n64_types.h"
 #include "bka_safe_base.h"
@@ -44,10 +46,10 @@ struct EventRoute {
 // -------------------------------------------------------------------------
 static std::recursive_mutex s_n64_gil;
 
-static std::unordered_map<OSThread*, NativeThread*> s_threadRegistry;
+static std::unordered_map<OSThread*, std::shared_ptr<NativeThread>> s_threadRegistry;
 static std::mutex s_threadMutex;
 
-static std::unordered_map<OSMesgQueue*, NativeQueue*> s_queueRegistry;
+static std::unordered_map<OSMesgQueue*, std::shared_ptr<NativeQueue>> s_queueRegistry;
 static std::mutex s_queueMutex;
 
 static std::unordered_map<int, EventRoute> s_eventRegistry;
@@ -97,13 +99,11 @@ s32 osVersion   = 0;
 s32 osResetType = 0;
 u32 osMemSize   = 0x00800000;  // 8MB Expansion Pak
 
-// Linker Wrap: This replaces the real __osInitialize_common
-// Call __real___osInitialize_common() if you ever need to invoke the original assembly logic.
+// Linker Wrap: Intercepts original assembly __osInitialize_common
 extern void __real___osInitialize_common(void);
 
 void __wrap___osInitialize_common(void) {
     LOGI("BKA-HLE: __osInitialize_common intercepted via Linker Wrap.");
-    // We intentionally do NOT call __real___osInitialize_common() to prevent the segfault.
 }
 
 void __osViInit(void) {
@@ -135,11 +135,12 @@ static void WaitForResourcesReady(void) {
    ============================================================ */
 
 void osCreateThread(OSThread *t, OSId id, void (*entry)(void *), void *arg, void *sp, OSPri p) {
+    if (!t) return;
     std::lock_guard<std::mutex> lock(s_threadMutex);
     t->id       = id;
     t->priority = p;
 
-    NativeThread* nt = new NativeThread();
+    auto nt = std::make_shared<NativeThread>();
     nt->entry  = entry;
     nt->arg    = arg;
     nt->id     = id;
@@ -150,11 +151,16 @@ void osCreateThread(OSThread *t, OSId id, void (*entry)(void *), void *arg, void
 }
 
 static void* NativeThreadWrapper(void* arg) {
-    NativeThread* nt = static_cast<NativeThread*>(arg);
+    auto ntPtr = static_cast<std::shared_ptr<NativeThread>*>(arg);
+    std::shared_ptr<NativeThread> nt = *ntPtr;
+    delete ntPtr; // Free wrapper container
+
     LOGI("BKA-HLE: Native Thread ID %d starting execution.", nt->id);
 
     s_n64_gil.lock();
-    nt->entry(nt->arg);
+    if (nt->entry != nullptr) {
+        nt->entry(nt->arg);
+    }
     s_n64_gil.unlock();
 
     LOGI("BKA-HLE: Native Thread ID %d terminated cleanly.", nt->id);
@@ -164,9 +170,14 @@ static void* NativeThreadWrapper(void* arg) {
 void osStartThread(OSThread *t) {
     std::lock_guard<std::mutex> lock(s_threadMutex);
     if (t != nullptr && s_threadRegistry.find(t) != s_threadRegistry.end()) {
-        NativeThread* nt = s_threadRegistry[t];
-        pthread_create(&nt->thread, nullptr, NativeThreadWrapper, nt);
-        pthread_detach(nt->thread);
+        auto nt = s_threadRegistry[t];
+        auto arg = new std::shared_ptr<NativeThread>(nt);
+        if (pthread_create(&nt->thread, nullptr, NativeThreadWrapper, arg) == 0) {
+            pthread_detach(nt->thread);
+        } else {
+            delete arg;
+            LOGE("BKA-HLE: FATAL - Failed to create POSIX thread for OSThread ID %d", t->id);
+        }
     }
 }
 
@@ -177,14 +188,14 @@ void osStopThread(OSThread *t) {
 void osDestroyThread(OSThread *t) {
     std::lock_guard<std::mutex> lock(s_threadMutex);
     if (s_threadRegistry.find(t) != s_threadRegistry.end()) {
-        delete s_threadRegistry[t];
         s_threadRegistry.erase(t);
     }
 }
 
 void osYieldThread(void) {
     s_n64_gil.unlock();
-    sched_yield();
+    std::this_thread::yield();
+    usleep(100); // 100 microseconds sleep allows Linux kernel scheduler to service Android main/UI thread
     s_n64_gil.lock();
 }
 
@@ -196,17 +207,26 @@ void __osDequeueThread(OSThread **queue, OSThread *t) {}
    4. EVENT ROUTING & MESSAGE QUEUES
    ============================================================ */
 
+static std::shared_ptr<NativeQueue> GetNativeQueue(OSMesgQueue* mq) {
+    if (!mq) return nullptr;
+    std::lock_guard<std::mutex> lock(s_queueMutex);
+    auto it = s_queueRegistry.find(mq);
+    if (it != s_queueRegistry.end()) {
+        return it->second;
+    }
+    return nullptr;
+}
+
 void osCreateMesgQueue(OSMesgQueue *mq, OSMesg *msgBuf, s32 count) {
+    if (!mq) return;
     mq->validCount = 0;
     mq->first      = 0;
     mq->msgCount   = count;
     mq->msg        = msgBuf;
 
     std::lock_guard<std::mutex> lock(s_queueMutex);
-    if (s_queueRegistry.find(mq) != s_queueRegistry.end()) delete s_queueRegistry[mq];
-
-    NativeQueue* nq = new NativeQueue();
-    nq->capacity    = count;
+    auto nq = std::make_shared<NativeQueue>();
+    nq->capacity = count;
     s_queueRegistry[mq] = nq;
 }
 
@@ -217,79 +237,90 @@ void osSetEventMesg(OSEvent e, OSMesgQueue *mq, OSMesg msg) {
 }
 
 void HLE_TriggerN64Event(int event_id) {
-    std::lock_guard<std::mutex> lock(s_eventMutex);
-    if (s_eventRegistry.count(event_id)) {
-        EventRoute route = s_eventRegistry[event_id];
+    EventRoute route{nullptr, nullptr};
+    bool found = false;
+    {
+        std::lock_guard<std::mutex> lock(s_eventMutex);
+        auto it = s_eventRegistry.find(event_id);
+        if (it != s_eventRegistry.end()) {
+            route = it->second;
+            found = true;
+        }
+    }
+
+    // Call osSendMesg without holding s_eventMutex to prevent lock nesting deadlock
+    if (found && route.mq != nullptr) {
         osSendMesg(route.mq, route.msg, OS_MESG_NOBLOCK);
     }
 }
 
 s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag) {
-    NativeQueue* nq = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(s_queueMutex);
-        if (s_queueRegistry.find(mq) == s_queueRegistry.end()) return -1;
-        nq = s_queueRegistry[mq];
-    }
+    std::shared_ptr<NativeQueue> nq = GetNativeQueue(mq);
+    if (!nq) return -1;
 
     std::unique_lock<std::mutex> lock(nq->mtx);
     if (flag == OS_MESG_BLOCK) {
-        s_n64_gil.unlock();
-        nq->cv_send.wait(lock, [nq]() { return nq->buffer.size() < (size_t)nq->capacity; });
-        s_n64_gil.lock();
+        while ((int)nq->buffer.size() >= nq->capacity) {
+            // CRITICAL FIX: Unlock nq->mtx prior to acquiring GIL to eliminate Lock-Order Inversion Deadlock
+            s_n64_gil.unlock();
+            nq->cv_send.wait(lock);
+            lock.unlock();
+            s_n64_gil.lock();
+            lock.lock();
+        }
     } else {
         if ((int)nq->buffer.size() >= nq->capacity) return -1;
     }
 
     nq->buffer.push_back(msg);
-    mq->validCount = nq->buffer.size();
+    mq->validCount = static_cast<s32>(nq->buffer.size());
     nq->cv_recv.notify_one();
     return 0;
 }
 
 s32 osJamMesg(OSMesgQueue *mq, OSMesg msg, s32 flag) {
-    NativeQueue* nq = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(s_queueMutex);
-        if (s_queueRegistry.find(mq) == s_queueRegistry.end()) return -1;
-        nq = s_queueRegistry[mq];
-    }
+    std::shared_ptr<NativeQueue> nq = GetNativeQueue(mq);
+    if (!nq) return -1;
 
     std::unique_lock<std::mutex> lock(nq->mtx);
     if (flag == OS_MESG_BLOCK) {
-        s_n64_gil.unlock();
-        nq->cv_send.wait(lock, [nq]() { return nq->buffer.size() < (size_t)nq->capacity; });
-        s_n64_gil.lock();
+        while ((int)nq->buffer.size() >= nq->capacity) {
+            s_n64_gil.unlock();
+            nq->cv_send.wait(lock);
+            lock.unlock();
+            s_n64_gil.lock();
+            lock.lock();
+        }
     } else {
         if ((int)nq->buffer.size() >= nq->capacity) return -1;
     }
 
     nq->buffer.push_front(msg);
-    mq->validCount = nq->buffer.size();
+    mq->validCount = static_cast<s32>(nq->buffer.size());
     nq->cv_recv.notify_one();
     return 0;
 }
 
 s32 osRecvMesg(OSMesgQueue *mq, OSMesg *msg, s32 flag) {
-    NativeQueue* nq = nullptr;
-    {
-        std::lock_guard<std::mutex> lock(s_queueMutex);
-        if (s_queueRegistry.find(mq) == s_queueRegistry.end()) return -1;
-        nq = s_queueRegistry[mq];
-    }
+    std::shared_ptr<NativeQueue> nq = GetNativeQueue(mq);
+    if (!nq) return -1;
 
     std::unique_lock<std::mutex> lock(nq->mtx);
     if (flag == OS_MESG_BLOCK) {
-        s_n64_gil.unlock();
-        nq->cv_recv.wait(lock, [nq]() { return !nq->buffer.empty(); });
-        s_n64_gil.lock();
+        while (nq->buffer.empty()) {
+            s_n64_gil.unlock();
+            nq->cv_recv.wait(lock);
+            lock.unlock();
+            s_n64_gil.lock();
+            lock.lock();
+        }
     } else {
         if (nq->buffer.empty()) return -1;
     }
 
     if (msg != nullptr) *msg = nq->buffer.front();
     nq->buffer.pop_front();
-    mq->validCount = nq->buffer.size();
+    mq->validCount = static_cast<s32>(nq->buffer.size());
     nq->cv_send.notify_one();
     return 0;
 }
@@ -303,12 +334,19 @@ static void* HLE_PiManagerWorker(void* arg) {
     s_n64_gil.lock();
 
     while (true) {
+        if (s_hlePiCmdQueue == nullptr) {
+            s_n64_gil.unlock();
+            usleep(10000); // Sleep 10ms if PI command queue is not yet bound
+            s_n64_gil.lock();
+            continue;
+        }
+
         OSMesg msg = nullptr;
         s32 ret = osRecvMesg(s_hlePiCmdQueue, &msg, OS_MESG_BLOCK);
 
         if (ret != 0 || msg == nullptr) {
             s_n64_gil.unlock();
-            usleep(1000);
+            usleep(2000); // Prevent tight GIL spin-locking when empty
             s_n64_gil.lock();
             continue;
         }
@@ -316,7 +354,6 @@ static void* HLE_PiManagerWorker(void* arg) {
         OSIoMesg* ioMsg = reinterpret_cast<OSIoMesg*>(msg);
         s32 direction = OS_READ;
 
-        // Handle DMA types
         if (ioMsg->hdr.type == 16 || ioMsg->hdr.type == 2) {
             direction = OS_WRITE;
         }
@@ -377,7 +414,6 @@ s32 osEepromLongWrite(OSMesgQueue *mq, u8 address, u8 *buffer, int nbytes) { ret
 s32 osEepromRead(OSMesgQueue *mq, u8 address, u8 *buffer) { memset(buffer, 0, 8); return 0; }
 s32 osEepromWrite(OSMesgQueue *mq, u8 address, u8 *buffer) { return 0; }
 
-/* [SECURE ENGINE IGNITION PATCH] */
 /* ============================================================
    8. SECURE ENGINE IGNITION
    ============================================================ */
@@ -405,12 +441,7 @@ void BKA_StartEngine(void) {
         return;
     }
 
-    LOGI(
-        "BKA-STUBS: ROM verification successful. "
-        "RDRAM=%p ROM=%p",
-        gN64_RDRAM,
-        gN64_ROM_Base
-    );
+    LOGI("BKA-STUBS: ROM verification successful. RDRAM=%p ROM=%p", gN64_RDRAM, gN64_ROM_Base);
 
     s_n64_gil.lock();
 
