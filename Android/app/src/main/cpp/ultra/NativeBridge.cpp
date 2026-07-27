@@ -2,6 +2,8 @@
 #include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
 #include <android/log.h>
+#include <android/native_window.h>
+#include <android/native_window_jni.h>
 #include <string>
 #include <cstdio>
 #include <pthread.h>
@@ -42,6 +44,11 @@ static pthread_mutex_t g_bridgeGateMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  g_bridgeGateCond  = PTHREAD_COND_INITIALIZER;
 static bool            g_bridgeResourcesReady = false;
 
+// Native Window Synchronization State
+static ANativeWindow*  g_nativeWindow = nullptr;
+static pthread_mutex_t g_windowMutex  = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t  g_windowCond   = PTHREAD_COND_INITIALIZER;
+
 extern "C" {
     extern uint8_t* gN64_RDRAM;
     extern uint32_t* gN64_Reg_Base;
@@ -73,6 +80,16 @@ extern "C" {
         // Relinquish the VBlank mutex before attempting to reclaim the Engine Lock 
         // to prevent lock-order inversion and hard deadlocks against the render thread.
         pthread_mutex_unlock(&g_vblankMutex);
+
+        // --- Surface State Engine Pause ---
+        // Suspend the engine natively until Android provides a valid drawing surface.
+        // Prevents runaway CPU usage and deadlocks when the Activity is paused (e.g. DocumentsUI).
+        pthread_mutex_lock(&g_windowMutex);
+        while (g_nativeWindow == nullptr) {
+            pthread_cond_wait(&g_windowCond, &g_windowMutex);
+        }
+        pthread_mutex_unlock(&g_windowMutex);
+        // ----------------------------------
 
         BKA_ClaimEngineLock();
     }
@@ -191,6 +208,40 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
     } else {
         LOGI("NativeBridge: Engine thread is already active. Bypassing redundant creation.");
     }
+}
+
+JNIEXPORT void JNICALL
+Java_com_bkawrapper_NativeBridge_setSurface(JNIEnv* env, jclass clazz, jobject surface) {
+    pthread_mutex_lock(&g_windowMutex);
+
+    if (surface == nullptr) {
+        // surfaceDestroyed sequence
+        if (g_nativeWindow != nullptr) {
+            ANativeWindow_release(g_nativeWindow);
+            g_nativeWindow = nullptr;
+            LOGI("NativeBridge: Surface destroyed. ANativeWindow safely released.");
+        }
+
+        // Unblock the engine thread if it is waiting for a VBlank that will never arrive 
+        // now that the rendering surface is torn down.
+        pthread_mutex_lock(&g_vblankMutex);
+        g_vblankRequested = false;
+        pthread_cond_broadcast(&g_vblankCond);
+        pthread_mutex_unlock(&g_vblankMutex);
+
+    } else {
+        // surfaceCreated sequence
+        if (g_nativeWindow != nullptr) {
+            ANativeWindow_release(g_nativeWindow);
+        }
+        g_nativeWindow = ANativeWindow_fromSurface(env, surface);
+        LOGI("NativeBridge: ANativeWindow successfully bound to native engine context.");
+        
+        // Wake up the background engine thread if it was sleeping while paused
+        pthread_cond_broadcast(&g_windowCond);
+    }
+
+    pthread_mutex_unlock(&g_windowMutex);
 }
 
 JNIEXPORT void JNICALL
