@@ -122,7 +122,7 @@ void* game_thread_fn(void* arg) {
     if (attached && g_jvm != nullptr) {
         g_jvm->DetachCurrentThread();
     }
-    
+
     g_engineThreadActive = false;
     return nullptr;
 }
@@ -148,8 +148,6 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
         return;
     }
 
-    // CRITICAL FIX: Extract and bind the AssetManager natively so the internal C++ 
-    // engine resource managers can retrieve the directly pre-embedded adapted files.
     if (assetManagerObj != nullptr) {
         g_assetManager = AAssetManager_fromJava(env, assetManagerObj);
         LOGI("NativeBridge: Bound AAssetManager to handle directly pre-embedded configuration files.");
@@ -157,7 +155,7 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
         LOGE("NativeBridge: WARNING - AssetManager object is null. Pre-embedded assets may fail to deploy.");
     }
 
-    // Reset initialization state flags to cleanly handle runtime Activity recreation
+    // Reset initialization state flags safely
     pthread_mutex_lock(&g_bridgeGateMutex);
     g_bridgeResourcesReady = false;
     pthread_mutex_unlock(&g_bridgeGateMutex);
@@ -171,7 +169,14 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
     env->ReleaseStringUTFChars(otrPathStr, otrPath);
 
     LOGI("NativeBridge: Base tracking path resolved cleanly to: %s", g_otrPath.c_str());
-    
+
+    // CRITICAL FIX: Initialize resources and register mappings BEFORE spawning the game thread.
+    // This guarantees that decompression blocks, lookup tables, and file handles are fully 
+    // valid prior to BKA_StartEngine() attempting to execute inflate_block().
+    LOGI("NativeBridge: Executing ResourceMgr_Init sequence components prior to thread launch...");
+    ResourceMgr_Init(g_otrPath.c_str());
+    LOGI("NativeBridge: ResourceMgr structural mapping complete.");
+
     // Check if the engine thread is already active to prevent multi-spawning on Activity recreation
     if (!g_engineThreadActive) {
         LOGI("NativeBridge: Initializing N64 virtual architecture registers...");
@@ -192,12 +197,7 @@ Java_com_bkawrapper_NativeBridge_nativeGameBoot(JNIEnv* env, jclass clazz,
         LOGI("NativeBridge: Engine thread is already active. Bypassing redundant creation.");
     }
 
-    // Execute synchronous asset checking and file configuration mapping
-    LOGI("NativeBridge: Executing ResourceMgr_Init sequence components...");
-    ResourceMgr_Init(g_otrPath.c_str());
-    LOGI("NativeBridge: ResourceMgr structural mapping complete.");
-
-    // Signal safe unlocking states across both layers safely
+    // Signal safe unlocking states to allow the waiting game thread to proceed into BKA_StartEngine()
     LOGI("NativeBridge: Synchronizing resource gate states to release execution threads...");
     pthread_mutex_lock(&g_bridgeGateMutex);
     g_bridgeResourcesReady = true;
