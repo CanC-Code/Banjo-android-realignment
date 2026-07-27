@@ -34,7 +34,7 @@ static BKA_ControllerPad g_inputMirror  = {0, 0, 0, 0};
 static pthread_mutex_t   g_inputMutex   = PTHREAD_MUTEX_INITIALIZER;
 
 static volatile bool   g_vblankRequested = false;
-static pthread_cond_t  g_vblankCond      = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t  g_vblankCond      = pthread_cond_t(PTHREAD_COND_INITIALIZER);
 static pthread_mutex_t g_vblankMutex     = PTHREAD_MUTEX_INITIALIZER;
 
 // Airtight Bridge-Level Resource Synchronization Gate
