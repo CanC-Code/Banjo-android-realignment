@@ -10,6 +10,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <GLES2/gl2.h>
+#include <EGL/egl.h> // Added EGL header for swap chain management
 
 #define LOG_TAG "NativeBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
@@ -24,6 +25,12 @@ AAssetManager* g_assetManager = nullptr;
 static int g_surfaceWidth  = 320;
 static int g_surfaceHeight = 240;
 static bool g_engineThreadActive = false;
+
+// EGL Context State
+static EGLDisplay g_eglDisplay = EGL_NO_DISPLAY;
+static EGLSurface g_eglSurface = EGL_NO_SURFACE;
+static EGLContext g_eglContext = EGL_NO_CONTEXT;
+static bool g_eglInitialized = false;
 
 struct BKA_ControllerPad {
     uint16_t button;
@@ -48,6 +55,78 @@ static bool            g_bridgeResourcesReady = false;
 static ANativeWindow*  g_nativeWindow = nullptr;
 static pthread_mutex_t g_windowMutex  = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  g_windowCond   = PTHREAD_COND_INITIALIZER;
+
+// EGL Initialization helper
+static bool InitializeEGL_Locked() {
+    if (g_nativeWindow == nullptr) return false;
+
+    g_eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+    if (g_eglDisplay == EGL_NO_DISPLAY) return false;
+    
+    if (!eglInitialize(g_eglDisplay, nullptr, nullptr)) return false;
+
+    const EGLint attribs[] = {
+        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
+        EGL_BLUE_SIZE, 8,
+        EGL_GREEN_SIZE, 8,
+        EGL_RED_SIZE, 8,
+        EGL_ALPHA_SIZE, 8,
+        EGL_DEPTH_SIZE, 16,
+        EGL_NONE
+    };
+    
+    EGLConfig config;
+    EGLint numConfigs;
+    if (!eglChooseConfig(g_eglDisplay, attribs, &config, 1, &numConfigs) || numConfigs == 0) {
+        LOGE("NativeBridge: eglChooseConfig failed.");
+        return false;
+    }
+
+    EGLint contextAttribs[] = {
+        EGL_CONTEXT_CLIENT_VERSION, 2,
+        EGL_NONE
+    };
+    
+    g_eglContext = eglCreateContext(g_eglDisplay, config, EGL_NO_CONTEXT, contextAttribs);
+    if (g_eglContext == EGL_NO_CONTEXT) {
+        LOGE("NativeBridge: eglCreateContext failed.");
+        return false;
+    }
+
+    g_eglSurface = eglCreateWindowSurface(g_eglDisplay, config, g_nativeWindow, nullptr);
+    if (g_eglSurface == EGL_NO_SURFACE) {
+        LOGE("NativeBridge: eglCreateWindowSurface failed.");
+        return false;
+    }
+
+    if (!eglMakeCurrent(g_eglDisplay, g_eglSurface, g_eglSurface, g_eglContext)) {
+        LOGE("NativeBridge: eglMakeCurrent failed.");
+        return false;
+    }
+
+    g_eglInitialized = true;
+    LOGI("NativeBridge: EGL Context successfully bound and initialized.");
+    return true;
+}
+
+static void DestroyEGL_Locked() {
+    if (g_eglDisplay != EGL_NO_DISPLAY) {
+        eglMakeCurrent(g_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+        if (g_eglContext != EGL_NO_CONTEXT) {
+            eglDestroyContext(g_eglDisplay, g_eglContext);
+        }
+        if (g_eglSurface != EGL_NO_SURFACE) {
+            eglDestroySurface(g_eglDisplay, g_eglSurface);
+        }
+        eglTerminate(g_eglDisplay);
+    }
+    g_eglDisplay = EGL_NO_DISPLAY;
+    g_eglSurface = EGL_NO_SURFACE;
+    g_eglContext = EGL_NO_CONTEXT;
+    g_eglInitialized = false;
+    LOGI("NativeBridge: EGL Context cleanly destroyed.");
+}
 
 extern "C" {
     extern uint8_t* gN64_RDRAM;
@@ -216,6 +295,8 @@ Java_com_bkawrapper_NativeBridge_setSurface(JNIEnv* env, jclass clazz, jobject s
 
     if (surface == nullptr) {
         // surfaceDestroyed sequence
+        DestroyEGL_Locked();
+        
         if (g_nativeWindow != nullptr) {
             ANativeWindow_release(g_nativeWindow);
             g_nativeWindow = nullptr;
@@ -232,11 +313,12 @@ Java_com_bkawrapper_NativeBridge_setSurface(JNIEnv* env, jclass clazz, jobject s
     } else {
         // surfaceCreated sequence
         if (g_nativeWindow != nullptr) {
+            DestroyEGL_Locked();
             ANativeWindow_release(g_nativeWindow);
         }
         g_nativeWindow = ANativeWindow_fromSurface(env, surface);
         LOGI("NativeBridge: ANativeWindow successfully bound to native engine context.");
-        
+
         // Wake up the background engine thread if it was sleeping while paused
         pthread_cond_broadcast(&g_windowCond);
     }
@@ -264,6 +346,18 @@ Java_com_bkawrapper_NativeBridge_updateTexture(JNIEnv* env, jclass clazz, jint t
     if (!ready) {
         return;
     }
+    
+    // Ensure EGL is initialized on the active rendering thread context before drawing
+    pthread_mutex_lock(&g_windowMutex);
+    if (!g_eglInitialized && g_nativeWindow != nullptr) {
+        InitializeEGL_Locked();
+    }
+    pthread_mutex_unlock(&g_windowMutex);
+
+    if (g_eglInitialized) {
+        // Ensure the OpenGL viewport scales to match the updated surface dimensions
+        glViewport(0, 0, g_surfaceWidth, g_surfaceHeight);
+    }
 
     BKA_ClaimEngineLock();
 
@@ -282,6 +376,11 @@ Java_com_bkawrapper_NativeBridge_updateTexture(JNIEnv* env, jclass clazz, jint t
     VideoPlugin_OutputFrameTexture((uint32_t)textureId);
 
     BKA_DropEngineLock();
+    
+    // Finalize graphics sequence by presenting the computed framebuffer to the display surface
+    if (g_eglInitialized) {
+        eglSwapBuffers(g_eglDisplay, g_eglSurface);
+    }
 }
 
 JNIEXPORT void JNICALL
