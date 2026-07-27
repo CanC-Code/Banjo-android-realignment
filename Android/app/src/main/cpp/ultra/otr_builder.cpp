@@ -436,12 +436,18 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
                 uint32_t offset = seg.start;
                 uint32_t size = (seg.end > seg.start) ? (seg.end - seg.start) : 0;
 
-                // Handle unaligned or redirected structural table offsets safely
+                // Handle RAM-mapped virtual addresses and Splat segment offset shifts
+                if (offset >= 0x80000000) {
+                    offset &= 0x0FFFFFFF; // Strip KSEG0/KSEG1 base bits
+                } else if (offset >= 0x04000000) {
+                    offset -= 0x04000000;
+                }
+
                 if (offset >= romSize) {
                     if (offset >= 0x10000000 && (offset - 0x10000000) < romSize) {
                         offset -= 0x10000000;
                     } else {
-                        LOGW("Skipping invalid offset segment %s offset=%u", seg.name, offset);
+                        LOGW("Skipping out-of-bounds segment %s (offset: 0x%X)", seg.name, seg.start);
                         failed++;
                         continue;
                     }
