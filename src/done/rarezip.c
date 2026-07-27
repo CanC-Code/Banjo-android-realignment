@@ -23,36 +23,16 @@ extern u32 inptr;
 extern u32 g_decomp_out_cap;   /* FIX: defined in inflate.c, enforced there */
 extern int bkboot_inflate(void);
 
-/* FIX: this used to be "extern void *D_803FBE00;" with D_80007270 pointed at
- * its ADDRESS -- i.e. at 8 bytes of storage, not at a memory pool. huft_build
- * treats D_80007270/D_80007290 as the base of an array of struct huft that
- * grows as tables are built, so pointing it at a single pointer-sized
- * variable guarantees an out-of-bounds write the first time a real table is
- * constructed. This is a self-contained, properly-sized pool instead. If
- * D_803FBE00 is used elsewhere (e.g. HardwareRegs.cpp) for something
- * unrelated, that's untouched -- this file no longer depends on it. */
+/* FIX: Ensure the huft pool actually has capacity, avoiding out-of-bounds 
+ * writes. This is a self-contained, properly-sized pool instead of a single 
+ * aliased pointer variable. */
 static struct huft s_huft_pool[HUFT_POOL_CAPACITY];
 
-struct huft *D_80007270 = NULL;
+/* FIX: Statically initialize directly to the pool to guarantee readiness 
+ * without relying on compiler-specific JNI/constructor load orders. */
+struct huft *D_80007270 = s_huft_pool;
 
-/* FIX: guarantees D_80007270 is valid before any code can possibly call into
- * the decompressor, regardless of whether func_8000055C is ever invoked
- * elsewhere. Runs at library load time, before JNI_OnLoad / any Activity
- * code. */
-__attribute__((constructor))
-static void bka_init_huft_pool(void) {
-    D_80007270 = s_huft_pool;
-}
-
-/* FIX: this decompression pipeline is built entirely out of file-scope
- * globals (inbuf, wp, bb, bk, D_80007284, D_80007290, hufts, crc1/2) with no
- * synchronization. Your own logcat labels engine boot "SECURE CONCURRENT
- * IGNITION" -- if anything else (asset streaming, a second decode) can call
- * into this code concurrently, one call's globals get stomped mid-flight by
- * another, which is consistent with the NULL dereference seen at the very
- * first bit read in inflate_block despite p_in/p_out already being
- * validated non-null moments earlier. This mutex makes the whole pipeline
- * atomic per call. */
+/* FIX: Mutex implementation to secure the pipeline state. */
 static pthread_mutex_t g_decomp_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 /* ── Forward Declarations ─────────────────────────────────────────────── */
@@ -139,10 +119,6 @@ u32 func_80000550(u8* arg0) {
     return *((u32*)(p_arg0 + 2));
 }
 
-/* FIX: kept for ABI/link compatibility in case anything external still calls
- * this, but D_80007270 no longer depends on it -- the constructor above
- * already guarantees it's valid. This is now just a safe, idempotent
- * re-assignment to the same pool. */
 void func_8000055C(void) {
     D_80007270 = s_huft_pool;
 }
@@ -158,10 +134,6 @@ u32 func_80000594(u8 **inPtr, u8 **outPtr) {
 void func_800005B8(void) {}
 
 /* ── Primary Format Multiplexer and Decompression Pipeline ──────────── */
-/* FIX: func_800005C0 is now a thin, mutex-guarded wrapper around the real
- * implementation, so the shared globals it touches (inbuf, D_80007284,
- * D_80007290, wp, inptr, bb, bk, crc1, crc2, hufts, g_decomp_out_cap) can't
- * be stomped by a concurrent call from another thread. */
 u32 func_800005C0(u8* in, u8* out, struct huft *arg2) {
     u32 result;
     pthread_mutex_lock(&g_decomp_mutex);
@@ -260,10 +232,6 @@ static u32 func_800005C0_locked(u8* in, u8* out, struct huft *arg2) {
     }
 
     if (p_arg2 != NULL) {
-        /* FIX: Path D previously never computed an output capacity at all,
-         * unlike Paths A/B/C. inflate_codes/inflate_stored now check every
-         * write against g_decomp_out_cap, so this must be set before
-         * bkboot_inflate() runs. */
         size_t out_cap = (p_out >= gN64_RDRAM && p_out < rdram_end)
                           ? (size_t)(rdram_end - p_out)
                           : 0x4000000;
@@ -287,7 +255,13 @@ static u32 func_800005C0_locked(u8* in, u8* out, struct huft *arg2) {
 u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2) {
     if (!inPtr || !*inPtr || !outPtr || !*outPtr) return 0;
 
-    u32 size = func_800005C0(*inPtr, *outPtr, arg2);
+    /* FIX: Must lock *before* modifying inPtr and outPtr to prevent a race
+     * condition where another thread overwrites wp or inptr between the 
+     * end of the decompression and the pointer arithmetic below. */
+    pthread_mutex_lock(&g_decomp_mutex);
+
+    u32 size = func_800005C0_locked(*inPtr, *outPtr, arg2);
+    
     *outPtr += wp;
 
     /* Maintain 16-byte structure alignment */
@@ -298,5 +272,7 @@ u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2) {
     }
 
     *inPtr += inptr + 6;
+
+    pthread_mutex_unlock(&g_decomp_mutex);
     return size;
 }
