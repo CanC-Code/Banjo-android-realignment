@@ -11,8 +11,21 @@
 #include <cerrno>
 #include <cstdint>
 #include <cstdlib>
+#include <vector>
+#include <string>
 
 #include "rare_decompression.h"
+
+// ---------------------------------------------------------------------------
+// Explicit Forward Declarations
+// ---------------------------------------------------------------------------
+#ifdef __cplusplus
+extern "C" {
+#endif
+uint8_t* decompress_rare_asset(uint8_t* srcBuffer, uint32_t srcSize, uint32_t* bytesWritten);
+#ifdef __cplusplus
+}
+#endif
 
 #define LOG_TAG "BKA_OTR"
 
@@ -21,27 +34,21 @@
 #define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 
 // ---------------------------------------------------------------------------
-// Manifest format
+// Parsed Segment Structure (Direct Splat YAML Representation)
 // ---------------------------------------------------------------------------
 
-#pragma pack(push, 1)
-
-struct ManifestEntry {
-    uint32_t offset;
-    uint32_t size;
-    char name[32];
-    char type[8];
+struct SplatSegment {
+    uint32_t start;
+    uint32_t end;
+    char name[128];
+    char type[64];
 };
-
-#pragma pack(pop)
-
-static_assert(sizeof(ManifestEntry) == 48, "ManifestEntry layout mismatch");
 
 // ---------------------------------------------------------------------------
 // Safety constants
 // ---------------------------------------------------------------------------
 
-static constexpr uint32_t MAX_MANIFEST_ENTRIES = 100000;
+static constexpr uint32_t MAX_SPLIT_SEGMENTS = 100000;
 static constexpr uint32_t MAX_ASSET_SIZE = 0x10000000; // 256 MB
 
 // ---------------------------------------------------------------------------
@@ -144,6 +151,132 @@ static bool write_rom_base_from_memory(
 }
 
 // ---------------------------------------------------------------------------
+// Minimal Line-Oriented Splat YAML Parser
+// Avoids heavy external dependencies by parsing standard splat layouts directly.
+// ---------------------------------------------------------------------------
+
+static std::vector<SplatSegment> parse_splat_yaml(const char* yamlPath) {
+    std::vector<SplatSegment> segments;
+    FILE* file = fopen(yamlPath, "r");
+    if (!file) {
+        LOGW("Splat YAML missing or unreadable: %s", yamlPath);
+        return segments;
+    }
+
+    char line[512];
+    SplatSegment currentSeg = {};
+    bool inSegmentsBlock = false;
+    bool hasActiveSeg = false;
+
+    auto clean_str = [](char* str) {
+        char* p = str;
+        while (*p == ' ' || *p == '\'' || *p == '\"' || *p == '\t') p++;
+        if (p != str) memmove(str, p, strlen(p) + 1);
+        size_t len = strlen(str);
+        while (len > 0 && (str[len-1] == ' ' || str[len-1] == '\'' || str[len-1] == '\"' || str[len-1] == '\t' || str[len-1] == '\r' || str[len-1] == '\n')) {
+            str[--len] = '\0';
+        }
+    };
+
+    while (fgets(line, sizeof(line), file)) {
+        char* ptr = line;
+        while (*ptr == ' ' || *ptr == '\t') ptr++;
+
+        if (*ptr == '#' || *ptr == '\n' || *ptr == '\r' || *ptr == '\0') {
+            continue;
+        }
+
+        if (strncmp(ptr, "segments:", 9) == 0) {
+            inSegmentsBlock = true;
+            continue;
+        }
+
+        if (!inSegmentsBlock) {
+            continue;
+        }
+
+        if (*ptr == '-') {
+            if (hasActiveSeg) {
+                if (currentSeg.end > currentSeg.start) {
+                    currentSeg.end = currentSeg.end; 
+                }
+                segments.push_back(currentSeg);
+            }
+            currentSeg = {};
+            hasActiveSeg = false;
+            ptr++;
+            while (*ptr == ' ' || *ptr == '\t') ptr++;
+        }
+
+        if (*ptr == '[') {
+            unsigned int startVal = 0;
+            char typeBuf[64] = {0};
+            char nameBuf[128] = {0};
+
+            // Safely parse [offset, type, name] or [offset, type] using %i to automatically handle 0x
+            if (sscanf(ptr, "[ %i , %63[^,] , %127[^]] ]", &startVal, typeBuf, nameBuf) >= 2 ||
+                sscanf(ptr, "[ %i , %63[^]] ]", &startVal, typeBuf) >= 2) {
+
+                clean_str(typeBuf);
+                clean_str(nameBuf);
+
+                currentSeg.start = startVal;
+                snprintf(currentSeg.type, sizeof(currentSeg.type), "%s", typeBuf);
+                if (nameBuf[0] != '\0') {
+                    snprintf(currentSeg.name, sizeof(currentSeg.name), "%s", nameBuf);
+                } else {
+                    snprintf(currentSeg.name, sizeof(currentSeg.name), "seg_%08X", startVal);
+                }
+                hasActiveSeg = true;
+            }
+        } else {
+            char key[64] = {0};
+            char val[256] = {0};
+            if (sscanf(ptr, "%63[^:]: %255[^\n]", key, val) == 2) {
+                clean_str(key);
+                clean_str(val);
+
+                // Exact match required to prevent `vram_start` or `ram_start` from overwriting ROM offsets
+                if (strcmp(key, "start") == 0) {
+                    currentSeg.start = static_cast<uint32_t>(strtoul(val, nullptr, 0));
+                    hasActiveSeg = true;
+                } else if (strcmp(key, "end") == 0) {
+                    currentSeg.end = static_cast<uint32_t>(strtoul(val, nullptr, 0));
+                } else if (strcmp(key, "type") == 0) {
+                    snprintf(currentSeg.type, sizeof(currentSeg.type), "%s", val);
+                    hasActiveSeg = true;
+                } else if (strcmp(key, "name") == 0) {
+                    snprintf(currentSeg.name, sizeof(currentSeg.name), "%s", val);
+                    hasActiveSeg = true;
+                }
+            }
+        }
+    }
+
+    if (hasActiveSeg) {
+        segments.push_back(currentSeg);
+    }
+
+    fclose(file);
+
+    for (size_t i = 0; i < segments.size(); i++) {
+        if (segments[i].end == 0 || segments[i].end <= segments[i].start) {
+            if (i + 1 < segments.size()) {
+                segments[i].end = segments[i + 1].start;
+            } else {
+                segments[i].end = segments[i].start + 0x1000;
+            }
+        }
+        if (segments[i].name[0] == '\0') {
+            snprintf(segments[i].name, sizeof(segments[i].name), "seg_%08X", segments[i].start);
+        }
+    }
+
+    LOGI("Parsed %zu segments directly from Splat YAML: %s", segments.size(), yamlPath);
+    return segments;
+}
+
+// ---------------------------------------------------------------------------
 // JNI entry point
 // ---------------------------------------------------------------------------
 
@@ -159,21 +292,17 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     (void)thiz;
 
-    // Declare ALL variables at the beginning of the function
     off_t romSizeOff = 0;
     size_t romSize = 0;
     uint8_t* romData = nullptr;
     uint8_t* romBaseBuffer = nullptr;
     size_t totalRead = 0;
-    FILE* mFile = nullptr;
-    uint32_t entryCount = 0;
     uint32_t extracted = 0;
     uint32_t compressed = 0;
     uint32_t failed = 0;
     int lastPercent = -1;
-    bool manifestNeedsSwap = false;
     const char* cOutDir = nullptr;
-    const char* cManifestPath = nullptr;
+    const char* cYamlPath = nullptr;
     jclass callbackClass = nullptr;
     jmethodID progressMid = nullptr;
 
@@ -183,9 +312,9 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
     }
 
     cOutDir = env->GetStringUTFChars(outDir, nullptr);
-    cManifestPath = env->GetStringUTFChars(manifestPath, nullptr);
+    cYamlPath = env->GetStringUTFChars(manifestPath, nullptr);
 
-    if (!cOutDir || !cManifestPath) {
+    if (!cOutDir || !cYamlPath) {
         LOGE("Failed obtaining JNI strings");
         goto cleanup;
     }
@@ -252,9 +381,7 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
     LOGI("Loaded ROM size=%zu", romSize);
 
-    // -----------------------------------------------------------------------
     // Normalize ROM byte order
-    // -----------------------------------------------------------------------
     if (romSize >= 4) {
         if (romData[0] == 0x37 && romData[1] == 0x80 && romData[2] == 0x40 && romData[3] == 0x12) {
             LOGI("Detected v64 ROM. Swapping bytes.");
@@ -278,128 +405,122 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         goto cleanup;
     }
 
-    // Copy the ROM header to preserve byte order
     if (romSize >= 4) {
         memcpy(romBaseBuffer, romData, 4);
     }
 
     // -----------------------------------------------------------------------
-    // STEP 3: Open manifest
+    // STEP 3: Parse Splat YAML directly instead of binary manifest
     // -----------------------------------------------------------------------
-    mFile = fopen(cManifestPath, "rb");
-    if (!mFile) {
-        LOGW("Manifest missing: %s", cManifestPath);
-        debug_ui(env, callback, progressMid, 100, "Extraction complete (ROM-only mode)");
-        goto cleanup;
-    }
-
-    if (fread(&entryCount, sizeof(uint32_t), 1, mFile) != 1) {
-        LOGE("Unable reading manifest header");
-        goto cleanup;
-    }
-
-    // Adaptively determine Endianness
-    if (entryCount > MAX_MANIFEST_ENTRIES) {
-        uint32_t swappedCount = swap_uint32(entryCount);
-        if (swappedCount <= MAX_MANIFEST_ENTRIES) {
-            entryCount = swappedCount;
-            manifestNeedsSwap = true;
-        }
-    }
-
-    if (entryCount == 0 || entryCount > MAX_MANIFEST_ENTRIES) {
-        LOGE("Invalid manifest entry count: %u", entryCount);
-        goto cleanup;
-    }
-
-    LOGI("Processing %u manifest entries (Needs Swap: %s)", entryCount, manifestNeedsSwap ? "Yes" : "No");
-
-    // -----------------------------------------------------------------------
-    // STEP 4: Extract assets in-place
-    // -----------------------------------------------------------------------
-    extracted = 0;
-    compressed = 0;
-    failed = 0;
-    lastPercent = -1;
-
-    for (uint32_t i = 0; i < entryCount; i++) {
-        ManifestEntry entry;
-        if (fread(&entry, sizeof(ManifestEntry), 1, mFile) != 1) {
-            LOGE("Manifest read failed at entry %u", i);
-            failed++;
-            break;
-        }
-
-        if (manifestNeedsSwap) {
-            entry.offset = swap_uint32(entry.offset);
-            entry.size = swap_uint32(entry.size);
-        }
-
-        entry.name[sizeof(entry.name) - 1] = '\0';
-        entry.type[sizeof(entry.type) - 1] = '\0';
-
-        if (entry.offset >= romSize) {
-            LOGW("Skipping invalid offset asset %.32s offset=%u", entry.name, entry.offset);
-            failed++;
-            continue;
-        }
-
-        if (entry.size == 0) {
-            failed++;
-            continue;
-        }
-
-        uint64_t endOffset = static_cast<uint64_t>(entry.offset) + entry.size;
-        if (endOffset > romSize) {
-            LOGW("Clamping oversized asset %.32s", entry.name);
-            entry.size = static_cast<uint32_t>(romSize - entry.offset);
-        }
-
-        uint8_t* srcBuffer = romData + entry.offset;
-        uint8_t* destBuffer = romBaseBuffer + entry.offset;
-
-        bool isRareCompressed = false;
-        if (entry.size >= 8 && srcBuffer[0] == 0x11 && srcBuffer[1] == 0x72) {
-            uint32_t declaredSize = (srcBuffer[2] << 24) | (srcBuffer[3] << 16) |
-                                   (srcBuffer[4] << 8) | srcBuffer[5];
-            if (declaredSize > 0 && declaredSize <= MAX_ASSET_SIZE) {
-                isRareCompressed = true;
-                LOGI("Decompressing %.32s (offset=%u, size=%u -> %u)",
-                     entry.name, entry.offset, entry.size, declaredSize);
-            }
-        }
-
-        if (isRareCompressed) {
-            uint32_t written = 0;
-            uint8_t* decompressedData = decompress_rare_asset(srcBuffer, entry.size, &written);
-            if (decompressedData && written > 0) {
-                if (written <= entry.size) {
-                    memcpy(destBuffer, decompressedData, written);
-                    extracted++;
-                    compressed++;
-                } else {
-                    LOGE("Decompressed size exceeds buffer for %.32s", entry.name);
-                    failed++;
-                }
-                free(decompressedData);
-            } else {
-                LOGE("Decompression failed for %.32s", entry.name);
-                failed++;
-            }
+    {
+        std::vector<SplatSegment> segments = parse_splat_yaml(cYamlPath);
+        if (segments.empty()) {
+            LOGW("No segments parsed from YAML: %s (Running ROM-only base mode)", cYamlPath);
+            debug_ui(env, callback, progressMid, 100, "Extraction complete (ROM-only mode)");
         } else {
-            memcpy(destBuffer, srcBuffer, entry.size);
-            extracted++;
-        }
+            uint32_t segCount = static_cast<uint32_t>(segments.size());
+            LOGI("Processing %u direct Splat YAML segments", segCount);
 
-        // Progress update
-        int percent = 10 + static_cast<int>(((uint64_t)i * 89) / entryCount);
-        if (percent != lastPercent) {
-            char status[128];
-            snprintf(status, sizeof(status), "Extracting: %.32s", entry.name);
-            if (!debug_ui(env, callback, progressMid, percent, status)) {
-                break;
+            // -----------------------------------------------------------------------
+            // STEP 4: Extract assets in-place using YAML segment configurations
+            // -----------------------------------------------------------------------
+            extracted = 0;
+            compressed = 0;
+            failed = 0;
+            lastPercent = -1;
+
+            for (uint32_t i = 0; i < segCount; i++) {
+                const auto& seg = segments[i];
+                uint32_t offset = seg.start;
+                uint32_t size = (seg.end > seg.start) ? (seg.end - seg.start) : 0;
+
+                if (offset >= 0x80000000) {
+                    offset &= 0x0FFFFFFF;
+                } else if (offset >= 0x04000000) {
+                    offset -= 0x04000000;
+                }
+
+                if (offset >= romSize) {
+                    if (offset >= 0x10000000 && (offset - 0x10000000) < romSize) {
+                        offset -= 0x10000000;
+                    } else {
+                        LOGW("Skipping out-of-bounds segment %s (offset: 0x%X)", seg.name, seg.start);
+                        failed++;
+                        continue;
+                    }
+                }
+
+                if (size == 0) {
+                    uint32_t nextStart = 0;
+                    for (size_t j = i + 1; j < segCount; j++) {
+                        if (segments[j].start > offset) {
+                            nextStart = segments[j].start;
+                            break;
+                        }
+                    }
+                    if (nextStart > offset) {
+                        size = nextStart - offset;
+                    } else {
+                        size = static_cast<uint32_t>(romSize - offset);
+                    }
+                }
+
+                uint64_t endOffset = static_cast<uint64_t>(offset) + size;
+                if (endOffset > romSize) {
+                    LOGW("Clamping oversized segment %s", seg.name);
+                    size = static_cast<uint32_t>(romSize - offset);
+                }
+
+                uint8_t* srcBuffer = romData + offset;
+                uint8_t* destBuffer = romBaseBuffer + offset;
+
+                bool isRareCompressed = false;
+                if (size >= 8 && srcBuffer[0] == 0x11 && srcBuffer[1] == 0x72) {
+                    uint32_t declaredSize = (static_cast<uint32_t>(srcBuffer[2]) << 24) | 
+                                           (static_cast<uint32_t>(srcBuffer[3]) << 16) |
+                                           (static_cast<uint32_t>(srcBuffer[4]) << 8)  | 
+                                           static_cast<uint32_t>(srcBuffer[5]);
+                    if (declaredSize > 0 && declaredSize <= MAX_ASSET_SIZE) {
+                        isRareCompressed = true;
+                    }
+                }
+
+                if (isRareCompressed) {
+                    uint32_t written = 0;
+                    // Properly shift pointer past the 6-byte Rare compression header (2 magic bytes + 4 size bytes)
+                    uint8_t* decompressedData = decompress_rare_asset(srcBuffer + 6, size - 6, &written);
+                    if (decompressedData && written > 0) {
+                        if (written <= size || (offset + written <= romSize)) {
+                            memcpy(destBuffer, decompressedData, written);
+                            extracted++;
+                            compressed++;
+                        } else {
+                            LOGE("Decompressed size exceeds buffer for segment %s", seg.name);
+                            failed++;
+                        }
+                        free(decompressedData);
+                    } else {
+                        LOGE("Decompression failed for segment %s", seg.name);
+                        failed++;
+                    }
+                } else {
+                    memcpy(destBuffer, srcBuffer, size);
+                    extracted++;
+                }
+
+                int percent = 10 + static_cast<int>(((uint64_t)i * 89) / segCount);
+                if (percent != lastPercent) {
+                    char status[128];
+                    snprintf(status, sizeof(status), "Processing: %.64s", seg.name);
+                    if (!debug_ui(env, callback, progressMid, percent, status)) {
+                        break;
+                    }
+                    lastPercent = percent;
+                }
             }
-            lastPercent = percent;
+
+            LOGI("YAML Segment extraction complete: extracted=%u compressed=%u failed=%u total=%u",
+                 extracted, compressed, failed, segCount);
         }
     }
 
@@ -413,19 +534,15 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
         goto cleanup;
     }
 
-    LOGI("Extraction complete: extracted=%u compressed=%u failed=%u total=%u",
-         extracted, compressed, failed, entryCount);
-
     char summary[256];
     snprintf(summary, sizeof(summary),
-             "Extraction complete! %u assets extracted, %u failed", extracted, failed);
+             "Extraction complete! %u segments parsed & processed", extracted);
     debug_ui(env, callback, progressMid, 100, summary);
 
 cleanup:
-    if (mFile) fclose(mFile);
     if (romBaseBuffer) free(romBaseBuffer);
     if (romData) free(romData);
     if (cOutDir) env->ReleaseStringUTFChars(outDir, cOutDir);
-    if (cManifestPath) env->ReleaseStringUTFChars(manifestPath, cManifestPath);
+    if (cYamlPath) env->ReleaseStringUTFChars(manifestPath, cYamlPath);
     if (callbackClass) env->DeleteLocalRef(callbackClass);
 }
