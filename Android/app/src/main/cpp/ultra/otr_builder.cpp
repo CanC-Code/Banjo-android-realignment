@@ -40,8 +40,8 @@ uint8_t* decompress_rare_asset(uint8_t* srcBuffer, uint32_t srcSize, uint32_t* b
 struct SplatSegment {
     uint32_t start;
     uint32_t end;
-    char name[64];
-    char type[32];
+    char name[128];
+    char type[64];
 };
 
 // ---------------------------------------------------------------------------
@@ -168,17 +168,24 @@ static std::vector<SplatSegment> parse_splat_yaml(const char* yamlPath) {
     bool inSegmentsBlock = false;
     bool hasActiveSeg = false;
 
+    auto clean_str = [](char* str) {
+        char* p = str;
+        while (*p == ' ' || *p == '\'' || *p == '\"' || *p == '\t') p++;
+        if (p != str) memmove(str, p, strlen(p) + 1);
+        size_t len = strlen(str);
+        while (len > 0 && (str[len-1] == ' ' || str[len-1] == '\'' || str[len-1] == '\"' || str[len-1] == '\t' || str[len-1] == '\r' || str[len-1] == '\n')) {
+            str[--len] = '\0';
+        }
+    };
+
     while (fgets(line, sizeof(line), file)) {
-        // Trim leading spaces
         char* ptr = line;
         while (*ptr == ' ' || *ptr == '\t') ptr++;
 
-        // Skip comments and empty lines
         if (*ptr == '#' || *ptr == '\n' || *ptr == '\r' || *ptr == '\0') {
             continue;
         }
 
-        // Check block header
         if (strncmp(ptr, "segments:", 9) == 0) {
             inSegmentsBlock = true;
             continue;
@@ -188,34 +195,30 @@ static std::vector<SplatSegment> parse_splat_yaml(const char* yamlPath) {
             continue;
         }
 
-        // Detect list item start '-'
         if (*ptr == '-') {
             if (hasActiveSeg) {
                 if (currentSeg.end > currentSeg.start) {
-                    currentSeg.end = currentSeg.end; // calculated or explicit
+                    currentSeg.end = currentSeg.end; 
                 }
                 segments.push_back(currentSeg);
             }
             currentSeg = {};
-            hasActiveSeg = true;
+            hasActiveSeg = false;
             ptr++;
             while (*ptr == ' ' || *ptr == '\t') ptr++;
         }
 
-        // Parse key-value attributes inside segment items or list entries
-        // Splat formats can be '[start, type, name]' or explicit mapping keys
         if (*ptr == '[') {
-            // Inline array format: - [0x00000000, code, main] or similar
             unsigned int startVal = 0;
-            char typeBuf[32] = {0};
-            char nameBuf[64] = {0};
+            char typeBuf[64] = {0};
+            char nameBuf[128] = {0};
 
-            if (sscanf(ptr, "[%x, %31s , %63[^]]", &startVal, typeBuf, nameBuf) >= 2 ||
-                sscanf(ptr, "[%x, %31s]", &startVal, typeBuf) >= 2) {
+            // Safely parse [offset, type, name] or [offset, type] using %i to automatically handle 0x
+            if (sscanf(ptr, "[ %i , %63[^,] , %127[^]] ]", &startVal, typeBuf, nameBuf) >= 2 ||
+                sscanf(ptr, "[ %i , %63[^]] ]", &startVal, typeBuf) >= 2) {
 
-                // Clean trailing formatting or quotes from type/name
-                for(int i = 0; typeBuf[i]; i++) if(typeBuf[i] == ',' || typeBuf[i] == ' ') typeBuf[i] = '\0';
-                for(int i = 0; nameBuf[i]; i++) if(nameBuf[i] == ' ' || nameBuf[i] == '\'' || nameBuf[i] == '\"') nameBuf[i] = '\0';
+                clean_str(typeBuf);
+                clean_str(nameBuf);
 
                 currentSeg.start = startVal;
                 snprintf(currentSeg.type, sizeof(currentSeg.type), "%s", typeBuf);
@@ -227,28 +230,24 @@ static std::vector<SplatSegment> parse_splat_yaml(const char* yamlPath) {
                 hasActiveSeg = true;
             }
         } else {
-            // Key-value mapping format: start: 0x... / type: ... / name: ...
             char key[64] = {0};
             char val[256] = {0};
             if (sscanf(ptr, "%63[^:]: %255[^\n]", key, val) == 2) {
-                // Trim trailing CR/LF
-                size_t vlen = strlen(val);
-                while (vlen > 0 && (val[vlen-1] == '\r' || val[vlen-1] == '\n' || val[vlen-1] == ' ')) {
-                    val[--vlen] = '\0';
-                }
-                // Trim leading spaces in val
-                char* vptr = val;
-                while (*vptr == ' ' || *vptr == '\'' || *vptr == '\"') vptr++;
+                clean_str(key);
+                clean_str(val);
 
-                if (strstr(key, "start")) {
-                    currentSeg.start = static_cast<uint32_t>(strtoul(vptr, nullptr, 0));
+                // Exact match required to prevent `vram_start` or `ram_start` from overwriting ROM offsets
+                if (strcmp(key, "start") == 0) {
+                    currentSeg.start = static_cast<uint32_t>(strtoul(val, nullptr, 0));
                     hasActiveSeg = true;
-                } else if (strstr(key, "end")) {
-                    currentSeg.end = static_cast<uint32_t>(strtoul(vptr, nullptr, 0));
-                } else if (strstr(key, "type")) {
-                    snprintf(currentSeg.type, sizeof(currentSeg.type), "%s", vptr);
-                } else if (strstr(key, "name")) {
-                    snprintf(currentSeg.name, sizeof(currentSeg.name), "%s", vptr);
+                } else if (strcmp(key, "end") == 0) {
+                    currentSeg.end = static_cast<uint32_t>(strtoul(val, nullptr, 0));
+                } else if (strcmp(key, "type") == 0) {
+                    snprintf(currentSeg.type, sizeof(currentSeg.type), "%s", val);
+                    hasActiveSeg = true;
+                } else if (strcmp(key, "name") == 0) {
+                    snprintf(currentSeg.name, sizeof(currentSeg.name), "%s", val);
+                    hasActiveSeg = true;
                 }
             }
         }
@@ -260,13 +259,12 @@ static std::vector<SplatSegment> parse_splat_yaml(const char* yamlPath) {
 
     fclose(file);
 
-    // Calculate dynamic ends if missing
     for (size_t i = 0; i < segments.size(); i++) {
         if (segments[i].end == 0 || segments[i].end <= segments[i].start) {
             if (i + 1 < segments.size()) {
                 segments[i].end = segments[i + 1].start;
             } else {
-                segments[i].end = segments[i].start + 0x1000; // Default fallback slice size
+                segments[i].end = segments[i].start + 0x1000;
             }
         }
         if (segments[i].name[0] == '\0') {
@@ -436,9 +434,8 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
                 uint32_t offset = seg.start;
                 uint32_t size = (seg.end > seg.start) ? (seg.end - seg.start) : 0;
 
-                // Handle RAM-mapped virtual addresses and Splat segment offset shifts
                 if (offset >= 0x80000000) {
-                    offset &= 0x0FFFFFFF; // Strip KSEG0/KSEG1 base bits
+                    offset &= 0x0FFFFFFF;
                 } else if (offset >= 0x04000000) {
                     offset -= 0x04000000;
                 }
@@ -454,9 +451,15 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
                 }
 
                 if (size == 0) {
-                    // Calculate size based on next segment or bounds if 0
-                    if (i + 1 < segCount) {
-                        size = segments[i + 1].start - offset;
+                    uint32_t nextStart = 0;
+                    for (size_t j = i + 1; j < segCount; j++) {
+                        if (segments[j].start > offset) {
+                            nextStart = segments[j].start;
+                            break;
+                        }
+                    }
+                    if (nextStart > offset) {
+                        size = nextStart - offset;
                     } else {
                         size = static_cast<uint32_t>(romSize - offset);
                     }
@@ -471,7 +474,6 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
                 uint8_t* srcBuffer = romData + offset;
                 uint8_t* destBuffer = romBaseBuffer + offset;
 
-                // Replicate exact decompression byte matching and header check rules (wbits=-15 stream unpack / 0x1172 magic)
                 bool isRareCompressed = false;
                 if (size >= 8 && srcBuffer[0] == 0x11 && srcBuffer[1] == 0x72) {
                     uint32_t declaredSize = (static_cast<uint32_t>(srcBuffer[2]) << 24) | 
@@ -485,7 +487,8 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
                 if (isRareCompressed) {
                     uint32_t written = 0;
-                    uint8_t* decompressedData = decompress_rare_asset(srcBuffer, size, &written);
+                    // Properly shift pointer past the 6-byte Rare compression header (2 magic bytes + 4 size bytes)
+                    uint8_t* decompressedData = decompress_rare_asset(srcBuffer + 6, size - 6, &written);
                     if (decompressedData && written > 0) {
                         if (written <= size || (offset + written <= romSize)) {
                             memcpy(destBuffer, decompressedData, written);
