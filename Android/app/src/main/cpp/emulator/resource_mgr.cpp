@@ -67,7 +67,7 @@ extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint3
 extern "C" {
 
 /**
- * Initializes the Resource Manager in Absolute Self-Building Mode and parses manifest_us.yaml (converted mapping structures).
+ * Initializes the Resource Manager in Absolute Self-Building Mode and parses decompressed.us.v10.yaml (converted mapping structures).
  */
 void ResourceMgr_Init(const char* assetDir) {
     if (!assetDir) {
@@ -82,13 +82,13 @@ void ResourceMgr_Init(const char* assetDir) {
 
     LOGI("ResourceMgr: Activated in Absolute Self-Building Mode at location %s", g_assetDir.c_str());
 
-    // --- Load YAML-derived manifest registry (manifest_us.yaml parsed via internal binary lookup bridge) ---
+    // --- Load YAML-derived manifest registry (decompressed.us.v10.yaml parsed via internal binary lookup bridge) ---
     char manifestPath[512];
-    snprintf(manifestPath, sizeof(manifestPath), "%smanifest_us.yaml", g_assetDir.c_str());
+    snprintf(manifestPath, sizeof(manifestPath), "%sdecompressed.us.v10.yaml", g_assetDir.c_str());
     FILE* mf = fopen(manifestPath, "rb");
     if (!mf) {
         // Fallback check for alternate yaml extension naming convention if needed
-        snprintf(manifestPath, sizeof(manifestPath), "%smanifest_us.yml", g_assetDir.c_str());
+        snprintf(manifestPath, sizeof(manifestPath), "%smanifest_us.yaml", g_assetDir.c_str());
         mf = fopen(manifestPath, "rb");
     }
 
