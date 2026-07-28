@@ -130,19 +130,17 @@ u32 func_80000570(u8 *inPtr, u8 *outPtr) {
 }
 
 u32 func_80000594(u8 **inPtr, u8 **outPtr) {
-    // FIXED: inPtr and outPtr are host pointers to local variables on the
-    // stack (e.g., &tmp, &dst in func_80000450). They contain 64-bit host
-    // pointers that may be either direct host addresses (from D_8002D500
-    // buffer) or N64 addresses (like 0x80001000 for core1_VRAM).
+    // FIXED: inPtr and outPtr point to u8* variables on the stack
+    // (tmp and dst in func_80000450). These variables hold 64-bit host
+    // pointers on ARM64. The original code used bka_resolve_ptr to
+    // resolve inPtr/outPtr themselves, then read/wrote 32-bit values
+    // through the resolved addresses. This corrupted the upper 32 bits
+    // of the 64-bit pointers, causing crashes on subsequent calls.
     //
-    // The previous code used bka_resolve_ptr on inPtr/outPtr themselves,
-    // then read/wrote 32-bit values through the resolved address. This
-    // corrupted the upper 32 bits of the host pointers on 64-bit ARM,
-    // causing the second decompression pass to dereference garbage pointers.
-    //
-    // The fix: dereference inPtr/outPtr directly as 64-bit host pointers,
-    // resolve the values they point to through bka_resolve_ptr, and write
-    // back full 64-bit updated pointers.
+    // The fix: dereference inPtr/outPtr directly to get the full 64-bit
+    // pointer values, resolve those values through bka_resolve_ptr to
+    // get the actual buffer addresses, decompress, then write back the
+    // updated pointers as full 64-bit values.
 
     // Read the current values as full 64-bit pointers
     u8* p_in  = *inPtr;
@@ -168,12 +166,11 @@ u32 func_80000594(u8 **inPtr, u8 **outPtr) {
     u32 result = func_80000618(&temp_in, &temp_out, D_80007270);
     pthread_mutex_unlock(&g_decomp_mutex);
 
-    // Write back the updated pointers as full 64-bit host pointers.
-    // func_80000450 expects the pointers to be advanced by the number of
-    // bytes consumed/emitted so the second decompression pass continues
-    // from where the first left off.
-    *inPtr  = resolved_in  + (temp_in - resolved_in);
-    *outPtr = resolved_out + (temp_out - resolved_out);
+    // Write back the updated pointers as full 64-bit values.
+    // func_80000618 advances temp_in/temp_out by the number of bytes
+    // consumed/emitted, so we just write them back directly.
+    *inPtr  = temp_in;
+    *outPtr = temp_out;
 
     return result;
 }
