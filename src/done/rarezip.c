@@ -130,42 +130,50 @@ u32 func_80000570(u8 *inPtr, u8 *outPtr) {
 }
 
 u32 func_80000594(u8 **inPtr, u8 **outPtr) {
-    /* FIX: Resolve the locations storing the N64 pointers */
-    u32* p_inPtr_addr  = (u32*)bka_resolve_ptr((uintptr_t)inPtr);
-    u32* p_outPtr_addr = (u32*)bka_resolve_ptr((uintptr_t)outPtr);
+    // FIXED: inPtr and outPtr are host pointers to local variables on the
+    // stack (e.g., &tmp, &dst in func_80000450). They contain 64-bit host
+    // pointers that may be either direct host addresses (from D_8002D500
+    // buffer) or N64 addresses (like 0x80001000 for core1_VRAM).
+    //
+    // The previous code used bka_resolve_ptr on inPtr/outPtr themselves,
+    // then read/wrote 32-bit values through the resolved address. This
+    // corrupted the upper 32 bits of the host pointers on 64-bit ARM,
+    // causing the second decompression pass to dereference garbage pointers.
+    //
+    // The fix: dereference inPtr/outPtr directly as 64-bit host pointers,
+    // resolve the values they point to through bka_resolve_ptr, and write
+    // back full 64-bit updated pointers.
 
-    if (!p_inPtr_addr || !p_outPtr_addr) return 0;
+    // Read the current values as full 64-bit pointers
+    u8* p_in  = *inPtr;
+    u8* p_out = *outPtr;
 
-    /* Read the actual 32-bit N64 memory addresses */
-    u32 n64_in_addr  = *p_inPtr_addr;
-    u32 n64_out_addr = *p_outPtr_addr;
+    // Resolve the buffer addresses through the N64 address resolver.
+    // If the pointer is already a host address (Case B), it passes through.
+    // If it's an N64 address (Case A/C), it gets mapped to RDRAM.
+    u8* resolved_in  = bka_resolve_ptr((uintptr_t)p_in);
+    u8* resolved_out = bka_resolve_ptr((uintptr_t)p_out);
 
-    /* Resolve buffer data locations to valid 64-bit Host pointers */
-    u8* p_in  = bka_resolve_ptr((uintptr_t)n64_in_addr);
-    u8* p_out = bka_resolve_ptr((uintptr_t)n64_out_addr);
-
-    /* FIX: bka_resolve_ptr() returns NULL whenever the N64-side address it
-     * was given is 0 (uninitialized pointer field). Without this check,
-     * NULL silently flows into inbuf/D_80007284 in func_80000618, and the
-     * crash surfaces three frames deeper inside inflate_block's NEEDBITS
-     * macro instead of here where it's actually diagnosable. */
-    if (!p_in || !p_out) {
-        LOGE("func_80000594: unresolved buffer pointer (n64_in=0x%08X -> %p, n64_out=0x%08X -> %p) -- aborting decompress",
-             n64_in_addr, (void*)p_in, n64_out_addr, (void*)p_out);
+    if (!resolved_in || !resolved_out) {
+        LOGE("func_80000594: unresolved buffer pointer (in=%p -> %p, out=%p -> %p) -- aborting decompress",
+             (void*)p_in, (void*)resolved_in, (void*)p_out, (void*)resolved_out);
         return 0;
     }
 
-    u8* temp_in = p_in;
-    u8* temp_out = p_out;
+    u8* temp_in = resolved_in;
+    u8* temp_out = resolved_out;
 
     /* Securely lock the state and invoke the legacy inflater with host pointers */
     pthread_mutex_lock(&g_decomp_mutex);
     u32 result = func_80000618(&temp_in, &temp_out, D_80007270);
     pthread_mutex_unlock(&g_decomp_mutex);
 
-    /* FIX: Safely calculate delta and write updated 32-bit N64 pointers back */
-    *p_inPtr_addr  = n64_in_addr  + (u32)(temp_in - p_in);
-    *p_outPtr_addr = n64_out_addr + (u32)(temp_out - p_out);
+    // Write back the updated pointers as full 64-bit host pointers.
+    // func_80000450 expects the pointers to be advanced by the number of
+    // bytes consumed/emitted so the second decompression pass continues
+    // from where the first left off.
+    *inPtr  = resolved_in  + (temp_in - resolved_in);
+    *outPtr = resolved_out + (temp_out - resolved_out);
 
     return result;
 }
