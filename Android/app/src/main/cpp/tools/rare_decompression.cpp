@@ -47,7 +47,7 @@ static uint32_t read_be32(const uint8_t* p)
 
 
 // ---------------------------------------------------------------------------
-// Raw DEFLATE decompression
+// Raw DEFLATE decompression (PATH B: 0x11 0x72 / 0x11 0x73)
 // ---------------------------------------------------------------------------
 
 static uint32_t inflate_raw_deflate_safe(
@@ -71,7 +71,7 @@ static uint32_t inflate_raw_deflate_safe(
     z_stream strm;
     memset(&strm, 0, sizeof(strm));
 
-    // Force the statically linked zlib/miniz library to use its default 
+    // Force the statically linked zlib/miniz library to use its default
     // internal memory allocators to prevent ABI and struct offset mismatches.
     strm.zalloc = Z_NULL;
     strm.zfree  = Z_NULL;
@@ -133,6 +133,144 @@ static uint32_t inflate_raw_deflate_safe(
     }
 
     return total_out;
+}
+
+
+// ---------------------------------------------------------------------------
+// Standard GZIP decompression (PATH C: 0x1F 0x8B)
+// ---------------------------------------------------------------------------
+
+static uint32_t inflate_gzip_safe(
+        const uint8_t* src,
+        uint32_t src_size,
+        uint8_t* dst,
+        uint32_t dst_size)
+{
+    if (!src || src_size == 0 || !dst || dst_size == 0)
+    {
+        LOGE(
+            "gzip inflate rejected invalid buffer src=%p dst=%p src_size=%u dst_size=%u",
+            src,
+            dst,
+            src_size,
+            dst_size);
+
+        return 0;
+    }
+
+    z_stream strm;
+    memset(&strm, 0, sizeof(strm));
+    strm.zalloc = Z_NULL;
+    strm.zfree  = Z_NULL;
+    strm.opaque = Z_NULL;
+
+    // 15 + 32 tells zlib to auto-detect zlib- or gzip-framed streams.
+    int init = inflateInit2(&strm, 15 + 32);
+
+    if (init != Z_OK)
+    {
+        LOGE("gzip inflateInit2 failed: %d", init);
+        return 0;
+    }
+
+    strm.next_in = const_cast<Bytef*>(reinterpret_cast<const Bytef*>(src));
+    strm.avail_in = src_size;
+
+    strm.next_out = reinterpret_cast<Bytef*>(dst);
+    strm.avail_out = dst_size;
+
+    int ret = inflate(&strm, Z_FINISH);
+
+    uint32_t total_out = static_cast<uint32_t>(strm.total_out);
+
+    inflateEnd(&strm);
+
+    if (ret != Z_STREAM_END && total_out == 0)
+    {
+        LOGE("gzip inflate failed ret=%d", ret);
+        return 0;
+    }
+
+    return total_out;
+}
+
+
+// ---------------------------------------------------------------------------
+// Rare LZSS decompression (PATH A: 0x50 0x10)
+//
+// This mirrors bka_rare_lzss_decompress() in rarezip.c exactly. It is kept
+// as a self-contained copy here rather than shared, because rarezip.c's
+// version is wired into the HLE interpreter's N64-address resolution and
+// global wp/inptr call convention, which doesn't fit this file's plain
+// offset-based API. If the ring-buffer format ever changes, update both.
+// ---------------------------------------------------------------------------
+
+static uint32_t lzss_decompress_bounded(
+        const uint8_t* src,
+        uint32_t src_size,
+        uint8_t* dst,
+        uint32_t dst_cap)
+{
+    if (!src || src_size == 0 || !dst || dst_cap == 0)
+    {
+        LOGE(
+            "lzss_decompress_bounded rejected invalid buffer src=%p dst=%p src_size=%u dst_cap=%u",
+            src,
+            dst,
+            src_size,
+            dst_cap);
+
+        return 0;
+    }
+
+    uint8_t ring[0x1000];
+    memset(ring, 0x00, sizeof(ring));
+    uint32_t ring_pos = 0xFEEu;
+
+    const uint8_t* src_ptr = src;
+    const uint8_t* src_end = src + src_size;
+    uint8_t* dst_ptr = dst;
+    const uint8_t* dst_end = dst + dst_cap;
+
+    while (src_ptr < src_end && dst_ptr < dst_end)
+    {
+        uint8_t flags = *src_ptr++;
+        for (int bit = 0; bit < 8 && src_ptr < src_end && dst_ptr < dst_end; bit++)
+        {
+            if (flags & (1u << bit))
+            {
+                if (src_ptr >= src_end) break;
+                uint8_t lit = *src_ptr++;
+                *dst_ptr++ = lit;
+                ring[ring_pos] = lit;
+                ring_pos = (ring_pos + 1u) & 0xFFFu;
+            }
+            else
+            {
+                if (src_ptr + 1 >= src_end) break;
+                uint8_t b0 = *src_ptr++;
+                uint8_t b1 = *src_ptr++;
+                uint32_t ring_off = (uint32_t)b0 | (((uint32_t)(b1 & 0xF0u)) << 4u);
+                uint32_t length = (uint32_t)(b1 & 0x0Fu) + 3u;
+                for (uint32_t i = 0; i < length && dst_ptr < dst_end; i++)
+                {
+                    uint8_t byte = ring[(ring_off + i) & 0xFFFu];
+                    *dst_ptr++ = byte;
+                    ring[ring_pos] = byte;
+                    ring_pos = (ring_pos + 1u) & 0xFFFu;
+                }
+            }
+        }
+    }
+
+    uint32_t written = static_cast<uint32_t>(dst_ptr - dst);
+
+    if (written == 0)
+    {
+        LOGE("lzss_decompress_bounded produced zero bytes");
+    }
+
+    return written;
 }
 
 
@@ -205,7 +343,23 @@ uint8_t* decompress_rare_asset(
     return dst;
 }
 
-// Implemented for resource_mgr.cpp absolute offset targeting
+// Implemented for resource_mgr.cpp absolute offset targeting.
+//
+// Dispatches on the same magic bytes as func_800005C0_locked() in
+// rarezip.c (PATH A / PATH B / PATH C):
+//   0x50 0x10        -> Rare LZSS, 6-byte header (2 magic + BE32 size)
+//   0x11 0x72 / 0x73  -> Rare-wrapped raw DEFLATE, 6-byte header
+//   0x1F 0x8B         -> standard GZIP, 2-byte header
+//   anything else     -> not a recognized compressed format; returns 0 so
+//                        the caller can safely fall back to a raw copy.
+//
+// PATH D in rarezip.c (the legacy stateful Huffman inflate, bkboot_inflate())
+// is intentionally NOT mirrored here -- it depends on interpreter-global
+// state (huft pool, wp/inptr) tied to the HLE call convention and was a
+// last-resort fallback in the original boot code. In practice every real
+// asset is expected to match A/B/C; if you start seeing "no known
+// compression magic" warnings for data you know is compressed, that's the
+// signal PATH D coverage is actually needed here too.
 uint32_t decompress_rare_to_offset(
     const uint8_t* src,
     uint32_t src_size,
@@ -219,9 +373,13 @@ uint32_t decompress_rare_to_offset(
         return 0;
     }
 
-    LOGI("Decompressing to offset %u (compressed=%u, expected=%u)", out_offset, src_size, out_size);
+    if (src_size < 6)
+    {
+        LOGW("decompress_rare_to_offset: src_size=%u too small for a compression header, skipping", src_size);
+        return 0;
+    }
 
-    if (src_size == 0 || src_size > MAX_HLE_COMPRESSED_SIZE)
+    if (src_size > MAX_HLE_COMPRESSED_SIZE)
     {
         LOGE("Invalid compressed size=%u", src_size);
         return 0;
@@ -233,12 +391,35 @@ uint32_t decompress_rare_to_offset(
         return 0;
     }
 
-    // Decompress raw deflate payload directly to the pre-allocated buffer at the specified offset
-    return inflate_raw_deflate_safe(
-            src,
-            src_size,
-            out_buffer + out_offset,
-            out_size);
+    uint8_t* dst = out_buffer + out_offset;
+    uint8_t magic0 = src[0];
+    uint8_t magic1 = src[1];
+
+    LOGI("decompress_rare_to_offset: magic=%02X %02X out_offset=%u (compressed<=%u, expected=%u)",
+         magic0, magic1, out_offset, src_size, out_size);
+
+    // PATH A: Rare LZSS (0x50 0x10)
+    if (magic0 == 0x50 && magic1 == 0x10)
+    {
+        return lzss_decompress_bounded(src + 6, src_size - 6, dst, out_size);
+    }
+
+    // PATH B: Rare-wrapped raw DEFLATE (0x11 0x72 / 0x11 0x73)
+    if (magic0 == 0x11 && (magic1 == 0x72 || magic1 == 0x73))
+    {
+        return inflate_raw_deflate_safe(src + 6, src_size - 6, dst, out_size);
+    }
+
+    // PATH C: standard GZIP (0x1F 0x8B)
+    if (magic0 == 0x1F && magic1 == 0x8B)
+    {
+        uint32_t gzipAvail = (src_size > 2) ? (src_size - 2) : 0;
+        return inflate_gzip_safe(src + 2, gzipAvail, dst, out_size);
+    }
+
+    LOGW("decompress_rare_to_offset: no known compression magic (%02X %02X) at offset %u -- treating as uncompressed",
+         magic0, magic1, out_offset);
+    return 0;
 }
 
 }
