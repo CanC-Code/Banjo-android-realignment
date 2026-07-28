@@ -77,15 +77,22 @@ void func_8026A2E0(void) {}
 // CRITICAL FIX: D_8002D500 is the N64 game heap at RDRAM offset 0x002D500.
 // The heap is HEAP_SIZE bytes (~2.1MB). func_80000450 writes core1 compressed
 // ROM data here via osPiRawStartDma, then decompresses it in-place.
-// Previously this was "int D_8002D500 = 0" (4 bytes!) causing the DMA to
-// overflow into adjacent memory and crash in bkboot_inflate_unlocked.
+// memory.c uses it as: extern EmptyHeapBlock D_8002D500[LAST_HEAP_BLOCK + 1];
+// bk_boot_1050.c uses it as: extern u8 D_8002D500; tmp = &D_8002D500;
 //
-// We allocate a dedicated backing buffer that matches the heap size.
+// Previously this was "int D_8002D500 = 0" (4 bytes!) causing the DMA to
+// overflow into adjacent memory and crash. It was then changed to
+// "int* const D_8002D500 = (int*)g_heap_backing;" but that made &D_8002D500
+// return the address of the pointer variable (8 bytes) instead of the buffer
+// address, so the DMA corrupted the pointer and crashed.
+//
+// The fix: D_8002D500 MUST be the buffer itself, so that &D_8002D500
+// returns the buffer address. We allocate it as a properly sized array.
 // The address resolver in src/done/rarezip.c (bka_resolve_ptr) handles
-// mapping N64 address 0x8002D500 to this buffer when RDRAM isn't used.
+// mapping N64 address 0x8002D500 to gN64_RDRAM + 0x002D500 when RDRAM
+// is active, or falls back to this buffer for direct host-pointer access.
 #define BK_HEAP_SIZE 0x211120  // VER_SELECT: 0x210520 (v10) or 0x211120 (pal)
-static uint8_t g_heap_backing[BK_HEAP_SIZE] __attribute__((aligned(16)));
-int* const D_8002D500 = (int*)g_heap_backing;
+u8 D_8002D500[BK_HEAP_SIZE] __attribute__((aligned(16)));
 
 int   D_803FFE00  = 0;
 int   D_803FBE00  = 0;
