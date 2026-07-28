@@ -16,6 +16,7 @@
 
 #include "n64_types.h"
 #include "bka_safe_base.h"
+#include "rarezip.h" // For D_80007284, D_80007290, inbuf, etc.
 
 // -------------------------------------------------------------------------
 // HIGH-LEVEL EMULATION NATIVE STRUCTURES
@@ -65,6 +66,9 @@ static pthread_t    s_hlePiMgrThread;
 static pthread_mutex_t s_resourceGateMutex = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  s_resourceGateCond  = PTHREAD_COND_INITIALIZER;
 static volatile bool   s_resourceReady     = false;
+
+// Decompression mutex (for thread-safe bkboot_inflate)
+extern pthread_mutex_t g_inflateMutex;
 
 extern "C" {
 // Recompiled OS headers
@@ -425,6 +429,16 @@ extern "C" {
 
 extern void func_80000450(int32_t arg0);
 
+// Thread-safe wrapper for bkboot_inflate
+extern "C" int bkboot_inflate_unlocked(void);
+
+extern "C" int bkboot_inflate(void) {
+    pthread_mutex_lock(&g_inflateMutex);
+    int result = bkboot_inflate_unlocked();
+    pthread_mutex_unlock(&g_inflateMutex);
+    return result;
+}
+
 void BKA_StartEngine(void) {
     LOGI("BKA-STUBS: Waiting for resource gate before engine ignition...");
     WaitForResourcesReady();
@@ -438,6 +452,13 @@ void BKA_StartEngine(void) {
 
     if (gN64_ROM_Base == nullptr) {
         LOGE("BKA-STUBS: FATAL: gN64_ROM_Base is null. ResourceMgr failed to load ROM.");
+        return;
+    }
+
+    // Verify decompression buffers are initialized
+    if (!D_80007284 || !D_80007290 || !inbuf) {
+        LOGE("BKA-STUBS: FATAL: Decompression buffers (D_80007284=%p, D_80007290=%p, inbuf=%p) are not initialized!",
+             D_80007284, D_80007290, inbuf);
         return;
     }
 
