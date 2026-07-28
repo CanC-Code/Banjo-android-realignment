@@ -26,7 +26,10 @@ static int g_surfaceWidth  = 320;
 static int g_surfaceHeight = 240;
 static bool g_engineThreadActive = false;
 
-// EGL Context State
+// FIXED: EGL is managed entirely by GLSurfaceView now. We no longer create our
+// own EGL context/surface, which was conflicting with GLSurfaceView's internal
+// context and causing "already connected" errors. These variables are kept for
+// compatibility with DestroyEGL_Locked during surface teardown.
 static EGLDisplay g_eglDisplay = EGL_NO_DISPLAY;
 static EGLSurface g_eglSurface = EGL_NO_SURFACE;
 static EGLContext g_eglContext = EGL_NO_CONTEXT;
@@ -56,76 +59,24 @@ static ANativeWindow*  g_nativeWindow = nullptr;
 static pthread_mutex_t g_windowMutex  = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t  g_windowCond   = PTHREAD_COND_INITIALIZER;
 
-// EGL Initialization helper
+// FIXED: InitializeEGL_Locked no longer creates its own EGL context.
+// GLSurfaceView manages the EGL context lifecycle. The native code just
+// needs to signal vblank and output the frame texture. We keep this
+// function as a no-op for compatibility with existing call sites.
 static bool InitializeEGL_Locked() {
-    if (g_nativeWindow == nullptr) return false;
-
-    g_eglDisplay = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-    if (g_eglDisplay == EGL_NO_DISPLAY) return false;
-    
-    if (!eglInitialize(g_eglDisplay, nullptr, nullptr)) return false;
-
-    const EGLint attribs[] = {
-        EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
-        EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT,
-        EGL_BLUE_SIZE, 8,
-        EGL_GREEN_SIZE, 8,
-        EGL_RED_SIZE, 8,
-        EGL_ALPHA_SIZE, 8,
-        EGL_DEPTH_SIZE, 16,
-        EGL_NONE
-    };
-    
-    EGLConfig config;
-    EGLint numConfigs;
-    if (!eglChooseConfig(g_eglDisplay, attribs, &config, 1, &numConfigs) || numConfigs == 0) {
-        LOGE("NativeBridge: eglChooseConfig failed.");
-        return false;
-    }
-
-    EGLint contextAttribs[] = {
-        EGL_CONTEXT_CLIENT_VERSION, 2,
-        EGL_NONE
-    };
-    
-    g_eglContext = eglCreateContext(g_eglDisplay, config, EGL_NO_CONTEXT, contextAttribs);
-    if (g_eglContext == EGL_NO_CONTEXT) {
-        LOGE("NativeBridge: eglCreateContext failed.");
-        return false;
-    }
-
-    g_eglSurface = eglCreateWindowSurface(g_eglDisplay, config, g_nativeWindow, nullptr);
-    if (g_eglSurface == EGL_NO_SURFACE) {
-        LOGE("NativeBridge: eglCreateWindowSurface failed.");
-        return false;
-    }
-
-    if (!eglMakeCurrent(g_eglDisplay, g_eglSurface, g_eglSurface, g_eglContext)) {
-        LOGE("NativeBridge: eglMakeCurrent failed.");
-        return false;
-    }
-
+    // EGL is managed by GLSurfaceView. The active context is already
+    // bound when onDrawFrame → updateTexture is called.
     g_eglInitialized = true;
-    LOGI("NativeBridge: EGL Context successfully bound and initialized.");
     return true;
 }
 
 static void DestroyEGL_Locked() {
-    if (g_eglDisplay != EGL_NO_DISPLAY) {
-        eglMakeCurrent(g_eglDisplay, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
-        if (g_eglContext != EGL_NO_CONTEXT) {
-            eglDestroyContext(g_eglDisplay, g_eglContext);
-        }
-        if (g_eglSurface != EGL_NO_SURFACE) {
-            eglDestroySurface(g_eglDisplay, g_eglSurface);
-        }
-        eglTerminate(g_eglDisplay);
-    }
+    // GLSurfaceView handles EGL teardown. Just reset our state.
     g_eglDisplay = EGL_NO_DISPLAY;
     g_eglSurface = EGL_NO_SURFACE;
     g_eglContext = EGL_NO_CONTEXT;
     g_eglInitialized = false;
-    LOGI("NativeBridge: EGL Context cleanly destroyed.");
+    LOGI("NativeBridge: EGL state reset (surface destroyed).");
 }
 
 extern "C" {
@@ -296,7 +247,7 @@ Java_com_bkawrapper_NativeBridge_setSurface(JNIEnv* env, jclass clazz, jobject s
     if (surface == nullptr) {
         // surfaceDestroyed sequence
         DestroyEGL_Locked();
-        
+
         if (g_nativeWindow != nullptr) {
             ANativeWindow_release(g_nativeWindow);
             g_nativeWindow = nullptr;
@@ -346,18 +297,12 @@ Java_com_bkawrapper_NativeBridge_updateTexture(JNIEnv* env, jclass clazz, jint t
     if (!ready) {
         return;
     }
-    
-    // Ensure EGL is initialized on the active rendering thread context before drawing
-    pthread_mutex_lock(&g_windowMutex);
-    if (!g_eglInitialized && g_nativeWindow != nullptr) {
-        InitializeEGL_Locked();
-    }
-    pthread_mutex_unlock(&g_windowMutex);
 
-    if (g_eglInitialized) {
-        // Ensure the OpenGL viewport scales to match the updated surface dimensions
-        glViewport(0, 0, g_surfaceWidth, g_surfaceHeight);
-    }
+    // FIXED: GLSurfaceView manages the EGL context. The active GL context is
+    // already bound when onDrawFrame calls updateTexture. We just set the
+    // viewport and proceed — no need to create a second EGL surface (which
+    // was failing with "already connected").
+    glViewport(0, 0, g_surfaceWidth, g_surfaceHeight);
 
     BKA_ClaimEngineLock();
 
@@ -376,11 +321,9 @@ Java_com_bkawrapper_NativeBridge_updateTexture(JNIEnv* env, jclass clazz, jint t
     VideoPlugin_OutputFrameTexture((uint32_t)textureId);
 
     BKA_DropEngineLock();
-    
-    // Finalize graphics sequence by presenting the computed framebuffer to the display surface
-    if (g_eglInitialized) {
-        eglSwapBuffers(g_eglDisplay, g_eglSurface);
-    }
+
+    // FIXED: GLSurfaceView calls eglSwapBuffers automatically after
+    // onDrawFrame returns. We don't need to do it here.
 }
 
 JNIEXPORT void JNICALL
