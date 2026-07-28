@@ -408,20 +408,17 @@ void ResourceMgr_Init(const char* assetDir) {
 }
 
 /**
- * Handles N64 DMA requests by reading directly from rom_base.bin on disk.
+ * Handles N64 DMA requests.
  *
- * This bypasses the gN64_ROM_Base/g_romSize synchronization issues caused by
- * duplicate symbol definitions combined with --allow-multiple-definition.
- * InitN64Registers (lowlevel_bridge.cpp) overwrites gN64_ROM_Base with an
- * mmap'd pointer AFTER ResourceMgr_Init has already loaded ROM via malloc,
- * making the in-memory pointer unreliable. Reading from disk each time is
- * slightly slower but guarantees correct data.
+ * Three paths:
+ *   1. Pre-extracted asset files (asset_XXXXXXXX.bin)
+ *   2. Host-pointer-to-host-pointer copies (for decompressor internal DMA)
+ *   3. ROM reads from rom_base.bin (for PI cartridge DMA)
  *
- * devAddr may be:
- *   - A direct ROM offset (e.g., 0x00001050 for core1_rzip_ROM_START)
- *   - An N64 cartridge address (0x10000000-0x1FFFFFFF, masked to 0x0FFFFFFF)
- *
- * dramAddr is always a host pointer to the destination buffer.
+ * Path 2 is needed because the decompressor (func_80000594 → func_80000618 in
+ * src/done/rarezip.c) passes buffer pointers truncated to 32 bits as devAddr
+ * for internal buffer-to-buffer copies. We reconstruct the full 64-bit pointer
+ * using the upper bits of dramAddr.
  */
 void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     if (!dramAddr || size == 0) {
@@ -450,7 +447,30 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
         return;
     }
 
-    // --- PATH 2: ROM DMA via direct file read ---
+    // --- PATH 2: Host pointer → host pointer DMA ---
+    // The decompressor (func_80000594 → func_80000618) passes buffer pointers
+    // truncated to 32 bits as devAddr. Reconstruct the full 64-bit pointer
+    // using the upper bits of dramAddr and do a direct memcpy.
+    uintptr_t dramVal = reinterpret_cast<uintptr_t>(dramAddr);
+    if (dramVal > 0xFFFFFFFFULL) {
+        // dramAddr is a 64-bit host pointer. Try to interpret devAddr as
+        // a truncated 64-bit host pointer by borrowing dramAddr's upper bits.
+        uintptr_t srcPtr = (dramVal & 0xFFFFFFFF00000000ULL) | devAddr;
+
+        // Quick sanity check: the reconstructed pointer should be in userspace
+        // and reasonably close to dramAddr (same 4GB region).
+        if (srcPtr > 0x1000 && srcPtr < 0x7FFFFFFFFFFFULL) {
+            int64_t diff = static_cast<int64_t>(srcPtr) - static_cast<int64_t>(dramVal);
+            if (diff > -0x100000000LL && diff < 0x100000000LL) {
+                // Looks like a valid host pointer. Do a direct memcpy.
+                memcpy(dramAddr, reinterpret_cast<void*>(srcPtr), size);
+                sched_yield();
+                return;
+            }
+        }
+    }
+
+    // --- PATH 3: ROM DMA via direct file read ---
     // Resolve the ROM offset from the N64 device address.
     uint32_t romOffset;
     if ((devAddr >> 24) == 0x10) {
@@ -458,8 +478,9 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     } else if (devAddr < 0x10000000) {
         romOffset = devAddr;            // Direct ROM offset
     } else {
-        // Not a ROM address we can handle. Zero and bail.
-        LOGW("ResourceMgr_HandleDma: Unrecognized devAddr=0x%08X. Zeroing %u bytes.", devAddr, size);
+        // Not a ROM address or recognizable host pointer. Zero and bail.
+        LOGW("ResourceMgr_HandleDma: Unrecognized devAddr=0x%08X dramAddr=%p size=%u. Zeroing.",
+             devAddr, dramAddr, size);
         memset(dramAddr, 0, size);
         sched_yield();
         return;
@@ -490,8 +511,6 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     // Clamp size to available bytes
     uint32_t availableBytes = static_cast<uint32_t>(fileSize) - romOffset;
     if (size > availableBytes) {
-        LOGW("ResourceMgr_HandleDma: Clamping DMA size from %u to %u (file boundary at offset 0x%X)",
-             size, availableBytes, romOffset);
         size = availableBytes;
     }
 
