@@ -15,10 +15,14 @@
 #define N64_ROM_SPACE_SIZE    0x04000000 // 64MB (Covers the full N64 physical ROM limit)
 
 // CRITICAL CORRECTION: MI_INTR_REG physical offset is 0x04300008.
-// Mapped against our 0x04000000 register allocation block base, the correct byte offset is 0x300008. 
+// Mapped against our 0x04000000 register allocation block base, the correct byte offset is 0x300008.
 // Offset 0x30000C maps to MI_INTR_MASK_REG, which broke signal updates.
 #define MI_INTR_REG_IDX       (0x00300008 / 4)
 #define MI_INTR_VI            0x08
+
+// N64 heap base offset within RDRAM (used by D_8002D500)
+#define N64_HEAP_OFFSET       0x002D500
+#define N64_HEAP_SIZE         0x211120
 
 // Instantiate the global translation pointers defined as externs by the sanitizer
 uint8_t* gN64_RDRAM    = nullptr;
@@ -34,51 +38,51 @@ extern "C" {
     // Signature updated to capture the dynamic asset path string
     void InitN64Registers(const char* assetDir) {
         // Idempotency guard: Prevent double allocation if called repeatedly
-        if (gN64_RDRAM != nullptr && gN64_Reg_Base != nullptr && 
+        if (gN64_RDRAM != nullptr && gN64_Reg_Base != nullptr &&
             gN64_PIF_Base != nullptr && gN64_ROM_Base != nullptr) {
             return;
         }
 
         // 1. Allocate Main N64 RDRAM Memory Space
         gN64_RDRAM = (uint8_t*)mmap(
-            nullptr, 
-            BKA_RDRAM_ALLOC_SIZE, 
-            PROT_READ | PROT_WRITE, 
-            MAP_PRIVATE | MAP_ANONYMOUS, 
+            nullptr,
+            BKA_RDRAM_ALLOC_SIZE,
+            PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS,
             -1, 0
         );
 
         // 2. Allocate N64 Hardware Emulation Register Space
         gN64_Reg_Base = (uint32_t*)mmap(
-            nullptr, 
-            N64_REG_SPACE_SIZE, 
-            PROT_READ | PROT_WRITE, 
-            MAP_PRIVATE | MAP_ANONYMOUS, 
+            nullptr,
+            N64_REG_SPACE_SIZE,
+            PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS,
             -1, 0
         );
 
         // 3. Allocate N64 PIF Subsystem Memory Space
         gN64_PIF_Base = (uint32_t*)mmap(
-            nullptr, 
-            N64_PIF_SPACE_SIZE, 
-            PROT_READ | PROT_WRITE, 
-            MAP_PRIVATE | MAP_ANONYMOUS, 
+            nullptr,
+            N64_PIF_SPACE_SIZE,
+            PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS,
             -1, 0
         );
 
         // 4. Allocate Virtual Cartridge ROM Header Space (Now 64MB)
         gN64_ROM_Base = (uint8_t*)mmap(
-            nullptr, 
-            N64_ROM_SPACE_SIZE, 
-            PROT_READ | PROT_WRITE, 
-            MAP_PRIVATE | MAP_ANONYMOUS, 
+            nullptr,
+            N64_ROM_SPACE_SIZE,
+            PROT_READ | PROT_WRITE,
+            MAP_PRIVATE | MAP_ANONYMOUS,
             -1, 0
         );
 
         // Hard Fail Verification: Ensure the Android kernel granted all spaces securely
-        if (gN64_RDRAM == MAP_FAILED || gN64_Reg_Base == MAP_FAILED || 
+        if (gN64_RDRAM == MAP_FAILED || gN64_Reg_Base == MAP_FAILED ||
             gN64_PIF_Base == MAP_FAILED || gN64_ROM_Base == MAP_FAILED) {
-            __android_log_print(ANDROID_LOG_FATAL, LOG_TAG, 
+            __android_log_print(ANDROID_LOG_FATAL, LOG_TAG,
                 "Critical virtual memory mapping failure: %s", strerror(errno));
 
             // Cleanup any partial allocations before panicking
@@ -100,11 +104,25 @@ extern "C" {
         memset(gN64_PIF_Base, 0, N64_PIF_SPACE_SIZE);
         memset(gN64_ROM_Base, 0, N64_ROM_SPACE_SIZE);
 
-        // CRITICAL CORRECTION: Map the physical ROM base dumped by the OTR Builder directly 
+        // CRITICAL FIX: Verify the heap region (D_8002D500 at RDRAM offset 0x002D500)
+        // is accessible and properly zeroed. The bka_resolve_ptr in src/done/rarezip.c
+        // maps N64 address 0x8002D500 to gN64_RDRAM + 0x002D500 via case A/C.
+        // func_80000450 uses this as the DMA target for core1 decompression.
+        if (N64_HEAP_OFFSET + N64_HEAP_SIZE <= BKA_RDRAM_ALLOC_SIZE) {
+            __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+                "Heap region validated: RDRAM+0x%X (0x%X bytes) for D_8002D500",
+                N64_HEAP_OFFSET, N64_HEAP_SIZE);
+        } else {
+            __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
+                "FATAL: Heap region exceeds RDRAM allocation! offset=0x%X size=0x%X limit=0x%X",
+                N64_HEAP_OFFSET, N64_HEAP_SIZE, BKA_RDRAM_ALLOC_SIZE);
+        }
+
+        // CRITICAL CORRECTION: Map the physical ROM base dumped by the OTR Builder directly
         // into the emulated cartridge memory block so raw PI Subsystem reads succeed.
         char romPath[512];
         snprintf(romPath, sizeof(romPath), "%s/rom_base.bin", assetDir);
-        
+
         FILE* f = fopen(romPath, "rb");
         if (f) {
             fread(gN64_ROM_Base, 1, N64_ROM_SPACE_SIZE, f);
