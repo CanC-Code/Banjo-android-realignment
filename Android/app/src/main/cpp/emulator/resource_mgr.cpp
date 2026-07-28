@@ -15,11 +15,14 @@
 #include "rarezip.h" // For D_80007284, D_80007290, inbuf, etc.
 
 #define LOG_TAG "NativeBridge"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
-#define LOGW(...) __android_log_print(ANDROID_LOG_WARN,  LOG_TAG, __VA_ARGS__)
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGW(...) __android_log_print(ANDROID_LOG_WARN, LOG_TAG, __VA_ARGS__)
 #define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 static std::string g_assetDir;
+
+// Define HUFT_POOL_CAPACITY to match rarezip.c
+#define HUFT_POOL_CAPACITY 4096
 
 // Global decompression state (from rarezip.h)
 extern "C" {
@@ -36,9 +39,6 @@ extern "C" {
     u32 g_decomp_out_cap;    // Output buffer capacity
 }
 
-// Define HUFT_POOL_CAPACITY to match rarezip.c
-#define HUFT_POOL_CAPACITY 4096
-
 // Splat segment manifest
 struct SegmentRecord {
     uint32_t start = 0; // inclusive ROM start offset
@@ -48,7 +48,7 @@ struct SegmentRecord {
 
 static std::vector<SegmentRecord> g_segments;
 
-// Define global ROM base pointer instance referenced across modules outside anonymous linkage blocks
+// Define global ROM base pointer instance referenced across modules
 uint8_t* gN64_ROM_Base = nullptr;
 static size_t g_romSize = 0;
 
@@ -331,7 +331,7 @@ void ResourceMgr_Init(const char* assetDir) {
 
     LOGI("ResourceMgr: Activated in Absolute Self-Building Mode at location %s", g_assetDir.c_str());
 
-    // Initialize decompression buffers
+    // --- Initialize decompression buffers FIRST ---
     char romPath[512];
     snprintf(romPath, sizeof(romPath), "%srom_base.bin", g_assetDir.c_str());
     if (!InitializeDecompressionBuffers(romPath)) {
@@ -339,7 +339,7 @@ void ResourceMgr_Init(const char* assetDir) {
         return;
     }
 
-    // Load ROM into gN64_ROM_Base
+    // --- Load ROM into gN64_ROM_Base ---
     FILE* f = fopen(romPath, "rb");
     if (!f) {
         LOGE("ResourceMgr: FATAL ERROR - System fallback dependency file missing. Path: %s", romPath);
@@ -378,7 +378,7 @@ void ResourceMgr_Init(const char* assetDir) {
     LOGI("ResourceMgr: Verification validation sequence populated %zu bytes into ROM base block.", bytesRead);
     fclose(f);
 
-    // --- Load splat YAML segment boundaries (for DMA-time bounds checking) ---
+    // --- Load splat YAML segment boundaries ---
     char manifestPath[512];
     snprintf(manifestPath, sizeof(manifestPath), "%sdecompressed.us.v10.yaml", g_assetDir.c_str());
     if (!parseSplatSegments(manifestPath, g_segments)) {
