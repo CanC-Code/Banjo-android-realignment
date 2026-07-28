@@ -9,7 +9,15 @@
 #define LOG_TAG "BKA_MEM"
 
 // Size allocations matching the expectations of bka_safe_base.h
-#define BKA_RDRAM_ALLOC_SIZE  0x1000000 // 16MB (Covers speculative over-reads)
+//
+// FIXED: BKA_RDRAM_ALLOC_SIZE increased from 0x1000000 (16MB) to 0x1001000
+// (16MB + 4KB). The decompressor in src/done/rarezip.c writes decompressed
+// core1 code into RDRAM starting at offset 0x1000, and g_decomp_out_cap is
+// set to 16MB unconditionally (from InitializeDecompressionBuffers). This
+// allows writes up to RDRAM+0x1000+16MB = one page past the 16MB boundary,
+// causing SIGSEGV at exactly RDRAM+0x1000000. The extra 4KB padding absorbs
+// this overflow safely.
+#define BKA_RDRAM_ALLOC_SIZE  0x1001000 // 16MB + 4KB overflow guard
 #define N64_REG_SPACE_SIZE    0x1000000 // 16MB (Covers RCP/RCP register ranges)
 #define N64_PIF_SPACE_SIZE    0x0010000 // 64KB (Abundantly covers PIF ROM/RAM)
 #define N64_ROM_SPACE_SIZE    0x04000000 // 64MB (Covers the full N64 physical ROM limit)
@@ -47,7 +55,7 @@ extern "C" {
             return;
         }
 
-        // 1. Allocate Main N64 RDRAM Memory Space
+        // 1. Allocate Main N64 RDRAM Memory Space (16MB + 4KB overflow guard)
         gN64_RDRAM = (uint8_t*)mmap(
             nullptr,
             BKA_RDRAM_ALLOC_SIZE,
@@ -123,6 +131,11 @@ extern "C" {
                 "FATAL: Heap region exceeds RDRAM allocation! offset=0x%X size=0x%X limit=0x%X",
                 N64_HEAP_OFFSET, N64_HEAP_SIZE, BKA_RDRAM_ALLOC_SIZE);
         }
+
+        // Log the RDRAM overflow guard for diagnostics
+        __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+            "RDRAM allocated: %zu bytes (16MB usable + 4KB overflow guard at +0x1000000)",
+            (size_t)BKA_RDRAM_ALLOC_SIZE);
 
         // CRITICAL CORRECTION: Map the physical ROM base dumped by the OTR Builder directly
         // into the emulated cartridge memory block so raw PI Subsystem reads succeed.
