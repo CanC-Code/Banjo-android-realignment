@@ -8,9 +8,11 @@
 #include <string>
 #include <vector>
 #include <android/log.h>
+#include <pthread.h>
 
 #include "bka_safe_base.h"
 #include "rare_decompression.h"
+#include "rarezip.h" // For D_80007284, D_80007290, inbuf, etc.
 
 #define LOG_TAG "NativeBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
@@ -19,26 +21,25 @@
 
 static std::string g_assetDir;
 
-// ---------------------------------------------------------------------------
-// Splat segment manifest
-//
-// decompressed.us.v10.yaml / decompressed_pal.yaml are splat decompilation
-// build configs, not a per-asset runtime table -- there is no explicit
-// "size" field anywhere. Only top-level segments (zero leading whitespace,
-// "- name: ...") carry a ROM "start:" offset; splat segments are contiguous
-// and non-overlapping by construction, so each segment's end is simply the
-// next segment's start (and the ROM's total size for the last one).
-//
-// We deliberately do NOT parse subsegments -- DMA routing only needs to
-// know which top-level segment a given ROM offset falls in, for bounds
-// checking. Whether that region is actually compressed is decided at DMA
-// time by sniffing the real magic bytes (see ResourceMgr_HandleDma), not by
-// any YAML field: exclusive_ram_id/follows_vram track decompilation
-// progress and are inconsistently annotated between the US and PAL configs
-// (PAL has them commented out for most levels), so they aren't a reliable
-// runtime signal.
-// ---------------------------------------------------------------------------
+// Global decompression state (from rarezip.h)
+extern "C" {
+    u8 *inbuf;               // Input buffer (source data)
+    u8 *D_80007284;          // Output buffer (decompressed data)
+    u32 inptr;               // Current read position in inbuf
+    u32 wp;                  // Current write position in D_80007284
+    struct huft *D_80007290; // Huffman table pool
+    u32 bb;                  // Bit buffer
+    u32 bk;                  // Bit count
+    u32 crc1;                // CRC1
+    u32 crc2;                // CRC2
+    u32 hufts;               // Huffman table usage tracker
+    u32 g_decomp_out_cap;    // Output buffer capacity
+}
 
+// Define HUFT_POOL_CAPACITY to match rarezip.c
+#define HUFT_POOL_CAPACITY 4096
+
+// Splat segment manifest
 struct SegmentRecord {
     uint32_t start = 0; // inclusive ROM start offset
     uint32_t end = 0;   // exclusive ROM end offset
@@ -53,13 +54,123 @@ static size_t g_romSize = 0;
 
 extern "C" void BKA_SignalResourcesReady(void);
 
-// Parses only the top-level "- name: ..." / "start:" pairs out of a splat
-// YAML config. Not a general YAML parser -- relies on the fact that in this
-// schema, top-level segment entries are the only lines with zero leading
-// whitespace, so nothing else in the file (the "options:" preamble,
-// per-segment fields, subsegment arrays, comments) can be mistaken for one.
-static bool parseSplatSegments(const char* path, std::vector<SegmentRecord>& outSegments)
-{
+// Mutex for thread-safe decompression
+pthread_mutex_t g_inflateMutex = PTHREAD_MUTEX_INITIALIZER;
+
+// Initialize decompression buffers
+static bool InitializeDecompressionBuffers(const char* romPath) {
+    if (!romPath) {
+        LOGE("InitializeDecompressionBuffers: romPath is NULL!");
+        return false;
+    }
+
+    // Allocate Huffman pool
+    D_80007290 = (struct huft *)malloc(HUFT_POOL_CAPACITY * sizeof(struct huft));
+    if (!D_80007290) {
+        LOGE("InitializeDecompressionBuffers: Failed to allocate Huffman pool!");
+        return false;
+    }
+
+    // Allocate output buffer (16MB for ROM)
+    D_80007284 = (u8 *)malloc(16 * 1024 * 1024); // 16MB
+    if (!D_80007284) {
+        LOGE("InitializeDecompressionBuffers: Failed to allocate decompression buffer!");
+        free(D_80007290);
+        D_80007290 = nullptr;
+        return false;
+    }
+    g_decomp_out_cap = 16 * 1024 * 1024; // Set capacity to 16MB
+
+    // Load rom_base.bin into inbuf
+    FILE *f = fopen(romPath, "rb");
+    if (!f) {
+        LOGE("InitializeDecompressionBuffers: Failed to open %s!", romPath);
+        free(D_80007284);
+        free(D_80007290);
+        D_80007284 = nullptr;
+        D_80007290 = nullptr;
+        return false;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    if (size <= 0) {
+        LOGE("InitializeDecompressionBuffers: Invalid ROM size in %s!", romPath);
+        fclose(f);
+        free(D_80007284);
+        free(D_80007290);
+        D_80007284 = nullptr;
+        D_80007290 = nullptr;
+        return false;
+    }
+
+    inbuf = (u8 *)malloc(size);
+    if (!inbuf) {
+        LOGE("InitializeDecompressionBuffers: Failed to allocate input buffer!");
+        fclose(f);
+        free(D_80007284);
+        free(D_80007290);
+        D_80007284 = nullptr;
+        D_80007290 = nullptr;
+        return false;
+    }
+
+    size_t bytesRead = fread(inbuf, 1, size, f);
+    fclose(f);
+
+    if (bytesRead != static_cast<size_t>(size)) {
+        LOGE("InitializeDecompressionBuffers: Failed to read full ROM file!");
+        free(inbuf);
+        free(D_80007284);
+        free(D_80007290);
+        inbuf = nullptr;
+        D_80007284 = nullptr;
+        D_80007290 = nullptr;
+        return false;
+    }
+
+    // Validate zlib header (0x78 0x9C, 0x78 0x01, or 0x78 0xDA)
+    if (size >= 2) {
+        if (inbuf[0] != 0x78 || (inbuf[1] != 0x9C && inbuf[1] != 0x01 && inbuf[1] != 0xDA)) {
+            LOGW("InitializeDecompressionBuffers: rom_base.bin is not a valid zlib stream! Proceeding anyway (may be raw data).");
+        }
+    }
+
+    // Reset global state
+    inptr = 0;
+    wp = 0;
+    bb = 0;
+    bk = 0;
+    crc1 = 0;
+    crc2 = -1;
+    hufts = 0;
+
+    LOGI("InitializeDecompressionBuffers: Successfully initialized buffers (inbuf=%p, D_80007284=%p, D_80007290=%p, g_decomp_out_cap=%u)",
+         inbuf, D_80007284, D_80007290, g_decomp_out_cap);
+    return true;
+}
+
+// Cleanup decompression buffers
+static void CleanupDecompressionBuffers() {
+    if (inbuf) {
+        free(inbuf);
+        inbuf = nullptr;
+    }
+    if (D_80007284) {
+        free(D_80007284);
+        D_80007284 = nullptr;
+    }
+    if (D_80007290) {
+        free(D_80007290);
+        D_80007290 = nullptr;
+    }
+    g_decomp_out_cap = 0xFFFFFFFFu; // Reset to unbounded
+}
+
+// Parses only the top-level "- name: ..." / "start:" pairs out of a splat YAML config.
+static bool parseSplatSegments(const char* path, std::vector<SegmentRecord>& outSegments) {
     FILE* f = fopen(path, "rb");
     if (!f) {
         return false;
@@ -138,7 +249,6 @@ static bool parseSplatSegments(const char* path, std::vector<SegmentRecord>& out
         }
 
         if (!haveCurrent) {
-            // Still inside the "options:" preamble, before "segments:".
             if (lineEnd >= buffer.size()) break;
             continue;
         }
@@ -161,14 +271,11 @@ static bool parseSplatSegments(const char* path, std::vector<SegmentRecord>& out
     for (size_t i = 0; i + 1 < outSegments.size(); ++i) {
         outSegments[i].end = outSegments[i + 1].start;
     }
-    // Last segment's end is patched to the real ROM size once it's known
-    // (see ResourceMgr_Init, which parses rom_base.bin after this).
 
     return !outSegments.empty();
 }
 
-static const SegmentRecord* findSegmentForOffset(uint32_t offset)
-{
+static const SegmentRecord* findSegmentForOffset(uint32_t offset) {
     for (const auto& seg : g_segments) {
         if (offset >= seg.start && offset < seg.end) {
             return &seg;
@@ -177,7 +284,7 @@ static const SegmentRecord* findSegmentForOffset(uint32_t offset)
     return nullptr;
 }
 
-// External implementation of BKA_InflateCodeSegment to satisfy linker requirements
+// External implementation of BKA_InflateCodeSegment
 extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint32_t size) {
     if (!gN64_ROM_Base || !dramAddr) {
         LOGE("BKA_InflateCodeSegment: Invalid base pointers for inflation.");
@@ -209,7 +316,7 @@ extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint3
 extern "C" {
 
 /**
- * Initializes the Resource Manager in Absolute Self-Building Mode and parses decompressed.us.v10.yaml (converted mapping structures).
+ * Initializes the Resource Manager in Absolute Self-Building Mode and parses decompressed.us.v10.yaml.
  */
 void ResourceMgr_Init(const char* assetDir) {
     if (!assetDir) {
@@ -224,14 +331,19 @@ void ResourceMgr_Init(const char* assetDir) {
 
     LOGI("ResourceMgr: Activated in Absolute Self-Building Mode at location %s", g_assetDir.c_str());
 
+    // Initialize decompression buffers
     char romPath[512];
     snprintf(romPath, sizeof(romPath), "%srom_base.bin", g_assetDir.c_str());
+    if (!InitializeDecompressionBuffers(romPath)) {
+        LOGE("ResourceMgr: FATAL ERROR - Failed to initialize decompression buffers!");
+        return;
+    }
 
-    LOGI("ResourceMgr: Open file pointer tracking target: %s", romPath);
+    // Load ROM into gN64_ROM_Base
     FILE* f = fopen(romPath, "rb");
-
     if (!f) {
         LOGE("ResourceMgr: FATAL ERROR - System fallback dependency file missing. Path: %s", romPath);
+        CleanupDecompressionBuffers();
         return;
     }
 
@@ -242,6 +354,7 @@ void ResourceMgr_Init(const char* assetDir) {
     if (g_romSize == 0 || g_romSize > 128 * 1024 * 1024) {
         LOGE("ResourceMgr: FATAL ERROR - Invalid rom_base.bin size detected: %zu bytes", g_romSize);
         fclose(f);
+        CleanupDecompressionBuffers();
         g_romSize = 0;
         return;
     }
@@ -256,13 +369,13 @@ void ResourceMgr_Init(const char* assetDir) {
     if (!gN64_ROM_Base) {
         LOGE("ResourceMgr: FATAL ERROR - Memory pointer verification failed. Cannot parse ROM stream.");
         fclose(f);
+        CleanupDecompressionBuffers();
         return;
     }
 
     LOGI("ResourceMgr: Streaming binary database targets into virtual memory locations...");
     size_t bytesRead = fread(gN64_ROM_Base, 1, g_romSize, f);
     LOGI("ResourceMgr: Verification validation sequence populated %zu bytes into ROM base block.", bytesRead);
-
     fclose(f);
 
     // --- Load splat YAML segment boundaries (for DMA-time bounds checking) ---
@@ -280,6 +393,9 @@ void ResourceMgr_Init(const char* assetDir) {
         LOGI("ResourceMgr: Parsed %zu top-level segments from %s (ROM size %zu bytes).",
              g_segments.size(), manifestPath, g_romSize);
     }
+
+    // Signal that resources are ready
+    BKA_SignalResourcesReady();
 }
 
 /**
@@ -319,12 +435,7 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
         bool isGenuineRom = (devAddr < g_romSize) || ((devAddr >> 24) == 0x10 && (relativeRomOffset + size) <= g_romSize);
 
         if (isGenuineRom && gN64_ROM_Base != nullptr) {
-            // Try decompression first. decompress_rare_to_offset() checks
-            // real magic bytes internally and returns 0 for anything that
-            // isn't a recognized compressed format, so this is safe to call
-            // unconditionally -- it replaces the old YAML-annotation-based
-            // "code_bin" routing, which never actually matched any real
-            // type value in these configs.
+            // Try decompression first.
             const SegmentRecord* seg = findSegmentForOffset(relativeRomOffset);
             uint32_t availableSrcBytes = seg
                 ? (seg->end - relativeRomOffset)
@@ -349,19 +460,15 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
             memcpy(dramAddr, gN64_ROM_Base + relativeRomOffset, size);
         } else {
             // TRUNCATED 64-BIT HOST POINTER HEALING
-            // Safely anchor upper memory page bits using the destination block address context directly
             uintptr_t dramContext = reinterpret_cast<uintptr_t>(dramAddr);
             uint64_t upper32BitsSign = dramContext & 0xFFFFFFFF00000000ULL;
             uintptr_t reconstructedHostPointer = upper32BitsSign | devAddr;
 
-            // Nested Pointer Descriptor Validation
             uintptr_t* potentialNestedPtr = reinterpret_cast<uintptr_t*>(reconstructedHostPointer);
 
-            // Check for 8-byte pointer alignment before dereferencing to prevent platform exceptions
             if (potentialNestedPtr && ((reconstructedHostPointer & 0x7) == 0)) {
                 uintptr_t nestedVal = *potentialNestedPtr;
 
-                // Explicit 32-bit heap page validation to verify matching host address structures
                 if ((nestedVal >> 32) == (reconstructedHostPointer >> 32)) {
                     LOGW("ResourceMgr: Unwrapping nested descriptor layer reference %p -> %p",
                          (void*)reconstructedHostPointer, (void*)nestedVal);
