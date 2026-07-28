@@ -32,12 +32,16 @@ static u64 sDebugVar_8027BEF0; // never used
 
 extern u8 core2_TEXT_START[];
 
-void func_8023DA20(s32 arg0){ 
-    if (!core2_TEXT_START || core2_TEXT_START < (u8*)&D_8027A130) {
-        // Fallback safety guard against uninitialized segment startup crash
-        return;
+void func_8023DA20(s32 arg0){
+    // FIXED: Removed over-aggressive safety guard that checked core2_TEXT_START.
+    // core2_TEXT_START = 0 (from missing_stubs.c DEFINE_OVERLAY macro) until
+    // core2 is loaded by overlayManagerloadCore2() in core1_init(). The original
+    // guard returned immediately when core2_TEXT_START was null or less than
+    // &D_8027A130, which prevented the entire game from initializing.
+    // Now we only zero the BSS region if core2 is actually loaded.
+    if (core2_TEXT_START && core2_TEXT_START > (u8*)&D_8027A130) {
+        bzero(&D_8027A130, core2_TEXT_START - (u8*)&D_8027A130);
     }
-    bzero(&D_8027A130, core2_TEXT_START - (u8*)&D_8027A130);
     osWriteBackDCacheAll();
     sns_find_and_parse_payload();
     osInitialize();
@@ -146,7 +150,7 @@ void mainLoop(void){
 
     if(D_8027A130 != 3 || getGameMode() != GAME_MODE_4_PAUSED)
         globalTimer_incTimer();
-    
+
     if (!sDisableInput)
         pfsManager_update();
     sDisableInput = FALSE;
@@ -184,14 +188,14 @@ void mainLoop(void){
         for(y= 0x1e; y < gFramebufferHeight - 0x1e; y++){//L8023DEB4
             for(x = 0x14; x < 0xeb; x++){
                 tmp = ((8 * globalTimer_getTime()) + ((x*x) + (y*y)));
-                
+
                 r = _SHIFTL(x>>3, 11, 5);
                 g = _SHIFTL(y>>3, 6, 5);
                 b = _SHIFTL(tmp>>3, 1, 5);
                 a = 1;
-                
+
                 rgba = b | r | g | a;
-                
+
                 offset = ((gFramebufferWidth - 0xFF) / 2) + x + (y*gFramebufferWidth);
                 gFramebuffers[0][offset] = (s32) rgba;
                 gFramebuffers[1][offset] = (s32) rgba;
