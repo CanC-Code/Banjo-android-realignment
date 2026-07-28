@@ -191,4 +191,14 @@ extern "C" {
         gN64_Reg_Base[MI_INTR_REG_IDX] |= MI_INTR_VI;
 
         // Pump the OS_EVENT_VI (ID: 14) message straight into the POSIX HLE event queues.
-        // This instantly wakes up the
+        // This instantly wakes up the blocked scheduler threads to step the system forward.
+        HLE_TriggerN64Event(14);
+    }
+
+    // Hardware Renderer Stub:
+    // Connects the recompiled N64 Display List executor to the Android GL surface.
+    void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId) {
+        // STUB: Routes active RDP render targets to the Android GL texture context.
+    }
+
+} // end extern "C"
