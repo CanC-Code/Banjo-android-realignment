@@ -164,6 +164,28 @@ u32 func_80000594(u8 **inPtr, u8 **outPtr) {
 
 void func_800005B8(void) {}
 
+/* ── GZIP/Deflate Bridge Implementation ──────────────────────────────── */
+u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2) {
+    /* 1. Map local pointers to the global state variables required by inflate.c */
+    inbuf = *inPtr;
+    D_80007284 = *outPtr;
+    D_80007290 = arg2;
+    
+    /* 2. Reset the read/write cursor offsets for the new block */
+    inptr = 0;
+    wp = 0;
+
+    /* 3. Execute the low-level GZIP/Deflate routine */
+    bkboot_inflate();
+
+    /* 4. Advance the original buffer pointers by the consumed/emitted byte counts */
+    *inPtr += inptr;
+    *outPtr += wp;
+
+    /* 5. Return the total number of decompressed bytes written */
+    return wp;
+}
+
 /* ── Primary Format Multiplexer and Decompression Pipeline ──────────── */
 u32 func_800005C0(u8* in, u8* out, struct huft *arg2) {
     u32 result;
