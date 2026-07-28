@@ -4,8 +4,10 @@
 #include <cstring>
 #include <cstdint>
 #include <cerrno>
-#include <android/log.h>
+#include <algorithm>
 #include <string>
+#include <vector>
+#include <android/log.h>
 
 #include "bka_safe_base.h"
 #include "rare_decompression.h"
@@ -17,23 +19,163 @@
 
 static std::string g_assetDir;
 
-// YAML-based manifest record structure matching generator layout (48 bytes)
-struct ManifestRecord {
-    uint32_t offset;
-    uint32_t size;
-    char name[32];
-    char type[8];
+// ---------------------------------------------------------------------------
+// Splat segment manifest
+//
+// decompressed.us.v10.yaml / decompressed_pal.yaml are splat decompilation
+// build configs, not a per-asset runtime table -- there is no explicit
+// "size" field anywhere. Only top-level segments (zero leading whitespace,
+// "- name: ...") carry a ROM "start:" offset; splat segments are contiguous
+// and non-overlapping by construction, so each segment's end is simply the
+// next segment's start (and the ROM's total size for the last one).
+//
+// We deliberately do NOT parse subsegments -- DMA routing only needs to
+// know which top-level segment a given ROM offset falls in, for bounds
+// checking. Whether that region is actually compressed is decided at DMA
+// time by sniffing the real magic bytes (see ResourceMgr_HandleDma), not by
+// any YAML field: exclusive_ram_id/follows_vram track decompilation
+// progress and are inconsistently annotated between the US and PAL configs
+// (PAL has them commented out for most levels), so they aren't a reliable
+// runtime signal.
+// ---------------------------------------------------------------------------
+
+struct SegmentRecord {
+    uint32_t start = 0; // inclusive ROM start offset
+    uint32_t end = 0;   // exclusive ROM end offset
+    std::string name;
 };
 
-// Global manifest registry cache
-static ManifestRecord* g_manifestRecords = nullptr;
-static uint32_t g_manifestCount = 0;
+static std::vector<SegmentRecord> g_segments;
 
 // Define global ROM base pointer instance referenced across modules outside anonymous linkage blocks
 uint8_t* gN64_ROM_Base = nullptr;
-static size_t g_romSize = 0; 
+static size_t g_romSize = 0;
 
 extern "C" void BKA_SignalResourcesReady(void);
+
+// Parses only the top-level "- name: ..." / "start:" pairs out of a splat
+// YAML config. Not a general YAML parser -- relies on the fact that in this
+// schema, top-level segment entries are the only lines with zero leading
+// whitespace, so nothing else in the file (the "options:" preamble,
+// per-segment fields, subsegment arrays, comments) can be mistaken for one.
+static bool parseSplatSegments(const char* path, std::vector<SegmentRecord>& outSegments)
+{
+    FILE* f = fopen(path, "rb");
+    if (!f) {
+        return false;
+    }
+
+    fseek(f, 0, SEEK_END);
+    long fileSize = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    if (fileSize <= 0) {
+        fclose(f);
+        return false;
+    }
+
+    std::string buffer;
+    buffer.resize(static_cast<size_t>(fileSize));
+    size_t readBytes = fread(&buffer[0], 1, static_cast<size_t>(fileSize), f);
+    fclose(f);
+    buffer.resize(readBytes);
+
+    outSegments.clear();
+
+    std::string currentName;
+    uint32_t currentStart = 0;
+    bool haveCurrent = false;
+
+    auto flushCurrent = [&]() {
+        if (haveCurrent) {
+            SegmentRecord rec;
+            rec.start = currentStart;
+            rec.end = 0; // filled in below once every start is known
+            rec.name = currentName;
+            outSegments.push_back(rec);
+        }
+    };
+
+    size_t pos = 0;
+    while (pos <= buffer.size()) {
+        size_t lineEnd = buffer.find('\n', pos);
+        if (lineEnd == std::string::npos) lineEnd = buffer.size();
+        if (pos > buffer.size()) break;
+
+        std::string line = buffer.substr(pos, lineEnd - pos);
+        pos = lineEnd + 1;
+
+        if (!line.empty() && line.back() == '\r') {
+            line.pop_back();
+        }
+
+        size_t firstNonSpace = line.find_first_not_of(" \t");
+        if (firstNonSpace == std::string::npos || line[firstNonSpace] == '#') {
+            if (lineEnd >= buffer.size()) break;
+            continue;
+        }
+
+        // New top-level segment: zero leading whitespace, "- name..."
+        if (firstNonSpace == 0 && line.rfind("- name", 0) == 0) {
+            flushCurrent();
+            haveCurrent = true;
+            currentStart = 0;
+
+            size_t colon = line.find(':', 6);
+            if (colon != std::string::npos) {
+                std::string nameVal = line.substr(colon + 1);
+                size_t hash = nameVal.find('#');
+                if (hash != std::string::npos) nameVal = nameVal.substr(0, hash);
+                size_t s = nameVal.find_first_not_of(" \t");
+                size_t e = nameVal.find_last_not_of(" \t");
+                currentName = (s == std::string::npos) ? "" : nameVal.substr(s, e - s + 1);
+            } else {
+                currentName.clear();
+            }
+
+            if (lineEnd >= buffer.size()) break;
+            continue;
+        }
+
+        if (!haveCurrent) {
+            // Still inside the "options:" preamble, before "segments:".
+            if (lineEnd >= buffer.size()) break;
+            continue;
+        }
+
+        std::string trimmedLine = line.substr(firstNonSpace);
+        if (trimmedLine.rfind("start:", 0) == 0) {
+            std::string val = trimmedLine.substr(6);
+            size_t hash = val.find('#');
+            if (hash != std::string::npos) val = val.substr(0, hash);
+            currentStart = static_cast<uint32_t>(strtoul(val.c_str(), nullptr, 0));
+        }
+
+        if (lineEnd >= buffer.size()) break;
+    }
+    flushCurrent();
+
+    std::sort(outSegments.begin(), outSegments.end(),
+              [](const SegmentRecord& a, const SegmentRecord& b) { return a.start < b.start; });
+
+    for (size_t i = 0; i + 1 < outSegments.size(); ++i) {
+        outSegments[i].end = outSegments[i + 1].start;
+    }
+    // Last segment's end is patched to the real ROM size once it's known
+    // (see ResourceMgr_Init, which parses rom_base.bin after this).
+
+    return !outSegments.empty();
+}
+
+static const SegmentRecord* findSegmentForOffset(uint32_t offset)
+{
+    for (const auto& seg : g_segments) {
+        if (offset >= seg.start && offset < seg.end) {
+            return &seg;
+        }
+    }
+    return nullptr;
+}
 
 // External implementation of BKA_InflateCodeSegment to satisfy linker requirements
 extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint32_t size) {
@@ -45,7 +187,7 @@ extern "C" void BKA_InflateCodeSegment(void* dramAddr, uint32_t romOffset, uint3
     uint8_t* srcStream = gN64_ROM_Base + romOffset;
 
     // Allocate 8MB default expansion workspace bound for code segments
-    uint32_t expectedWorkspaceSize = 0x800000; 
+    uint32_t expectedWorkspaceSize = 0x800000;
 
     // Call the updated pre-embedded offset function to extract directly into the DRAM workspace
     uint32_t decompressedBytes = decompress_rare_to_offset(
@@ -81,29 +223,6 @@ void ResourceMgr_Init(const char* assetDir) {
     }
 
     LOGI("ResourceMgr: Activated in Absolute Self-Building Mode at location %s", g_assetDir.c_str());
-
-    // --- Load YAML-derived manifest registry (decompressed.us.v10.yaml parsed via internal binary lookup bridge) ---
-    char manifestPath[512];
-    snprintf(manifestPath, sizeof(manifestPath), "%sdecompressed.us.v10.yaml", g_assetDir.c_str());
-    FILE* mf = fopen(manifestPath, "rb");
-    if (!mf) {
-        // Fallback check for alternate yaml extension naming convention if needed
-        snprintf(manifestPath, sizeof(manifestPath), "%smanifest_us.yaml", g_assetDir.c_str());
-        mf = fopen(manifestPath, "rb");
-    }
-
-    if (mf) {
-        if (fread(&g_manifestCount, sizeof(uint32_t), 1, mf) == 1) {
-            g_manifestRecords = static_cast<ManifestRecord*>(malloc(g_manifestCount * sizeof(ManifestRecord)));
-            if (g_manifestRecords) {
-                size_t readCount = fread(g_manifestRecords, sizeof(ManifestRecord), g_manifestCount, mf);
-                LOGI("ResourceMgr: Successfully parsed and loaded %zu / %u manifest records from YAML source layer %s", readCount, g_manifestCount, manifestPath);
-            }
-        }
-        fclose(mf);
-    } else {
-        LOGW("ResourceMgr: Warning - Could not open YAML manifest file at %s. Falling back to default routing.", manifestPath);
-    }
 
     char romPath[512];
     snprintf(romPath, sizeof(romPath), "%srom_base.bin", g_assetDir.c_str());
@@ -145,6 +264,22 @@ void ResourceMgr_Init(const char* assetDir) {
     LOGI("ResourceMgr: Verification validation sequence populated %zu bytes into ROM base block.", bytesRead);
 
     fclose(f);
+
+    // --- Load splat YAML segment boundaries (for DMA-time bounds checking) ---
+    char manifestPath[512];
+    snprintf(manifestPath, sizeof(manifestPath), "%sdecompressed.us.v10.yaml", g_assetDir.c_str());
+    if (!parseSplatSegments(manifestPath, g_segments)) {
+        snprintf(manifestPath, sizeof(manifestPath), "%smanifest_us.yaml", g_assetDir.c_str());
+        if (!parseSplatSegments(manifestPath, g_segments)) {
+            LOGW("ResourceMgr: Warning - Could not parse a splat YAML segment config at %s. DMA requests will fall back to whole-ROM bounds only.", manifestPath);
+        }
+    }
+
+    if (!g_segments.empty()) {
+        g_segments.back().end = static_cast<uint32_t>(g_romSize);
+        LOGI("ResourceMgr: Parsed %zu top-level segments from %s (ROM size %zu bytes).",
+             g_segments.size(), manifestPath, g_romSize);
+    }
 }
 
 /**
@@ -158,27 +293,6 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     // Isolate clean 28-bit relative offset mapping layers for tracking extraction files
     uint32_t relativeRomOffset = devAddr & 0x0FFFFFFF;
 
-    // --- Check YAML Manifest Records for Specialized Handlers ---
-    if (g_manifestRecords) {
-        for (uint32_t i = 0; i < g_manifestCount; ++i) {
-            // Match record by ROM offset range or exact entry offset
-            if (g_manifestRecords[i].offset == relativeRomOffset || g_manifestRecords[i].offset == devAddr) {
-                // Check if type matches our specialized code identifier
-                if (strncmp(g_manifestRecords[i].type, "code_bin", 8) == 0) {
-                    LOGI("ResourceMgr: Intercepted specialized code_bin record '%s' from YAML mapping at offset %08X. Routing to decompression flow.", 
-                         g_manifestRecords[i].name, relativeRomOffset);
-
-                    // Route away from standard memcpy/raw asset loading to custom decompression handler
-                    if (gN64_ROM_Base != nullptr) {
-                        BKA_InflateCodeSegment(dramAddr, relativeRomOffset, g_manifestRecords[i].size);
-                    }
-                    sched_yield();
-                    return;
-                }
-            }
-        }
-    }
-
     snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), relativeRomOffset);
     f = fopen(path, "rb");
 
@@ -188,6 +302,8 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     }
 
     if (f) {
+        // Pre-extracted asset files are already decompressed by the
+        // extraction tool -- use them as-is.
         size_t bytesRead = fread(dramAddr, 1, size, f);
         fclose(f);
 
@@ -203,6 +319,33 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
         bool isGenuineRom = (devAddr < g_romSize) || ((devAddr >> 24) == 0x10 && (relativeRomOffset + size) <= g_romSize);
 
         if (isGenuineRom && gN64_ROM_Base != nullptr) {
+            // Try decompression first. decompress_rare_to_offset() checks
+            // real magic bytes internally and returns 0 for anything that
+            // isn't a recognized compressed format, so this is safe to call
+            // unconditionally -- it replaces the old YAML-annotation-based
+            // "code_bin" routing, which never actually matched any real
+            // type value in these configs.
+            const SegmentRecord* seg = findSegmentForOffset(relativeRomOffset);
+            uint32_t availableSrcBytes = seg
+                ? (seg->end - relativeRomOffset)
+                : static_cast<uint32_t>(g_romSize - relativeRomOffset);
+
+            uint32_t decompressed = decompress_rare_to_offset(
+                    gN64_ROM_Base + relativeRomOffset,
+                    availableSrcBytes,
+                    static_cast<uint8_t*>(dramAddr),
+                    0,
+                    size);
+
+            if (decompressed > 0) {
+                LOGI("ResourceMgr: Decompressed %u bytes for ROM offset %08X (segment '%s')",
+                     decompressed, relativeRomOffset, seg ? seg->name.c_str() : "?");
+                sched_yield();
+                return;
+            }
+
+            // No recognized compression magic at this offset -- genuinely
+            // raw/uncompressed data, copy it straight through.
             memcpy(dramAddr, gN64_ROM_Base + relativeRomOffset, size);
         } else {
             // TRUNCATED 64-BIT HOST POINTER HEALING
@@ -220,7 +363,7 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
 
                 // Explicit 32-bit heap page validation to verify matching host address structures
                 if ((nestedVal >> 32) == (reconstructedHostPointer >> 32)) {
-                    LOGW("ResourceMgr: Unwrapping nested descriptor layer reference %p -> %p", 
+                    LOGW("ResourceMgr: Unwrapping nested descriptor layer reference %p -> %p",
                          (void*)reconstructedHostPointer, (void*)nestedVal);
                     reconstructedHostPointer = nestedVal;
                 }
