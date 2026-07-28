@@ -15,9 +15,9 @@
 #define HUFT_POOL_CAPACITY 4096
 
 extern u8* gN64_RDRAM;
-u8 *inbuf = nullptr;               // Input buffer (source data)
-u8 *D_80007284 = nullptr;          // Output buffer (decompressed data)
-struct huft *D_80007290 = nullptr;  // Huffman table pool
+u8 *inbuf = NULL;               // Input buffer (source data)
+u8 *D_80007284 = NULL;          // Output buffer (decompressed data)
+struct huft *D_80007290 = NULL;  // Huffman table pool
 u32 inptr = 0;                    // Current read position in inbuf
 u32 wp = 0;                       // Current write position in D_80007284
 u32 bb = 0;                       // Bit buffer
@@ -41,7 +41,7 @@ static u32 func_800005C0_locked(u8* in, u8* out, struct huft *arg2);
 
 /* Universal Address Resolver */
 static u8* bka_resolve_ptr(uintptr_t addr) {
-    if (addr == 0) return nullptr;
+    if (addr == 0) return NULL;
     u8* rdram = gN64_RDRAM;
 
     /* Case A: Standard N64 KSEG0 (0x80000000) or KSEG1 (0xA0000000) virtual pointers */
