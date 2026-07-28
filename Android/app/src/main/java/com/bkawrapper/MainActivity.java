@@ -9,6 +9,7 @@ import android.content.res.AssetManager;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.SurfaceHolder;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ProgressBar;
@@ -175,7 +176,7 @@ public class MainActivity extends AppCompatActivity {
         Intent serviceIntent = new Intent(this, OtrService.class);
         serviceIntent.putExtra("uri",    romUri.toString());
         serviceIntent.putExtra("outDir", getFilesDir().getAbsolutePath());
-        
+
         // Upgraded to startForegroundService for Target SDK 34 compliance
         ContextCompat.startForegroundService(this, serviceIntent);
     }
@@ -215,6 +216,27 @@ public class MainActivity extends AppCompatActivity {
 
         glSurfaceView.setRenderer(new GLRenderer(this, assetDir, mgr));
         glSurfaceView.setRenderMode(GLSurfaceView.RENDERMODE_CONTINUOUSLY);
+
+        // FIXED: Bridge the Android Surface to native code so the engine can
+        // initialize EGL and unblock the vblank synchronization loop.
+        // Without this callback, g_nativeWindow stays null and the engine
+        // thread hangs forever in BKA_FrameSyncHook waiting for g_windowCond.
+        glSurfaceView.getHolder().addCallback(new SurfaceHolder.Callback() {
+            @Override
+            public void surfaceCreated(SurfaceHolder holder) {
+                NativeBridge.setSurface(holder.getSurface());
+            }
+
+            @Override
+            public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+                // Dimensions are forwarded by GLRenderer.onSurfaceChanged → NativeBridge.surfaceReady
+            }
+
+            @Override
+            public void surfaceDestroyed(SurfaceHolder holder) {
+                NativeBridge.setSurface(null);
+            }
+        });
 
         setContentView(glSurfaceView);
     }
