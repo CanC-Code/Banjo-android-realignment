@@ -419,6 +419,11 @@ void ResourceMgr_Init(const char* assetDir) {
  * src/done/rarezip.c) passes buffer pointers truncated to 32 bits as devAddr
  * for internal buffer-to-buffer copies. We reconstruct the full 64-bit pointer
  * using the upper bits of dramAddr.
+ *
+ * IMPORTANT: Path 2 only triggers when devAddr > 0x10000000 and is NOT in
+ * cartridge space (0x10xxxxxx). This ensures ROM offsets like 0x00001050
+ * (core1_rzip_ROM_START) correctly go to Path 3 instead of being incorrectly
+ * treated as truncated host pointers.
  */
 void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     if (!dramAddr || size == 0) {
@@ -451,8 +456,13 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     // The decompressor (func_80000594 → func_80000618) passes buffer pointers
     // truncated to 32 bits as devAddr. Reconstruct the full 64-bit pointer
     // using the upper bits of dramAddr and do a direct memcpy.
+    //
+    // FIXED: Only trigger when devAddr looks like a truncated 64-bit host pointer
+    // (value > 0x10000000 and NOT in N64 cartridge address space 0x10xxxxxx).
+    // ROM offsets like 0x00001050 are < 0x10000000 and will correctly fall
+    // through to PATH 3.
     uintptr_t dramVal = reinterpret_cast<uintptr_t>(dramAddr);
-    if (dramVal > 0xFFFFFFFFULL) {
+    if (dramVal > 0xFFFFFFFFULL && devAddr > 0x10000000 && (devAddr >> 24) != 0x10) {
         // dramAddr is a 64-bit host pointer. Try to interpret devAddr as
         // a truncated 64-bit host pointer by borrowing dramAddr's upper bits.
         uintptr_t srcPtr = (dramVal & 0xFFFFFFFF00000000ULL) | devAddr;
