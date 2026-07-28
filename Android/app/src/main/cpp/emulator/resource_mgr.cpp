@@ -48,10 +48,11 @@ struct SegmentRecord {
 
 static std::vector<SegmentRecord> g_segments;
 
-// FIXED: Use extern to reference the single authoritative gN64_ROM_Base
-// defined in lowlevel_bridge.cpp. The --allow-multiple-definition flag
-// previously let each TU define its own, causing isGenuineRom checks
-// to fail because g_romSize was set in one copy but read from another.
+// Reference the single authoritative gN64_ROM_Base defined in lowlevel_bridge.cpp.
+// Due to --allow-multiple-definition, InitN64Registers may overwrite the pointer
+// with an mmap'd buffer after we've already loaded ROM via malloc. To avoid this
+// conflict, ResourceMgr_HandleDma now reads directly from rom_base.bin on disk
+// rather than relying on the in-memory gN64_ROM_Base pointer.
 extern uint8_t* gN64_ROM_Base;
 static size_t g_romSize = 0;
 
@@ -342,9 +343,7 @@ void ResourceMgr_Init(const char* assetDir) {
         return;
     }
 
-    // --- Load ROM into gN64_ROM_Base ---
-    // FIXED: gN64_ROM_Base is now declared extern and owned by lowlevel_bridge.cpp.
-    // We only set g_romSize here for use by ResourceMgr_HandleDma's isGenuineRom check.
+    // --- Determine ROM size for bounds checking in HandleDma ---
     FILE* f = fopen(romPath, "rb");
     if (!f) {
         LOGE("ResourceMgr: FATAL ERROR - System fallback dependency file missing. Path: %s", romPath);
@@ -364,12 +363,12 @@ void ResourceMgr_Init(const char* assetDir) {
         return;
     }
 
-    // FIXED: gN64_ROM_Base is owned by lowlevel_bridge.cpp via mmap.
-    // ResourceMgr_Init runs BEFORE InitN64Registers, so gN64_ROM_Base is
-    // typically null here. We must allocate a fallback buffer to load the
-    // ROM into, otherwise ResourceMgr_HandleDma has no data to DMA from.
-    // When InitN64Registers runs later, it will also load rom_base.bin into
-    // the mmap'd cartridge space, but HandleDma uses this gN64_ROM_Base pointer.
+    // gN64_ROM_Base is owned by lowlevel_bridge.cpp via mmap, but
+    // ResourceMgr_Init runs BEFORE InitN64Registers, so it's typically null.
+    // We allocate a fallback malloc buffer and load the ROM here so that
+    // any code using gN64_ROM_Base directly (e.g., BKA_InflateCodeSegment)
+    // has valid data. ResourceMgr_HandleDma now reads directly from
+    // rom_base.bin on disk to avoid gN64_ROM_Base sync issues.
     if (gN64_ROM_Base == nullptr) {
         LOGI("ResourceMgr: gN64_ROM_Base not yet allocated by InitN64Registers. Allocating fallback buffer of %zu bytes.", g_romSize);
         gN64_ROM_Base = static_cast<uint8_t*>(malloc(g_romSize));
@@ -409,16 +408,18 @@ void ResourceMgr_Init(const char* assetDir) {
 }
 
 /**
- * Handles N64 DMA requests by copying data from ROM into the destination buffer.
+ * Handles N64 DMA requests by reading directly from rom_base.bin on disk.
  *
- * This is called primarily from osPiRawStartDma (pi_hle.cpp) which is invoked
- * by func_80000450 to load compressed core1 code from ROM into the heap
- * (D_8002D500) for decompression.
+ * This bypasses the gN64_ROM_Base/g_romSize synchronization issues caused by
+ * duplicate symbol definitions combined with --allow-multiple-definition.
+ * InitN64Registers (lowlevel_bridge.cpp) overwrites gN64_ROM_Base with an
+ * mmap'd pointer AFTER ResourceMgr_Init has already loaded ROM via malloc,
+ * making the in-memory pointer unreliable. Reading from disk each time is
+ * slightly slower but guarantees correct data.
  *
  * devAddr may be:
  *   - A direct ROM offset (e.g., 0x00001050 for core1_rzip_ROM_START)
  *   - An N64 cartridge address (0x10000000-0x1FFFFFFF, masked to 0x0FFFFFFF)
- *   - A host pointer for non-ROM DMA (RDRAM-to-RDRAM copies)
  *
  * dramAddr is always a host pointer to the destination buffer.
  */
@@ -449,70 +450,60 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
         return;
     }
 
-    // --- PATH 2: ROM DMA ---
+    // --- PATH 2: ROM DMA via direct file read ---
     // Resolve the ROM offset from the N64 device address.
-    // N64 cartridge addresses: 0x10000000-0x1FFFFFFF -> ROM offset 0x00000000-0x0FFFFFFF
-    // Direct offsets (0x00000000-0x0FFFFFFF) are also valid.
     uint32_t romOffset;
     if ((devAddr >> 24) == 0x10) {
-        romOffset = relativeRomOffset;  // Cartridge address space
-    } else if (devAddr < g_romSize) {
+        romOffset = relativeRomOffset;  // Cartridge address space (0x10000000+)
+    } else if (devAddr < 0x10000000) {
         romOffset = devAddr;            // Direct ROM offset
-    } else if (relativeRomOffset < g_romSize) {
-        romOffset = relativeRomOffset;  // Masked ROM offset
     } else {
-        // Not a valid ROM address. Zero the destination and warn.
-        LOGW("ResourceMgr_HandleDma: Non-ROM DMA - devAddr=0x%08X dramAddr=%p size=%u. Zeroing destination.",
-             devAddr, dramAddr, size);
+        // Not a ROM address we can handle. Zero and bail.
+        LOGW("ResourceMgr_HandleDma: Unrecognized devAddr=0x%08X. Zeroing %u bytes.", devAddr, size);
         memset(dramAddr, 0, size);
         sched_yield();
         return;
     }
 
-    // Validate ROM offset is in bounds
-    if (romOffset >= g_romSize) {
-        LOGE("ResourceMgr_HandleDma: ROM offset 0x%X exceeds g_romSize 0x%zX. Zeroing %u bytes.",
-             romOffset, g_romSize, size);
+    // Open rom_base.bin and read directly from the file
+    snprintf(path, sizeof(path), "%srom_base.bin", g_assetDir.c_str());
+    f = fopen(path, "rb");
+    if (!f) {
+        LOGE("ResourceMgr_HandleDma: Cannot open %s! Zeroing %u bytes.", path, size);
         memset(dramAddr, 0, size);
         sched_yield();
         return;
     }
 
-    // Clamp size to ROM bounds
-    uint32_t availableBytes = static_cast<uint32_t>(g_romSize - romOffset);
+    // Get file size for bounds checking
+    fseek(f, 0, SEEK_END);
+    long fileSize = ftell(f);
+
+    if (romOffset >= static_cast<uint32_t>(fileSize)) {
+        LOGE("ResourceMgr_HandleDma: ROM offset 0x%X exceeds file size %ld. Zeroing.", romOffset, fileSize);
+        memset(dramAddr, 0, size);
+        fclose(f);
+        sched_yield();
+        return;
+    }
+
+    // Clamp size to available bytes
+    uint32_t availableBytes = static_cast<uint32_t>(fileSize) - romOffset;
     if (size > availableBytes) {
-        LOGW("ResourceMgr_HandleDma: Clamping DMA size from %u to %u (ROM boundary at offset 0x%X)",
+        LOGW("ResourceMgr_HandleDma: Clamping DMA size from %u to %u (file boundary at offset 0x%X)",
              size, availableBytes, romOffset);
         size = availableBytes;
     }
 
-    // gN64_ROM_Base must be populated by now (ResourceMgr_Init loaded rom_base.bin)
-    if (!gN64_ROM_Base) {
-        LOGE("ResourceMgr_HandleDma: gN64_ROM_Base is null! Cannot service ROM DMA. Zeroing %u bytes.", size);
-        memset(dramAddr, 0, size);
-        sched_yield();
-        return;
+    // Seek and read directly from the ROM file
+    fseek(f, romOffset, SEEK_SET);
+    size_t bytesRead = fread(dramAddr, 1, size, f);
+    fclose(f);
+
+    if (bytesRead < size) {
+        memset(static_cast<uint8_t*>(dramAddr) + bytesRead, 0, size - bytesRead);
     }
 
-    // Try Rare compression decompression first.
-    // The boot segment at 0x1050 is compressed with the 0x1172 format.
-    const SegmentRecord* seg = findSegmentForOffset(romOffset);
-    uint32_t decompressed = decompress_rare_to_offset(
-            gN64_ROM_Base + romOffset,
-            size,
-            static_cast<uint8_t*>(dramAddr),
-            0,
-            size);
-
-    if (decompressed > 0) {
-        LOGI("ResourceMgr: Decompressed %u bytes for ROM offset %08X (segment '%s')",
-             decompressed, romOffset, seg ? seg->name.c_str() : "?");
-        sched_yield();
-        return;
-    }
-
-    // No compression recognized — raw data copy.
-    memcpy(dramAddr, gN64_ROM_Base + romOffset, size);
     sched_yield();
 }
 
