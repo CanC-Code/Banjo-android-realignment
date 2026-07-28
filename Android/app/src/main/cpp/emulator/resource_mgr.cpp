@@ -48,8 +48,11 @@ struct SegmentRecord {
 
 static std::vector<SegmentRecord> g_segments;
 
-// Define global ROM base pointer instance referenced across modules
-uint8_t* gN64_ROM_Base = nullptr;
+// FIXED: Use extern to reference the single authoritative gN64_ROM_Base
+// defined in lowlevel_bridge.cpp. The --allow-multiple-definition flag
+// previously let each TU define its own, causing isGenuineRom checks
+// to fail because g_romSize was set in one copy but read from another.
+extern uint8_t* gN64_ROM_Base;
 static size_t g_romSize = 0;
 
 extern "C" void BKA_SignalResourcesReady(void);
@@ -340,6 +343,8 @@ void ResourceMgr_Init(const char* assetDir) {
     }
 
     // --- Load ROM into gN64_ROM_Base ---
+    // FIXED: gN64_ROM_Base is now declared extern and owned by lowlevel_bridge.cpp.
+    // We only set g_romSize here for use by ResourceMgr_HandleDma's isGenuineRom check.
     FILE* f = fopen(romPath, "rb");
     if (!f) {
         LOGE("ResourceMgr: FATAL ERROR - System fallback dependency file missing. Path: %s", romPath);
@@ -359,18 +364,20 @@ void ResourceMgr_Init(const char* assetDir) {
         return;
     }
 
+    // FIXED: Don't allocate gN64_ROM_Base here - it's owned by lowlevel_bridge.cpp
+    // via mmap. If it's already set (by InitN64Registers), use it. If not,
+    // we must still populate it for decompression to work during DMA.
     if (gN64_ROM_Base == nullptr) {
-        LOGI("ResourceMgr: Pointer is null. Allocating independent buffer block of %zu bytes.", g_romSize);
+        LOGI("ResourceMgr: gN64_ROM_Base not yet allocated by InitN64Registers. Allocating fallback buffer of %zu bytes.", g_romSize);
         gN64_ROM_Base = static_cast<uint8_t*>(malloc(g_romSize));
+        if (!gN64_ROM_Base) {
+            LOGE("ResourceMgr: FATAL ERROR - Memory pointer verification failed. Cannot parse ROM stream.");
+            fclose(f);
+            CleanupDecompressionBuffers();
+            return;
+        }
     } else {
-        LOGI("ResourceMgr: Pointer pre-allocated by engine core at %p. Safely retaining structure layout.", gN64_ROM_Base);
-    }
-
-    if (!gN64_ROM_Base) {
-        LOGE("ResourceMgr: FATAL ERROR - Memory pointer verification failed. Cannot parse ROM stream.");
-        fclose(f);
-        CleanupDecompressionBuffers();
-        return;
+        LOGI("ResourceMgr: Using pre-allocated gN64_ROM_Base at %p (from InitN64Registers).", gN64_ROM_Base);
     }
 
     LOGI("ResourceMgr: Streaming binary database targets into virtual memory locations...");
@@ -402,6 +409,12 @@ void ResourceMgr_Init(const char* assetDir) {
  * Handles N64 DMA requests by isolating segmented structures from native host allocations using YAML configurations.
  */
 void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
+    // FIXED: Safety guard - if parameters are invalid, bail early
+    if (!dramAddr || size == 0) {
+        LOGE("ResourceMgr_HandleDma: Invalid parameters (dramAddr=%p, size=%u)", dramAddr, size);
+        return;
+    }
+
     char path[512];
     bool fileFound = false;
     FILE* f = nullptr;
@@ -430,53 +443,92 @@ void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
     }
 
     if (!fileFound) {
-        // STRICT SPECIFICATION FILTER:
-        // Genuine N64 ROM access maps under raw boundaries (< g_romSize) or targets the Cartridge segment (0x10000000)
-        bool isGenuineRom = (devAddr < g_romSize) || ((devAddr >> 24) == 0x10 && (relativeRomOffset + size) <= g_romSize);
+        // FIXED: isGenuineRom now uses devAddr (full N64 address) not relativeRomOffset.
+        // The PI DMA from func_80000450 passes devAddr = core1_rzip_ROM_START = 0x1050.
+        // For cartridge DMA, the N64 maps ROM at physical address range
+        // 0x10000000-0x1FFFFFFF, which gets masked to 0x0FFFFFFF for relative access.
+        // We accept BOTH: direct offsets into the file AND cartridge-space addresses.
+        bool isCartridgeRom = ((devAddr >> 24) == 0x10);
+        bool isRawOffset = (devAddr < g_romSize) || (relativeRomOffset < g_romSize);
+        bool isGenuineRom = isRawOffset || (isCartridgeRom && (relativeRomOffset + size) <= g_romSize);
 
+        // FIXED: Also accept direct host pointer dramAddr as a valid target
+        // when the ROM offset is valid. The dramAddr is the host buffer where
+        // data should be written.
         if (isGenuineRom && gN64_ROM_Base != nullptr) {
-            // Try decompression first.
-            const SegmentRecord* seg = findSegmentForOffset(relativeRomOffset);
-            uint32_t availableSrcBytes = seg
-                ? (seg->end - relativeRomOffset)
-                : static_cast<uint32_t>(g_romSize - relativeRomOffset);
+            uint32_t srcOffset = isCartridgeRom ? relativeRomOffset : devAddr;
 
+            // Clamp source offset to valid ROM range
+            if (srcOffset >= g_romSize) {
+                LOGE("ResourceMgr_HandleDma: ROM offset 0x%X exceeds g_romSize 0x%zX", srcOffset, g_romSize);
+                sched_yield();
+                return;
+            }
+
+            uint32_t availableSrcBytes = static_cast<uint32_t>(g_romSize - srcOffset);
+            if (size > availableSrcBytes) {
+                LOGW("ResourceMgr_HandleDma: Clamping DMA size from %u to %u (ROM boundary)", size, availableSrcBytes);
+                size = availableSrcBytes;
+            }
+
+            // Try decompression first.
+            const SegmentRecord* seg = findSegmentForOffset(srcOffset);
             uint32_t decompressed = decompress_rare_to_offset(
-                    gN64_ROM_Base + relativeRomOffset,
-                    availableSrcBytes,
+                    gN64_ROM_Base + srcOffset,
+                    size,
                     static_cast<uint8_t*>(dramAddr),
                     0,
                     size);
 
             if (decompressed > 0) {
                 LOGI("ResourceMgr: Decompressed %u bytes for ROM offset %08X (segment '%s')",
-                     decompressed, relativeRomOffset, seg ? seg->name.c_str() : "?");
+                     decompressed, srcOffset, seg ? seg->name.c_str() : "?");
                 sched_yield();
                 return;
             }
 
             // No recognized compression magic at this offset -- genuinely
             // raw/uncompressed data, copy it straight through.
-            memcpy(dramAddr, gN64_ROM_Base + relativeRomOffset, size);
+            memcpy(dramAddr, gN64_ROM_Base + srcOffset, size);
         } else {
-            // TRUNCATED 64-BIT HOST POINTER HEALING
-            uintptr_t dramContext = reinterpret_cast<uintptr_t>(dramAddr);
-            uint64_t upper32BitsSign = dramContext & 0xFFFFFFFF00000000ULL;
-            uintptr_t reconstructedHostPointer = upper32BitsSign | devAddr;
+            // FIXED: This path should only be reached for genuine host-pointer-to-host-pointer
+            // DMA scenarios (e.g., RDRAM-to-RDRAM copies). For ROM DMA, we should never
+            // reach here if g_romSize and gN64_ROM_Base are properly set.
+            // Log a warning so we can diagnose unexpected DMA patterns.
+            LOGW("ResourceMgr_HandleDma: Non-ROM DMA path - devAddr=0x%08X dramAddr=%p size=%u (isGenuineRom=%d, gN64_ROM_Base=%p, g_romSize=0x%zX)",
+                 devAddr, dramAddr, size, isGenuineRom, (void*)gN64_ROM_Base, g_romSize);
 
-            uintptr_t* potentialNestedPtr = reinterpret_cast<uintptr_t*>(reconstructedHostPointer);
+            // FIXED: Only attempt the pointer healing if both addresses look like
+            // valid host pointers (high bits set, typical userspace range).
+            uintptr_t dramVal = reinterpret_cast<uintptr_t>(dramAddr);
+            uintptr_t devVal = static_cast<uintptr_t>(devAddr);
 
-            if (potentialNestedPtr && ((reconstructedHostPointer & 0x7) == 0)) {
-                uintptr_t nestedVal = *potentialNestedPtr;
+            // If dramAddr looks like a valid host pointer (top 16 bits non-zero)
+            // and devAddr looks like a 32-bit N64 address, this is a ROM DMA
+            // that we failed to handle above. Don't try to interpret devAddr
+            // as a host pointer - just zero the destination and warn.
+            bool dramIsHostPtr = (dramVal >> 48) != 0;
+            bool devIsN64Addr = (devVal <= 0xFFFFFFFFULL);
 
-                if ((nestedVal >> 32) == (reconstructedHostPointer >> 32)) {
-                    LOGW("ResourceMgr: Unwrapping nested descriptor layer reference %p -> %p",
-                         (void*)reconstructedHostPointer, (void*)nestedVal);
-                    reconstructedHostPointer = nestedVal;
+            if (dramIsHostPtr && devIsN64Addr) {
+                // This is a ROM→RDRAM DMA that our isGenuineRom check missed.
+                // Zero the destination to prevent garbage data.
+                LOGE("ResourceMgr_HandleDma: UNHANDLED ROM DMA - devAddr=0x%08X not in ROM bounds! Zeroing %u bytes at %p.",
+                     devAddr, size, dramAddr);
+                memset(dramAddr, 0, size);
+            } else {
+                // Genuine host-pointer-to-host-pointer DMA
+                uintptr_t reconstructedHostPointer = (dramVal & 0xFFFFFFFF00000000ULL) | (devVal & 0xFFFFFFFFULL);
+
+                // Validate the reconstructed pointer looks reasonable
+                if (reconstructedHostPointer > 0x100000000000ULL && reconstructedHostPointer < 0x7FFFFFFFFFFFULL) {
+                    memcpy(dramAddr, reinterpret_cast<void*>(reconstructedHostPointer), size);
+                } else {
+                    LOGE("ResourceMgr_HandleDma: Invalid reconstructed pointer 0x%llX - zeroing destination.",
+                         (unsigned long long)reconstructedHostPointer);
+                    memset(dramAddr, 0, size);
                 }
             }
-
-            memcpy(dramAddr, reinterpret_cast<void*>(reconstructedHostPointer), size);
         }
     }
 
