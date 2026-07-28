@@ -17,8 +17,16 @@
 
 #include <string.h>
 #include <stdint.h>
+#include <android/log.h>
+
+#define LOG_TAG "BKA_STUBS"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+#define LOGE(...) __android_log_print(ANDROID_LOG_ERROR, LOG_TAG, __VA_ARGS__)
 
 typedef uint32_t OSIntMask;
+
+// Forward declaration for RDRAM access
+extern uint8_t* gN64_RDRAM;
 
 // -----------------------------------------------------------------------
 // OS / Hardware — only stubs not covered by any other translation unit
@@ -65,10 +73,23 @@ void func_8026A2E0(void) {}
 // -----------------------------------------------------------------------
 // Missing global variables & decompiled addresses
 // -----------------------------------------------------------------------
+
+// CRITICAL FIX: D_8002D500 is the N64 game heap at RDRAM offset 0x002D500.
+// The heap is HEAP_SIZE bytes (~2.1MB). func_80000450 writes core1 compressed
+// ROM data here via osPiRawStartDma, then decompresses it in-place.
+// Previously this was "int D_8002D500 = 0" (4 bytes!) causing the DMA to
+// overflow into adjacent memory and crash in bkboot_inflate_unlocked.
+//
+// We allocate a dedicated backing buffer that matches the heap size.
+// The address resolver in src/done/rarezip.c (bka_resolve_ptr) handles
+// mapping N64 address 0x8002D500 to this buffer when RDRAM isn't used.
+#define BK_HEAP_SIZE 0x211120  // VER_SELECT: 0x210520 (v10) or 0x211120 (pal)
+static uint8_t g_heap_backing[BK_HEAP_SIZE] __attribute__((aligned(16)));
+int* const D_8002D500 = (int*)g_heap_backing;
+
 int   D_803FFE00  = 0;
 int   D_803FBE00  = 0;
 int   D_8000E800  = 0;
-int   D_8002D500  = 0;
 int   D_8023DA00  = 0;
 int   D_803FFE10  = 0;
 void* gFramebuffers[3] = {0, 0, 0};
