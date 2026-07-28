@@ -144,6 +144,17 @@ u32 func_80000594(u8 **inPtr, u8 **outPtr) {
     u8* p_in  = bka_resolve_ptr((uintptr_t)n64_in_addr);
     u8* p_out = bka_resolve_ptr((uintptr_t)n64_out_addr);
 
+    /* FIX: bka_resolve_ptr() returns NULL whenever the N64-side address it
+     * was given is 0 (uninitialized pointer field). Without this check,
+     * NULL silently flows into inbuf/D_80007284 in func_80000618, and the
+     * crash surfaces three frames deeper inside inflate_block's NEEDBITS
+     * macro instead of here where it's actually diagnosable. */
+    if (!p_in || !p_out) {
+        LOGE("func_80000594: unresolved buffer pointer (n64_in=0x%08X -> %p, n64_out=0x%08X -> %p) -- aborting decompress",
+             n64_in_addr, (void*)p_in, n64_out_addr, (void*)p_out);
+        return 0;
+    }
+
     u8* temp_in = p_in;
     u8* temp_out = p_out;
 
@@ -239,40 +250,40 @@ static u32 func_800005C0_locked(u8* in, u8* out, struct huft *arg2) {
    INFLATE IMPLEMENTATION (from inflate.c)
    ============================================================ */
 
-u8 border[] = {
+static u8 border[] = {
     16, 17, 18, 0, 8, 7, 9, 6, 10, 5, 11, 4, 12, 3, 13, 2, 14, 1, 15
 };
 
-u16 cplens[] = {
+static u16 cplens[] = {
     3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
     35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0
 };
 
-u8 cplext[] = {
+static u8 cplext[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2,
     3, 3, 3, 3, 4, 4, 4, 4, 5, 5, 5, 5, 0, 99, 99
 };
 
-u16 cpdist[] = {
+static u16 cpdist[] = {
     1, 2, 3, 4, 5, 7, 9, 13, 17, 25, 33, 49, 65, 97, 129, 193,
     257, 385, 513, 769, 1025, 1537, 2049, 3073, 4097, 6145,
     8193, 12289, 16385, 24577
 };
 
-u8 cpdext[] = {
+static u8 cpdext[] = {
     0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6,
     7, 7, 8, 8, 9, 9, 10, 10, 11, 11, 12, 12, 13, 13
 };
 
-u16 mask_bits[] = {
+static u16 mask_bits[] = {
     0x0000, 0x0001, 0x0003, 0x0007, 0x000f, 0x001f, 0x003f, 0x007f, 0x00ff,
     0x01ff, 0x03ff, 0x07ff, 0x0fff, 0x1fff, 0x3fff, 0x7fff, 0xffff
 };
 
-s32 lbits = 9;
-s32 dbits = 6;
+static s32 lbits = 9;
+static s32 dbits = 6;
 
-int huft_build(unsigned *b, unsigned n, unsigned s, u16 *d, u16 *e, struct huft **t, int *m) {
+static int huft_build(unsigned *b, unsigned n, unsigned s, u16 *d, u16 *e, struct huft **t, int *m) {
     unsigned a;
     unsigned c[BMAX+1];
     unsigned f;
@@ -408,7 +419,7 @@ int huft_build(unsigned *b, unsigned n, unsigned s, u16 *d, u16 *e, struct huft 
     return y != 0 && g != 1;
 }
 
-int inflate_codes(struct huft *tl, struct huft *td, s32 bl, s32 bd) {
+static int inflate_codes(struct huft *tl, struct huft *td, s32 bl, s32 bd) {
     register unsigned e;
     unsigned n, d;
     unsigned w;
@@ -480,7 +491,7 @@ int inflate_codes(struct huft *tl, struct huft *td, s32 bl, s32 bd) {
     return 0;
 }
 
-int inflate_stored(void) {
+static int inflate_stored(void) {
     unsigned n;
     unsigned w;
     register u32 b;
@@ -518,7 +529,7 @@ int inflate_stored(void) {
     return 0;
 }
 
-int inflate_fixed(void) {
+static int inflate_fixed(void) {
     int i;
     struct huft *tl;
     struct huft *td;
@@ -549,7 +560,7 @@ int inflate_fixed(void) {
     return inflate_codes(tl, td, bl, bd);
 }
 
-int inflate_dynamic(void) {
+static int inflate_dynamic(void) {
     int i;
     unsigned j;
     unsigned l;
@@ -646,7 +657,7 @@ int inflate_dynamic(void) {
     return inflate_codes(tl, td, bl, bd);
 }
 
-int inflate_block(int *e) {
+static int inflate_block(int *e) {
     u32 t;
     register u32 b;
     register unsigned k;
