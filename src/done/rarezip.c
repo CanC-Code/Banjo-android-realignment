@@ -116,7 +116,11 @@ static uint32_t bka_rare_lzss_decompress(const uint8_t* src, size_t src_len, uin
 u32 func_80000550(u8* arg0) {
     if (!arg0) return 0;
     u8* p_arg0 = bka_resolve_ptr((uintptr_t)arg0);
-    return *((u32*)(p_arg0 + 2));
+    
+    /* FIX: Decode big-endian 32-bit size safely for little-endian aarch64 
+     * without unaligned pointer casts */
+    return ((uint32_t)p_arg0[2] << 24) | ((uint32_t)p_arg0[3] << 16) | 
+           ((uint32_t)p_arg0[4] << 8)  | ((uint32_t)p_arg0[5]);
 }
 
 void func_8000055C(void) {
@@ -128,7 +132,34 @@ u32 func_80000570(u8 *inPtr, u8 *outPtr) {
 }
 
 u32 func_80000594(u8 **inPtr, u8 **outPtr) {
-    return func_80000618(inPtr, outPtr, D_80007270);
+    /* FIX: Resolve the locations storing the N64 pointers */
+    u32* p_inPtr_addr  = (u32*)bka_resolve_ptr((uintptr_t)inPtr);
+    u32* p_outPtr_addr = (u32*)bka_resolve_ptr((uintptr_t)outPtr);
+
+    if (!p_inPtr_addr || !p_outPtr_addr) return 0;
+
+    /* Read the actual 32-bit N64 memory addresses */
+    u32 n64_in_addr  = *p_inPtr_addr;
+    u32 n64_out_addr = *p_outPtr_addr;
+
+    /* Resolve buffer data locations to valid 64-bit Host pointers */
+    u8* p_in  = bka_resolve_ptr((uintptr_t)n64_in_addr);
+    u8* p_out = bka_resolve_ptr((uintptr_t)n64_out_addr);
+    
+    u8* temp_in = p_in;
+    u8* temp_out = p_out;
+
+    /* Securely lock the state and invoke the legacy inflater with host pointers */
+    pthread_mutex_lock(&g_decomp_mutex);
+    u32 result = func_80000618(&temp_in, &temp_out, D_80007270);
+    pthread_mutex_unlock(&g_decomp_mutex);
+
+    /* FIX: Safely calculate delta and write updated 32-bit N64 pointers back 
+     * to the emulated RDRAM space. */
+    *p_inPtr_addr  = n64_in_addr  + (u32)(temp_in - p_in);
+    *p_outPtr_addr = n64_out_addr + (u32)(temp_out - p_out);
+
+    return result;
 }
 
 void func_800005B8(void) {}
@@ -145,7 +176,6 @@ u32 func_800005C0(u8* in, u8* out, struct huft *arg2) {
 static u32 func_800005C0_locked(u8* in, u8* out, struct huft *arg2) {
     u8* p_in = bka_resolve_ptr((uintptr_t)in);
     u8* p_out = bka_resolve_ptr((uintptr_t)out);
-    u8* p_arg2 = bka_resolve_ptr((uintptr_t)arg2);
 
     /* Abort cleanly on invalid buffer pointers */
     if (!p_in || !p_out) {
@@ -173,106 +203,15 @@ static u32 func_800005C0_locked(u8* in, u8* out, struct huft *arg2) {
         if (dec_size == 0) { wp = 0; inptr = 0; return wp; }
         if (dec_size < 0x04000000) {
             size_t comp_avail = (p_in + 6 >= gN64_RDRAM && p_in + 6 < rdram_end) ? (size_t)(rdram_end - (p_in + 6)) : 0x4000000;
-            size_t out_cap = (p_out >= gN64_RDRAM && p_out < rdram_end) ? (size_t)(rdram_end - p_out) : 0x4000000;
-            if (out_cap > dec_size) out_cap = dec_size;
-
+            size_t out_cap = (p_out >= gN64_RDRAM && p_out < rdram_end) ? (size_t)(rdram_end - p_out) : dec_size;
+            
             wp = bka_rare_lzss_decompress(p_in + 6, comp_avail, p_out, out_cap);
-            inptr = 0;
             return wp;
         }
     }
 
-    /* PATH B: Rare Deflate Format (0x11 0x72 / 0x11 0x73) */
-    else if (magic0 == 0x11 && (magic1 == 0x72 || magic1 == 0x73)) {
-        if (dec_size == 0) { wp = 0; inptr = 0; return wp; }
-        if (dec_size < 0x04000000) {
-            size_t comp_avail = (p_in + 6 >= gN64_RDRAM && p_in + 6 < rdram_end) ? (size_t)(rdram_end - (p_in + 6)) : 0x4000000;
-            size_t out_cap = (p_out >= gN64_RDRAM && p_out < rdram_end) ? (size_t)(rdram_end - p_out) : 0x4000000;
-            if (out_cap > dec_size) out_cap = dec_size;
-
-            z_stream zs;
-            memset(&zs, 0, sizeof(zs));
-            zs.next_in = (Bytef*)(p_in + 6);
-            zs.avail_in = (uInt)comp_avail;
-            zs.next_out = (Bytef*)p_out;
-            zs.avail_out = (uInt)out_cap;
-            if (inflateInit2(&zs, -15) == Z_OK) {
-                inflate(&zs, Z_FINISH);
-                inflateEnd(&zs);
-            }
-            wp = (u32)zs.total_out;
-            inptr = 0;
-            return wp;
-        }
-    }
-
-    /* PATH C: Standard GZIP Payload (0x1F 0x8B) */
-    else if (magic0 == 0x1F && magic1 == 0x8B) {
-        size_t comp_avail = (p_in + 2 >= gN64_RDRAM && p_in + 2 < rdram_end) ? (size_t)(rdram_end - (p_in + 2)) : 0x4000000;
-        size_t out_cap = (p_out >= gN64_RDRAM && p_out < rdram_end) ? (size_t)(rdram_end - p_out) : 0x4000000;
-
-        z_stream zs;
-        memset(&zs, 0, sizeof(zs));
-        zs.next_in = (Bytef*)(p_in + 2);
-        zs.avail_in = (uInt)comp_avail;
-        zs.next_out = (Bytef*)p_out;
-        zs.avail_out = (uInt)out_cap;
-        if (inflateInit2(&zs, 15 + 32) == Z_OK) {
-            inflate(&zs, Z_FINISH);
-            inflateEnd(&zs);
-        }
-        wp = (u32)zs.total_out;
-        inptr = 0;
-        return wp;
-    }
-
-    /* PATH D: Fallback to Legacy Inflate Core with Full Validation */
-    if (!p_arg2) {
-        p_arg2 = bka_resolve_ptr((uintptr_t)D_80007270);
-    }
-
-    if (p_arg2 != NULL) {
-        size_t out_cap = (p_out >= gN64_RDRAM && p_out < rdram_end)
-                          ? (size_t)(rdram_end - p_out)
-                          : 0x4000000;
-
-        inbuf = p_in + 6;
-        D_80007284 = p_out;
-        D_80007290 = (struct huft*)p_arg2;
-        g_decomp_out_cap = (u32)out_cap;
-        wp = 0;
-        inptr = 0;
-        bkboot_inflate();
-        return wp;
-    }
-
-    /* Safe default return if no viable decompression strategy exists */
-    wp = 0;
-    inptr = 0;
-    return wp;
-}
-
-u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2) {
-    if (!inPtr || !*inPtr || !outPtr || !*outPtr) return 0;
-
-    /* FIX: Must lock *before* modifying inPtr and outPtr to prevent a race
-     * condition where another thread overwrites wp or inptr between the 
-     * end of the decompression and the pointer arithmetic below. */
-    pthread_mutex_lock(&g_decomp_mutex);
-
-    u32 size = func_800005C0_locked(*inPtr, *outPtr, arg2);
-    
-    *outPtr += wp;
-
-    /* Maintain 16-byte structure alignment */
-    uintptr_t out_addr = (uintptr_t)(*outPtr);
-    if (out_addr & 0xF) {
-        out_addr = (out_addr & ~0xF) + 0x10;
-        *outPtr = (u8*)out_addr;
-    }
-
-    *inPtr += inptr + 6;
-
-    pthread_mutex_unlock(&g_decomp_mutex);
-    return size;
+    /* PATH B: Standard GZIP/Deflate Format (1172 structure fallback) */
+    u8* temp_in = p_in;
+    u8* temp_out = p_out;
+    return func_80000618(&temp_in, &temp_out, arg2);
 }
