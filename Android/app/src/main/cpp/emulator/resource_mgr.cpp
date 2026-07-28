@@ -364,9 +364,12 @@ void ResourceMgr_Init(const char* assetDir) {
         return;
     }
 
-    // FIXED: Don't allocate gN64_ROM_Base here - it's owned by lowlevel_bridge.cpp
-    // via mmap. If it's already set (by InitN64Registers), use it. If not,
-    // we must still populate it for decompression to work during DMA.
+    // FIXED: gN64_ROM_Base is owned by lowlevel_bridge.cpp via mmap.
+    // ResourceMgr_Init runs BEFORE InitN64Registers, so gN64_ROM_Base is
+    // typically null here. We must allocate a fallback buffer to load the
+    // ROM into, otherwise ResourceMgr_HandleDma has no data to DMA from.
+    // When InitN64Registers runs later, it will also load rom_base.bin into
+    // the mmap'd cartridge space, but HandleDma uses this gN64_ROM_Base pointer.
     if (gN64_ROM_Base == nullptr) {
         LOGI("ResourceMgr: gN64_ROM_Base not yet allocated by InitN64Registers. Allocating fallback buffer of %zu bytes.", g_romSize);
         gN64_ROM_Base = static_cast<uint8_t*>(malloc(g_romSize));
@@ -406,132 +409,110 @@ void ResourceMgr_Init(const char* assetDir) {
 }
 
 /**
- * Handles N64 DMA requests by isolating segmented structures from native host allocations using YAML configurations.
+ * Handles N64 DMA requests by copying data from ROM into the destination buffer.
+ *
+ * This is called primarily from osPiRawStartDma (pi_hle.cpp) which is invoked
+ * by func_80000450 to load compressed core1 code from ROM into the heap
+ * (D_8002D500) for decompression.
+ *
+ * devAddr may be:
+ *   - A direct ROM offset (e.g., 0x00001050 for core1_rzip_ROM_START)
+ *   - An N64 cartridge address (0x10000000-0x1FFFFFFF, masked to 0x0FFFFFFF)
+ *   - A host pointer for non-ROM DMA (RDRAM-to-RDRAM copies)
+ *
+ * dramAddr is always a host pointer to the destination buffer.
  */
 void ResourceMgr_HandleDma(void* dramAddr, uint32_t devAddr, uint32_t size) {
-    // FIXED: Safety guard - if parameters are invalid, bail early
     if (!dramAddr || size == 0) {
         LOGE("ResourceMgr_HandleDma: Invalid parameters (dramAddr=%p, size=%u)", dramAddr, size);
         return;
     }
 
     char path[512];
-    bool fileFound = false;
-    FILE* f = nullptr;
-
-    // Isolate clean 28-bit relative offset mapping layers for tracking extraction files
     uint32_t relativeRomOffset = devAddr & 0x0FFFFFFF;
 
+    // --- PATH 1: Try pre-extracted asset file ---
     snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), relativeRomOffset);
-    f = fopen(path, "rb");
-
+    FILE* f = fopen(path, "rb");
     if (!f) {
         snprintf(path, sizeof(path), "%sasset_%08X.bin", g_assetDir.c_str(), devAddr);
         f = fopen(path, "rb");
     }
 
     if (f) {
-        // Pre-extracted asset files are already decompressed by the
-        // extraction tool -- use them as-is.
         size_t bytesRead = fread(dramAddr, 1, size, f);
         fclose(f);
-
         if (bytesRead < size) {
             memset(static_cast<uint8_t*>(dramAddr) + bytesRead, 0, size - bytesRead);
         }
-        fileFound = true;
+        sched_yield();
+        return;
     }
 
-    if (!fileFound) {
-        // FIXED: isGenuineRom now uses devAddr (full N64 address) not relativeRomOffset.
-        // The PI DMA from func_80000450 passes devAddr = core1_rzip_ROM_START = 0x1050.
-        // For cartridge DMA, the N64 maps ROM at physical address range
-        // 0x10000000-0x1FFFFFFF, which gets masked to 0x0FFFFFFF for relative access.
-        // We accept BOTH: direct offsets into the file AND cartridge-space addresses.
-        bool isCartridgeRom = ((devAddr >> 24) == 0x10);
-        bool isRawOffset = (devAddr < g_romSize) || (relativeRomOffset < g_romSize);
-        bool isGenuineRom = isRawOffset || (isCartridgeRom && (relativeRomOffset + size) <= g_romSize);
-
-        // FIXED: Also accept direct host pointer dramAddr as a valid target
-        // when the ROM offset is valid. The dramAddr is the host buffer where
-        // data should be written.
-        if (isGenuineRom && gN64_ROM_Base != nullptr) {
-            uint32_t srcOffset = isCartridgeRom ? relativeRomOffset : devAddr;
-
-            // Clamp source offset to valid ROM range
-            if (srcOffset >= g_romSize) {
-                LOGE("ResourceMgr_HandleDma: ROM offset 0x%X exceeds g_romSize 0x%zX", srcOffset, g_romSize);
-                sched_yield();
-                return;
-            }
-
-            uint32_t availableSrcBytes = static_cast<uint32_t>(g_romSize - srcOffset);
-            if (size > availableSrcBytes) {
-                LOGW("ResourceMgr_HandleDma: Clamping DMA size from %u to %u (ROM boundary)", size, availableSrcBytes);
-                size = availableSrcBytes;
-            }
-
-            // Try decompression first.
-            const SegmentRecord* seg = findSegmentForOffset(srcOffset);
-            uint32_t decompressed = decompress_rare_to_offset(
-                    gN64_ROM_Base + srcOffset,
-                    size,
-                    static_cast<uint8_t*>(dramAddr),
-                    0,
-                    size);
-
-            if (decompressed > 0) {
-                LOGI("ResourceMgr: Decompressed %u bytes for ROM offset %08X (segment '%s')",
-                     decompressed, srcOffset, seg ? seg->name.c_str() : "?");
-                sched_yield();
-                return;
-            }
-
-            // No recognized compression magic at this offset -- genuinely
-            // raw/uncompressed data, copy it straight through.
-            memcpy(dramAddr, gN64_ROM_Base + srcOffset, size);
-        } else {
-            // FIXED: This path should only be reached for genuine host-pointer-to-host-pointer
-            // DMA scenarios (e.g., RDRAM-to-RDRAM copies). For ROM DMA, we should never
-            // reach here if g_romSize and gN64_ROM_Base are properly set.
-            // Log a warning so we can diagnose unexpected DMA patterns.
-            LOGW("ResourceMgr_HandleDma: Non-ROM DMA path - devAddr=0x%08X dramAddr=%p size=%u (isGenuineRom=%d, gN64_ROM_Base=%p, g_romSize=0x%zX)",
-                 devAddr, dramAddr, size, isGenuineRom, (void*)gN64_ROM_Base, g_romSize);
-
-            // FIXED: Only attempt the pointer healing if both addresses look like
-            // valid host pointers (high bits set, typical userspace range).
-            uintptr_t dramVal = reinterpret_cast<uintptr_t>(dramAddr);
-            uintptr_t devVal = static_cast<uintptr_t>(devAddr);
-
-            // If dramAddr looks like a valid host pointer (top 16 bits non-zero)
-            // and devAddr looks like a 32-bit N64 address, this is a ROM DMA
-            // that we failed to handle above. Don't try to interpret devAddr
-            // as a host pointer - just zero the destination and warn.
-            bool dramIsHostPtr = (dramVal >> 48) != 0;
-            bool devIsN64Addr = (devVal <= 0xFFFFFFFFULL);
-
-            if (dramIsHostPtr && devIsN64Addr) {
-                // This is a ROM→RDRAM DMA that our isGenuineRom check missed.
-                // Zero the destination to prevent garbage data.
-                LOGE("ResourceMgr_HandleDma: UNHANDLED ROM DMA - devAddr=0x%08X not in ROM bounds! Zeroing %u bytes at %p.",
-                     devAddr, size, dramAddr);
-                memset(dramAddr, 0, size);
-            } else {
-                // Genuine host-pointer-to-host-pointer DMA
-                uintptr_t reconstructedHostPointer = (dramVal & 0xFFFFFFFF00000000ULL) | (devVal & 0xFFFFFFFFULL);
-
-                // Validate the reconstructed pointer looks reasonable
-                if (reconstructedHostPointer > 0x100000000000ULL && reconstructedHostPointer < 0x7FFFFFFFFFFFULL) {
-                    memcpy(dramAddr, reinterpret_cast<void*>(reconstructedHostPointer), size);
-                } else {
-                    LOGE("ResourceMgr_HandleDma: Invalid reconstructed pointer 0x%llX - zeroing destination.",
-                         (unsigned long long)reconstructedHostPointer);
-                    memset(dramAddr, 0, size);
-                }
-            }
-        }
+    // --- PATH 2: ROM DMA ---
+    // Resolve the ROM offset from the N64 device address.
+    // N64 cartridge addresses: 0x10000000-0x1FFFFFFF -> ROM offset 0x00000000-0x0FFFFFFF
+    // Direct offsets (0x00000000-0x0FFFFFFF) are also valid.
+    uint32_t romOffset;
+    if ((devAddr >> 24) == 0x10) {
+        romOffset = relativeRomOffset;  // Cartridge address space
+    } else if (devAddr < g_romSize) {
+        romOffset = devAddr;            // Direct ROM offset
+    } else if (relativeRomOffset < g_romSize) {
+        romOffset = relativeRomOffset;  // Masked ROM offset
+    } else {
+        // Not a valid ROM address. Zero the destination and warn.
+        LOGW("ResourceMgr_HandleDma: Non-ROM DMA - devAddr=0x%08X dramAddr=%p size=%u. Zeroing destination.",
+             devAddr, dramAddr, size);
+        memset(dramAddr, 0, size);
+        sched_yield();
+        return;
     }
 
+    // Validate ROM offset is in bounds
+    if (romOffset >= g_romSize) {
+        LOGE("ResourceMgr_HandleDma: ROM offset 0x%X exceeds g_romSize 0x%zX. Zeroing %u bytes.",
+             romOffset, g_romSize, size);
+        memset(dramAddr, 0, size);
+        sched_yield();
+        return;
+    }
+
+    // Clamp size to ROM bounds
+    uint32_t availableBytes = static_cast<uint32_t>(g_romSize - romOffset);
+    if (size > availableBytes) {
+        LOGW("ResourceMgr_HandleDma: Clamping DMA size from %u to %u (ROM boundary at offset 0x%X)",
+             size, availableBytes, romOffset);
+        size = availableBytes;
+    }
+
+    // gN64_ROM_Base must be populated by now (ResourceMgr_Init loaded rom_base.bin)
+    if (!gN64_ROM_Base) {
+        LOGE("ResourceMgr_HandleDma: gN64_ROM_Base is null! Cannot service ROM DMA. Zeroing %u bytes.", size);
+        memset(dramAddr, 0, size);
+        sched_yield();
+        return;
+    }
+
+    // Try Rare compression decompression first.
+    // The boot segment at 0x1050 is compressed with the 0x1172 format.
+    const SegmentRecord* seg = findSegmentForOffset(romOffset);
+    uint32_t decompressed = decompress_rare_to_offset(
+            gN64_ROM_Base + romOffset,
+            size,
+            static_cast<uint8_t*>(dramAddr),
+            0,
+            size);
+
+    if (decompressed > 0) {
+        LOGI("ResourceMgr: Decompressed %u bytes for ROM offset %08X (segment '%s')",
+             decompressed, romOffset, seg ? seg->name.c_str() : "?");
+        sched_yield();
+        return;
+    }
+
+    // No compression recognized — raw data copy.
+    memcpy(dramAddr, gN64_ROM_Base + romOffset, size);
     sched_yield();
 }
 
