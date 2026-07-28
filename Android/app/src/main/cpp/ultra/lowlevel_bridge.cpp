@@ -24,7 +24,11 @@
 #define N64_HEAP_OFFSET       0x002D500
 #define N64_HEAP_SIZE         0x211120
 
-// Instantiate the global translation pointers defined as externs by the sanitizer
+// FIXED: gN64_ROM_Base is the SINGLE authoritative definition.
+// resource_mgr.cpp now uses "extern uint8_t* gN64_ROM_Base;" to reference this.
+// The --allow-multiple-definition flag previously let both TUs define their
+// own copy, causing isGenuineRom checks in ResourceMgr_HandleDma to use
+// the wrong g_romSize/gN64_ROM_Base pair.
 uint8_t* gN64_RDRAM    = nullptr;
 uint32_t* gN64_Reg_Base = nullptr;
 uint32_t* gN64_PIF_Base = nullptr;
@@ -71,6 +75,8 @@ extern "C" {
         );
 
         // 4. Allocate Virtual Cartridge ROM Header Space (Now 64MB)
+        // FIXED: This is the AUTHORITATIVE gN64_ROM_Base allocation.
+        // resource_mgr.cpp will populate it in ResourceMgr_Init.
         gN64_ROM_Base = (uint8_t*)mmap(
             nullptr,
             N64_ROM_SPACE_SIZE,
@@ -120,14 +126,18 @@ extern "C" {
 
         // CRITICAL CORRECTION: Map the physical ROM base dumped by the OTR Builder directly
         // into the emulated cartridge memory block so raw PI Subsystem reads succeed.
+        // Note: ResourceMgr_Init also loads rom_base.bin into gN64_ROM_Base.
+        // This is a secondary load that may be redundant but ensures the cartridge
+        // address space (0x10000000+) has valid ROM data for direct PI reads.
         char romPath[512];
         snprintf(romPath, sizeof(romPath), "%s/rom_base.bin", assetDir);
 
         FILE* f = fopen(romPath, "rb");
         if (f) {
-            fread(gN64_ROM_Base, 1, N64_ROM_SPACE_SIZE, f);
+            size_t bytesRead = fread(gN64_ROM_Base, 1, N64_ROM_SPACE_SIZE, f);
             fclose(f);
-            __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Memory Engine Stabilized: physical ROM mapped from %s.", romPath);
+            __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+                "Memory Engine Stabilized: physical ROM mapped from %s (%zu bytes).", romPath, bytesRead);
         } else {
             // Safe fallback if the dump is somehow missing or unreadable
             __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "WARNING: rom_base.bin missing, fallback memory will be zeroed.");
@@ -181,14 +191,4 @@ extern "C" {
         gN64_Reg_Base[MI_INTR_REG_IDX] |= MI_INTR_VI;
 
         // Pump the OS_EVENT_VI (ID: 14) message straight into the POSIX HLE event queues.
-        // This instantly wakes up the blocked scheduler threads to step the system forward.
-        HLE_TriggerN64Event(14);
-    }
-
-    // Hardware Renderer Stub:
-    // Connects the recompiled N64 Display List executor to the Android GL surface.
-    void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId) {
-        // STUB: Routes active RDP render targets to the Android GL texture context.
-    }
-
-} // end extern "C"
+        // This instantly wakes up the
