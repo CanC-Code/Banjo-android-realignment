@@ -7,7 +7,7 @@
 
 #define INIT_THREAD_STACK_SIZE 0x200
 
-u8 sInitThreadStack[INIT_THREAD_STACK_SIZE]; // Size based on the previous symbol's address
+u8 sInitThreadStack[INIT_THREAD_STACK_SIZE];
 OSThread sInitThread;
 
 void initThread_entry(void *arg);
@@ -21,11 +21,9 @@ void piMgr_init(void);
 void mainThread_create(void);
 OSThread *mainThread_get(void);
 
-// Bridge functions to release/acquire the global interpreter lock.
-extern "C" {
-    void BKA_DropEngineLock(void);
-    void BKA_ClaimEngineLock(void);
-}
+// These are defined in emulator/stubs.cpp with extern "C" linkage
+void BKA_DropEngineLock(void);
+void BKA_ClaimEngineLock(void);
 
 void initThread_entry(void *arg) {
     piMgr_init();
@@ -33,8 +31,8 @@ void initThread_entry(void *arg) {
     osStartThread(mainThread_get());
 
     // FIXED: The original N64 idle loop was "while (1);" which is safe on
-    // cooperative non-preemptive hardware.  On Android, this loop runs inside
-    // a POSIX thread that holds the s_n64_gil mutex.  Holding the GIL
+    // cooperative non-preemptive hardware. On Android, this loop runs inside
+    // a POSIX thread that holds the s_n64_gil mutex. Holding the GIL
     // forever prevents the main game thread (and every other N64 thread)
     // from ever acquiring it, causing a permanent deadlock and ANR.
     //
