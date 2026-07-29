@@ -45,7 +45,12 @@ void func_80000450(s32 arg0){
     // DMA: copy compressed core1 code from ROM offset 0x1050 into the D_8002D500 heap buffer.
     // ResourceMgr_HandleDma reads from rom_base.bin at the given offset.
     osPiRawStartDma(OS_READ, (u32)CORE1_RZIP_ROM_START, tmp, CORE1_RZIP_SIZE);
-    while(osPiGetStatus() & PI_STATUS_DMA_BUSY);
+
+    // FIXED: The DMA completes synchronously in our HLE implementation
+    // (osPiRawStartDma calls ResourceMgr_HandleDma which reads the file
+    // and copies data before returning). The original N64 poll loop is
+    // unnecessary and can spin forever if osPiGetStatus() returns garbage.
+    // while(osPiGetStatus() & PI_STATUS_DMA_BUSY);
 
     func_8000055C();
 
