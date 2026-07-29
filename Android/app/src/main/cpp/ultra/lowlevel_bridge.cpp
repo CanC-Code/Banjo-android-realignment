@@ -29,6 +29,12 @@
 #define MI_INTR_REG_IDX       (0x00300008 / 4)
 #define MI_INTR_VI            0x08
 
+// N64 VI register indices (physical addresses 0x04400000-0x04400038 mapped into gN64_Reg_Base)
+// gN64_Reg_Base starts at physical address 0x04000000, so VI registers are at offset 0x00400000.
+#define VI_ORIGIN_REG_IDX     (0x00400000 / 4)  // VI_ORIGIN_REG   @ 0x04400000
+#define VI_WIDTH_REG_IDX      (0x00400004 / 4)  // VI_WIDTH_REG    @ 0x04400004
+#define VI_V_START_REG_IDX    (0x0040001C / 4)  // VI_V_START_REG  @ 0x0440001C (vertical start = height)
+
 // N64 heap base offset within RDRAM (used by D_8002D500)
 #define N64_HEAP_OFFSET       0x002D500
 #define N64_HEAP_SIZE         0x211120
@@ -49,8 +55,10 @@ extern "C" {
     void HLE_TriggerN64Event(int event_id);
 
     // External framebuffer pointers from the game code.
-    // These hold N64 addresses (e.g., 0x80100000) that must be resolved
-    // to host pointers within gN64_RDRAM.
+    // NOTE: These stay 0 (null) in our port because the N64 VI hardware would
+    // normally write the framebuffer address to *framep during vblank.
+    // Since we HLE the VI, we read the framebuffer address directly from
+    // the VI_ORIGIN_REG register instead.
     extern void* gFramebuffers[3];
     extern s32 gFramebufferWidth;
     extern s32 gFramebufferHeight;
@@ -220,65 +228,40 @@ extern "C" {
     // Copies the N64 framebuffer from RDRAM to the Android GL texture for display.
     // Called from updateTexture on the GL render thread while the engine lock is held.
     void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId) {
-        // Diagnostic: log the first 5 calls to see framebuffer state
-        static int callCount = 0;
-        if (++callCount <= 5) {
-            __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
-                "VideoPlugin: call=%d fb0=%p fb1=%p w=%d h=%d",
-                callCount, gFramebuffers[0], gFramebuffers[1],
-                gFramebufferWidth, gFramebufferHeight);
-        }
+        if (!gN64_RDRAM || !gN64_Reg_Base || hostTextureId == 0) return;
 
-        if (!gN64_RDRAM || hostTextureId == 0) return;
+        // FIXED: gFramebuffers[] stays null in our port because the N64 VI
+        // hardware normally writes the framebuffer address to *framep during
+        // vblank. Since we HLE the VI, we read the framebuffer address
+        // directly from the VI_ORIGIN_REG register, which is set by
+        // __osViSwapContext via IO_WRITE(VI_ORIGIN_REG, origin).
+        uint32_t fbPhysAddr = gN64_Reg_Base[VI_ORIGIN_REG_IDX];
+        if (fbPhysAddr == 0) return;  // Framebuffer not configured yet
 
-        // gFramebuffers[] holds N64 addresses (KSEG0 like 0x80100000), not host
-        // pointers. We must resolve them to actual RDRAM host addresses.
-        uintptr_t fbAddr = (uintptr_t)gFramebuffers[0];
-        if (!fbAddr) {
-            fbAddr = (uintptr_t)gFramebuffers[1];
-            if (!fbAddr) return;
-        }
+        // Convert physical RDRAM address to host pointer.
+        // Physical addresses are in the range 0x00000000-0x007FFFFF (8MB).
+        uint8_t* fbBase = gN64_RDRAM + (fbPhysAddr & 0x007FFFFFu);
 
-        uint8_t* fbBase = nullptr;
-        // Case 1: N64 KSEG0 (0x80000000-0x80800000) -> RDRAM + offset
-        if (fbAddr >= 0x80000000u && fbAddr < 0x80800000u) {
-            fbBase = gN64_RDRAM + (fbAddr & 0x00FFFFFFu);
-        }
-        // Case 2: N64 KSEG1 (0xA0000000-0xA0800000) -> RDRAM + offset
-        else if (fbAddr >= 0xA0000000u && fbAddr < 0xA0800000u) {
-            fbBase = gN64_RDRAM + (fbAddr & 0x00FFFFFFu);
-        }
-        // Case 3: Already a 64-bit host pointer (e.g., > 0xFFFFFFFF)
-        else if (fbAddr > 0xFFFFFFFFull) {
-            fbBase = (uint8_t*)fbAddr;
-        }
-        // Case 4: Physical RDRAM offset (< 0x80000000)
-        else if (fbAddr < 0x80000000u) {
-            fbBase = gN64_RDRAM + (fbAddr & 0x00FFFFFFu);
-        }
-        // Unrecognized address
-        else {
-            return;
-        }
+        // Validate the pointer is within RDRAM
+        if (fbBase < gN64_RDRAM || fbBase >= gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) return;
 
-        // Validate that the resolved pointer lies within RDRAM
-        if (!fbBase || fbBase < gN64_RDRAM || fbBase >= gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) {
-            return;
-        }
+        // Read framebuffer dimensions from VI registers.
+        // VI_WIDTH_REG holds the horizontal resolution in pixels.
+        // VI_V_START_REG holds (vertical start << 16) | (vertical end).
+        // Height = (vStart - vEnd) / 2 for interlaced, or just the difference.
+        uint32_t viWidth  = gN64_Reg_Base[VI_WIDTH_REG_IDX];
+        uint32_t viVStart = gN64_Reg_Base[VI_V_START_REG_IDX];
+        s32 fbWidth  = (s32)(viWidth & 0x00000FFFu);  // typically 320
+        s32 fbHeight = (s32)(((viVStart >> 16) - (viVStart & 0xFFFF)) / 2);  // typically 240
 
-        // N64 framebuffer dimensions set by the game
-        s32 fbWidth  = gFramebufferWidth;
-        s32 fbHeight = gFramebufferHeight;
-        if (fbWidth <= 0 || fbHeight <= 0 || fbWidth > 640 || fbHeight > 480) {
-            // Not yet initialized; nothing to display
-            return;
-        }
+        // Fall back to game globals if VI registers look invalid
+        if (fbWidth <= 0 || fbWidth > 640)  fbWidth  = gFramebufferWidth;
+        if (fbHeight <= 0 || fbHeight > 480) fbHeight = gFramebufferHeight;
+        if (fbWidth <= 0 || fbHeight <= 0) return;  // Nothing to display
 
         // N64 framebuffer is 16-bit RGBA5551; each pixel = 2 bytes
         size_t fbSize = (size_t)fbWidth * fbHeight * 2;
-        if (fbBase + fbSize > gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) {
-            return;
-        }
+        if (fbBase + fbSize > gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) return;
 
         // Bind the GL texture and upload pixel data
         glBindTexture(GL_TEXTURE_2D, hostTextureId);
