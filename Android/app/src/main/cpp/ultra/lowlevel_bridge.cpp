@@ -228,6 +228,17 @@ extern "C" {
     // Copies the N64 framebuffer from RDRAM to the Android GL texture for display.
     // Called from updateTexture on the GL render thread while the engine lock is held.
     void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId) {
+        // DIAGNOSTIC: Log the first 5 calls to see what's happening
+        static int diagCount = 0;
+        if (++diagCount <= 5) {
+            __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
+                "VideoPlugin: call=%d texId=%u rdr=%p reg=%p fb0=%p fbPhys=%08X w=%d h=%d",
+                diagCount, hostTextureId, gN64_RDRAM, gN64_Reg_Base,
+                gFramebuffers[0],
+                gN64_Reg_Base ? gN64_Reg_Base[VI_ORIGIN_REG_IDX] : 0,
+                gFramebufferWidth, gFramebufferHeight);
+        }
+
         if (!gN64_RDRAM || !gN64_Reg_Base || hostTextureId == 0) return;
 
         // FIXED: gFramebuffers[] stays null in our port because the N64 VI
