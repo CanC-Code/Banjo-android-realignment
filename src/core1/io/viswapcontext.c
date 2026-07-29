@@ -69,4 +69,12 @@ void __osViSwapContext()
     __osViNext = __osViCurr;
     __osViCurr = vc;
     *__osViNext = *__osViCurr;
+
+    // FIXED: On real N64 hardware the VI engine writes the framebuffer
+    // address to *framep during vblank.  Our HLE does not have that
+    // hardware, so we must do it here.  The framebuffer lives in RDRAM
+    // at the offset given by vm->fldRegs[field].origin (usually 0).
+    if (vc->framep) {
+        *(void**)vc->framep = (void*)(0x80000000u | vm->fldRegs[field].origin);
+    }
 }
