@@ -76,7 +76,7 @@ uint32_t osPiGetStatus(void)           { return 0; }
 // These are safe no‑ops so the game can initialise the VI manager
 // without crashing.
 // -----------------------------------------------------------------------
-void osViSetMode(void *modep)           { (void)modep; }
+void osViSetMode(OSViMode *modep)       { (void)modep; }
 void osViSetSpecialFeatures(u32 func)   { (void)func; }
 void osViSwapBuffer(void *vaddr)        { (void)vaddr; }
 
