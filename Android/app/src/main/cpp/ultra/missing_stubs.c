@@ -149,32 +149,57 @@ int gSPL3DEX_fifoDataStart   = 0;
 int gSPL3DEX_fifoTextEnd     = 0;
 
 // -----------------------------------------------------------------------
-// Overlay memory boundaries
+// Overlay memory boundaries — actual N64 virtual addresses
+// These are needed by overlaymanager.c to know where to decompress overlays.
 // -----------------------------------------------------------------------
-#define DEFINE_OVERLAY(name) \
-    int name##_VRAM        = 0; \
-    int name##_VRAM_END    = 0; \
-    int name##_ROM_START   = 0; \
-    int name##_ROM_END     = 0; \
-    int name##_TEXT_START  = 0; \
-    int name##_TEXT_END    = 0; \
-    int name##_DATA_START  = 0; \
-    int name##_RODATA_END  = 0; \
-    int name##_BSS_START   = 0; \
-    int name##_BSS_END     = 0;
 
-DEFINE_OVERLAY(core2)
-DEFINE_OVERLAY(emptyLvl)
-DEFINE_OVERLAY(SM)
-DEFINE_OVERLAY(MM)
-DEFINE_OVERLAY(TTC)
-DEFINE_OVERLAY(CC)
-DEFINE_OVERLAY(BGS)
-DEFINE_OVERLAY(FP)
-DEFINE_OVERLAY(GV)
-DEFINE_OVERLAY(MMM)
-DEFINE_OVERLAY(RBB)
-DEFINE_OVERLAY(CCW)
-DEFINE_OVERLAY(lair)
-DEFINE_OVERLAY(fight)
-DEFINE_OVERLAY(cutscenes)
+// core1 runs at its fixed VRAM range
+u32 core1_VRAM     = 0x8023DA20;
+u32 core1_VRAM_END = 0x80286F90;
+
+// core2 is the first dynamically loaded overlay
+u32 core2_VRAM     = 0x80286F90;
+u32 core2_VRAM_END = 0x80386DD0;
+
+// All level overlays share the same base VRAM address.
+// Their sizes differ, but the start is always right after core2.
+#define LEVEL_VRAM      0x80386DD0
+
+u32 emptyLvl_VRAM        = LEVEL_VRAM;
+u32 emptyLvl_VRAM_END    = 0x80386DD0;   // small / unused
+
+u32 SM_VRAM              = LEVEL_VRAM;
+u32 SM_VRAM_END          = 0x8038C010;
+u32 MM_VRAM              = LEVEL_VRAM;
+u32 MM_VRAM_END          = 0x8038A680;
+u32 TTC_VRAM             = LEVEL_VRAM;
+u32 TTC_VRAM_END         = 0x8038E120;
+u32 CC_VRAM              = LEVEL_VRAM;
+u32 CC_VRAM_END          = 0x8038A9E0;
+u32 BGS_VRAM             = LEVEL_VRAM;
+u32 BGS_VRAM_END         = 0x80391C30;
+u32 FP_VRAM              = LEVEL_VRAM;
+u32 FP_VRAM_END          = 0x80393FD0;
+u32 GV_VRAM              = LEVEL_VRAM;
+u32 GV_VRAM_END          = 0x803924F0;
+u32 MMM_VRAM             = LEVEL_VRAM;
+u32 MMM_VRAM_END         = 0x8038CF10;
+u32 RBB_VRAM             = LEVEL_VRAM;
+u32 RBB_VRAM_END         = 0x80391CD0;
+u32 CCW_VRAM             = LEVEL_VRAM;
+u32 CCW_VRAM_END         = 0x803907D0;
+u32 lair_VRAM            = LEVEL_VRAM;
+u32 lair_VRAM_END        = 0x80395E50;
+u32 fight_VRAM           = LEVEL_VRAM;
+u32 fight_VRAM_END       = 0x80393390;
+u32 cutscenes_VRAM       = LEVEL_VRAM;
+u32 cutscenes_VRAM_END   = 0x8038F3D0;
+
+// The remaining fields (ROM_START, TEXT_START, etc.) are currently unused
+// and can stay zero. If you encounter linker errors about missing symbols,
+// define them here using the pattern above with the proper addresses.
+u32 core2_ROM_START=0, core2_ROM_END=0;
+u32 core2_TEXT_START=0, core2_TEXT_END=0;
+u32 core2_DATA_START=0, core2_RODATA_END=0;
+u32 core2_BSS_START=0, core2_BSS_END=0;
+// (Similar zero definitions for other overlays if needed)
