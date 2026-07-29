@@ -63,6 +63,12 @@ if(NOT EXCLUDE_GAME_SRC)
         # Safe no‑op stubs are provided in missing_stubs.c.
         "visetmode.c"
         "visetevent.c"
+
+        # Original N64 inflate — we have a complete, safe replacement in
+        # src/done/rarezip.c that properly resolves N64 addresses and skips
+        # the 6‑byte BK compressed header.  The original inflate writes
+        # directly to N64 addresses and will crash.
+        "inflate.c"
     )
 
     foreach(FILE_PATH ${ALL_GAME_FILES})
