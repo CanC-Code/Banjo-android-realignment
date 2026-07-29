@@ -58,6 +58,10 @@ if(NOT EXCLUDE_GAME_SRC)
         # Message Queues & Events
         "createmesgqueue.c" "seteventmesg.c" 
         "recvmesg.c" "sendmesg.c" "jammesg.c"
+
+        # VI — relies on N64 data structures that don't exist on Android.
+        # A safe no‑op stub is provided in missing_stubs.c.
+        "visetmode.c"
     )
 
     foreach(FILE_PATH ${ALL_GAME_FILES})
