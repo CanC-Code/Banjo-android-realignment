@@ -27,6 +27,18 @@ u32 crc2 = -1;                    // CRC2
 u32 hufts = 0;                    // Huffman table usage tracker
 u32 g_decomp_out_cap = 0xFFFFFFFFu; // Output buffer capacity (default: unbounded)
 
+// Original N64 global variable names — overlaymanager.c and the original
+// decompiled code reference these directly.  They must be kept in sync
+// with the renamed versions above so that both sets of names access the
+// same decompression state.
+u8            *inflate_inbuf = NULL;
+u8            *inflate_slide = NULL;
+u32            inflate_inptr = 0;
+u32            inflate_wp    = 0;
+struct huft_s *inflate_huft  = NULL;
+u32            inflate_crc1  = 0;
+u32            inflate_crc2  = 0;
+
 /* FIX: Ensure the huft pool actually has capacity, avoiding out-of-bounds writes. */
 static struct huft s_huft_pool[HUFT_POOL_CAPACITY];
 struct huft *D_80007270 = s_huft_pool;
@@ -184,6 +196,11 @@ u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2) {
     D_80007284 = *outPtr;
     D_80007290 = arg2;
 
+    // Sync original N64 names for overlaymanager.c which uses these directly
+    inflate_inbuf = inbuf;
+    inflate_slide = D_80007284;
+    inflate_huft  = (struct huft_s *)arg2;
+
     // FIXED: Skip the 6-byte BK compressed header (0x1172 magic + 4 bytes
     // decompressed size) that precedes every compressed segment.  The original
     // N64 code (rarezip_uncompress_file_internal) does "inflate_inbuf += 6"
@@ -193,9 +210,17 @@ u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2) {
     inbuf += 6;
     inptr = 6;
     wp = 0;
+    inflate_inptr = inptr;
+    inflate_wp    = wp;
 
     /* 3. Execute the low-level GZIP/Deflate routine */
     bkboot_inflate_unlocked();
+
+    // Sync back original names after decompression
+    inflate_inptr = inptr;
+    inflate_wp    = wp;
+    inflate_crc1  = crc1;
+    inflate_crc2  = crc2;
 
     /* 4. Advance the original buffer pointers by the consumed/emitted byte counts.
      * inptr includes the 6-byte header skip, matching the original
@@ -224,6 +249,8 @@ static u32 func_800005C0_locked(u8* in, u8* out, struct huft *arg2) {
     if (!p_in || !p_out) {
         wp = 0;
         inptr = 0;
+        inflate_inptr = 0;
+        inflate_wp    = 0;
         return wp;
     }
 
@@ -231,6 +258,8 @@ static u32 func_800005C0_locked(u8* in, u8* out, struct huft *arg2) {
     if (p_in[0] == 0x00 && p_in[1] == 0x00 && p_in[2] == 0x00 && p_in[3] == 0x00) {
         wp = 0;
         inptr = 0;
+        inflate_inptr = 0;
+        inflate_wp    = 0;
         return wp;
     }
 
@@ -243,12 +272,13 @@ static u32 func_800005C0_locked(u8* in, u8* out, struct huft *arg2) {
 
     /* PATH A: Rare LZSS Format (0x50 0x10) */
     if (magic0 == 0x50 && magic1 == 0x10) {
-        if (dec_size == 0) { wp = 0; inptr = 0; return wp; }
+        if (dec_size == 0) { wp = 0; inptr = 0; inflate_wp = 0; inflate_inptr = 0; return wp; }
         if (dec_size < 0x04000000) {
             size_t comp_avail = (p_in + 6 >= gN64_RDRAM && p_in + 6 < rdram_end) ? (size_t)(rdram_end - (p_in + 6)) : 0x4000000;
             size_t out_cap = (p_out >= gN64_RDRAM && p_out < rdram_end) ? (size_t)(rdram_end - p_out) : dec_size;
 
             wp = bka_rare_lzss_decompress(p_in + 6, comp_avail, p_out, out_cap);
+            inflate_wp = wp;
             return wp;
         }
     }
@@ -737,4 +767,25 @@ int bkboot_inflate_unlocked(void) {
     }
 
     return 0;
+}
+
+/* ============================================================
+   Wrappers for original N64 function names
+   overlaymanager.c and other game code call these directly.
+   ============================================================ */
+
+void rarezip_init(void) {
+    func_8000055C();
+}
+
+u32 rarezip_uncompress_file(u8 *in, u8 *out) {
+    return func_800005C0(in, out, D_80007270);
+}
+
+void rarezip_uncompress_file_and_update_pointers(u8 **in, u8 **out) {
+    func_80000594(in, out);
+}
+
+u32 rarezip_get_uncompressed_size(u8 *file) {
+    return func_80000550(file);
 }
