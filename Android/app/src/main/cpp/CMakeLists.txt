@@ -60,8 +60,9 @@ if(NOT EXCLUDE_GAME_SRC)
         "recvmesg.c" "sendmesg.c" "jammesg.c"
 
         # VI — relies on N64 data structures that don't exist on Android.
-        # A safe no‑op stub is provided in missing_stubs.c.
+        # Safe no‑op stubs are provided in missing_stubs.c.
         "visetmode.c"
+        "visetevent.c"
     )
 
     foreach(FILE_PATH ${ALL_GAME_FILES})
