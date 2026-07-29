@@ -184,14 +184,22 @@ u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2) {
     D_80007284 = *outPtr;
     D_80007290 = arg2;
 
-    /* 2. Reset the read/write cursor offsets for the new block */
-    inptr = 0;
+    // FIXED: Skip the 6-byte BK compressed header (0x1172 magic + 4 bytes
+    // decompressed size) that precedes every compressed segment.  The original
+    // N64 code (rarezip_uncompress_file_internal) does "inflate_inbuf += 6"
+    // before calling inflate().  Without this skip, the second decompression
+    // pass hangs because it interprets the header as a stored deflate block
+    // with inconsistent lengths.
+    inbuf += 6;
+    inptr = 6;
     wp = 0;
 
     /* 3. Execute the low-level GZIP/Deflate routine */
     bkboot_inflate_unlocked();
 
-    /* 4. Advance the original buffer pointers by the consumed/emitted byte counts */
+    /* 4. Advance the original buffer pointers by the consumed/emitted byte counts.
+     * inptr includes the 6-byte header skip, matching the original
+     * "*in += inflate_inptr + 6" from rarezip_uncompress_file_and_update_pointers. */
     *inPtr += inptr;
     *outPtr += wp;
 
