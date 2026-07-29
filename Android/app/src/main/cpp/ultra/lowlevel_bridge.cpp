@@ -43,18 +43,14 @@ uint32_t* gN64_Reg_Base = nullptr;
 uint32_t* gN64_PIF_Base = nullptr;
 uint8_t* gN64_ROM_Base = nullptr;
 
-// N64 framebuffer dimensions (set by the game at runtime, typical: 320x240)
-// These are the actual N64 VI registers that the game writes to.
-#define N64_VI_ORIGIN_REG    (0x04400000 / 4)
-#define N64_VI_WIDTH_REG     (0x04400004 / 4)
-#define N64_VI_HEIGHT_REG    (0x04400008 / 4)
-
 extern "C" {
 
     // Forward declaration of the native event routing bridge from emulator/stubs.cpp
     void HLE_TriggerN64Event(int event_id);
 
-    // External framebuffer pointers from the game code
+    // External framebuffer pointers from the game code.
+    // These hold N64 addresses (e.g., 0x80100000) that must be resolved
+    // to host pointers within gN64_RDRAM.
     extern void* gFramebuffers[3];
     extern s32 gFramebufferWidth;
     extern s32 gFramebufferHeight;
@@ -226,55 +222,59 @@ extern "C" {
     void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId) {
         if (!gN64_RDRAM || hostTextureId == 0) return;
 
-        // Determine which framebuffer to display and its dimensions.
-        // The N64 game renders to gFramebuffers[0] or gFramebuffers[1] depending
-        // on the swap chain. We use the framebuffer dimensions set by the game.
-        // gFramebuffers holds pointers into RDRAM (N64 addresses mapped via bka_resolve_ptr).
-        // We need to get the raw RDRAM offset from these pointers.
-        
-        // Use the first framebuffer pointer. If it's null, bail.
-        void* fbPtr = gFramebuffers[0];
-        if (!fbPtr) {
-            // Try the second framebuffer
-            fbPtr = gFramebuffers[1];
-            if (!fbPtr) return;
+        // gFramebuffers[] holds N64 addresses (KSEG0 like 0x80100000), not host
+        // pointers. We must resolve them to actual RDRAM host addresses.
+        uintptr_t fbAddr = (uintptr_t)gFramebuffers[0];
+        if (!fbAddr) {
+            fbAddr = (uintptr_t)gFramebuffers[1];
+            if (!fbAddr) return;
         }
 
-        // Calculate the offset of the framebuffer within RDRAM.
-        // gFramebuffers[n] points directly into gN64_RDRAM (via bka_resolve_ptr
-        // mapping N64 addresses to RDRAM host addresses).
-        uint8_t* fbBase = (uint8_t*)fbPtr;
-        if (fbBase < gN64_RDRAM || fbBase >= gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) {
-            // Framebuffer pointer is not within RDRAM — nothing to display.
+        uint8_t* fbBase = nullptr;
+        // Case 1: N64 KSEG0 (0x80000000-0x80800000) -> RDRAM + offset
+        if (fbAddr >= 0x80000000u && fbAddr < 0x80800000u) {
+            fbBase = gN64_RDRAM + (fbAddr & 0x00FFFFFFu);
+        }
+        // Case 2: N64 KSEG1 (0xA0000000-0xA0800000) -> RDRAM + offset
+        else if (fbAddr >= 0xA0000000u && fbAddr < 0xA0800000u) {
+            fbBase = gN64_RDRAM + (fbAddr & 0x00FFFFFFu);
+        }
+        // Case 3: Already a 64-bit host pointer (e.g., > 0xFFFFFFFF)
+        else if (fbAddr > 0xFFFFFFFFull) {
+            fbBase = (uint8_t*)fbAddr;
+        }
+        // Case 4: Physical RDRAM offset (< 0x80000000)
+        else if (fbAddr < 0x80000000u) {
+            fbBase = gN64_RDRAM + (fbAddr & 0x00FFFFFFu);
+        }
+        // Unrecognized address
+        else {
             return;
         }
 
-        // N64 framebuffer is typically 320x240 but can vary.
-        // The game sets gFramebufferWidth and gFramebufferHeight.
+        // Validate that the resolved pointer lies within RDRAM
+        if (!fbBase || fbBase < gN64_RDRAM || fbBase >= gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) {
+            return;
+        }
+
+        // N64 framebuffer dimensions set by the game
         s32 fbWidth  = gFramebufferWidth;
         s32 fbHeight = gFramebufferHeight;
         if (fbWidth <= 0 || fbHeight <= 0 || fbWidth > 640 || fbHeight > 480) {
-            // Default to N64 standard resolution if game hasn't set these yet.
-            fbWidth  = 320;
-            fbHeight = 240;
-        }
-
-        // N64 framebuffer is 16-bit RGBA (RGBA5551 format).
-        // Each pixel is 2 bytes. We need to convert to 32-bit RGBA for GL.
-        size_t fbSize = (size_t)fbWidth * fbHeight * 2;
-        if (fbBase + fbSize > gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) {
-            // Framebuffer extends past RDRAM — bail.
+            // Not yet initialized; nothing to display
             return;
         }
 
-        // Bind the texture and upload the framebuffer data.
-        // The texture was created by the Java-side GLRenderer.
+        // N64 framebuffer is 16-bit RGBA5551; each pixel = 2 bytes
+        size_t fbSize = (size_t)fbWidth * fbHeight * 2;
+        if (fbBase + fbSize > gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) {
+            return;
+        }
+
+        // Bind the GL texture and upload pixel data
         glBindTexture(GL_TEXTURE_2D, hostTextureId);
 
-        // Convert N64 RGBA5551 (16-bit) to RGBA8888 (32-bit) on the fly.
-        // We allocate a temporary buffer for the conversion.
-        // For better performance, this could be done on the GPU with a shader,
-        // but a CPU conversion is simpler for initial bring-up.
+        // Allocate or reuse conversion buffer (RGBA5551 -> RGBA8888)
         static uint32_t* s_convBuffer = nullptr;
         static size_t    s_convBufferSize = 0;
         size_t neededSize = (size_t)fbWidth * fbHeight * 4;
@@ -290,12 +290,12 @@ extern "C" {
             for (s32 y = 0; y < fbHeight; y++) {
                 for (s32 x = 0; x < fbWidth; x++) {
                     uint16_t pixel = *src++;
-                    // Extract RGBA5551 components: R=bits 11-15, G=bits 6-10, B=bits 1-5, A=bit 0
+                    // RGBA5551: R=bits 11-15, G=6-10, B=1-5, A=bit 0
                     uint8_t r = (uint8_t)(((pixel >> 11) & 0x1F) << 3);
                     uint8_t g = (uint8_t)(((pixel >> 6)  & 0x1F) << 3);
                     uint8_t b = (uint8_t)(((pixel >> 1)  & 0x1F) << 3);
                     uint8_t a = (pixel & 1) ? 0xFF : 0x00;
-                    // GL expects RGBA
+                    // GL expects RGBA packed as R<<24 | G<<16 | B<<8 | A
                     *dst++ = (r << 24) | (g << 16) | (b << 8) | a;
                 }
             }
@@ -303,9 +303,6 @@ extern "C" {
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, fbWidth, fbHeight, 0,
                          GL_RGBA, GL_UNSIGNED_BYTE, s_convBuffer);
         }
-
-        // Note: The Java-side GLRenderer handles the actual drawing of the
-        // textured quad to the screen. This function just uploads the pixel data.
     }
 
 } // end extern "C"
