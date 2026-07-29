@@ -2,6 +2,8 @@
 #include "bka_safe_base.h"
 #include "core1/core1.h"
 
+/* Bridge to the safe decompressor in src/done/rarezip.c */
+extern u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2);
 
 static int _rarezip_uncompress(u8 **arg0, u8 **arg1, struct huft * arg2);
 
@@ -17,7 +19,6 @@ u16 D_80275684[] = {
     3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
     35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0
 };
-//         /* note: see note #13 above about the 258 in this list. */
 
 // static uch cplext[] = {         /* Extra bits for literal codes 257..285 */
 u8 D_802756C4[] = {
@@ -70,7 +71,7 @@ static int _rarezip_inflate(u8 * src, u8 * dst, struct huft * arg2);
 s32 rarezip_get_uncompressed_size(u8 *arg0) {
     return *((s32*) (arg0 + 2));
 }
- 
+
 void rarezip_init(void){
     D_8027BF00 = &D_803FBE00;
 }
@@ -89,14 +90,21 @@ void func_8023E0E8(void){
 }
 
 static int _rarezip_inflate(u8 * src, u8 * dst, struct huft * arg2){
-    D_8027BF10 = src;
-    D_8027BF14 = dst;
-    D_8027BF20 = arg2;
-    D_8027BF10 += COMP_HEADER_SIZE;
-    D_8027BF1C = 0;
-    D_8027BF18 = 0;
-    inflate();
-    return D_8027BF1C;
+    u8 *in  = src;
+    u8 *out = dst;
+    u32 result;
+
+    /* Use the safe decompression bridge that skips the 6‑byte BK header
+     * and uses the port’s working bkboot_inflate_unlocked() underneath. */
+    result = func_80000618(&in, &out, arg2);
+
+    /* Mirror the state that the original callers expect. */
+    D_8027BF1C = result;                /* wp  (decompressed bytes written) */
+    D_8027BF18 = (u32)(in - src);       /* inptr (bytes consumed, incl. header) */
+    D_8027BF10 = in;                    /* updated input pointer */
+    D_8027BF14 = out;                   /* updated output pointer */
+
+    return result;
 }
 
 static int _rarezip_uncompress(u8 **srcPtr, u8 **dstPtr, struct huft * arg2){
