@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include "bka_safe_base.h"          // for BKA_TRANSLATE_ADDR
 #include "core1/core1.h"
 #include "functions.h"
 #include "variables.h"
@@ -105,7 +106,7 @@ s32 __overlayManager80251178(void){
     OverlayAddressMap *largest_overlay;
     s32 sp1C;
     s32 sp18;
-    
+
 
     largest_overlay = __overlayManagergetLargetOverlayAddressMap();
     sp18 = func_802546DC();
@@ -143,7 +144,7 @@ n64_bool overlayManagerisOverlayLoaded(int overlay_id){
 
 n64_bool overlayManagerload(enum overlay_e overlay_id){ 
     s32 rom_addr;
-    
+
     if(overlay_id == 0)
         return FALSE;
 
@@ -152,7 +153,7 @@ n64_bool overlayManagerload(enum overlay_e overlay_id){
 
     overlayMgrLoadedId = overlay_id;
     rom_addr = (s32)(overlayAddressMap + overlay_id);
-    
+
     overlay_load(
         overlay_id,
         ((OverlayAddressMap*)rom_addr)->ram_start,
