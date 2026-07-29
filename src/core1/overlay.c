@@ -2,7 +2,7 @@
 #include "core1/core1.h"
 #include "functions.h"
 #include "variables.h"
-
+#include "bka_safe_base.h"     // for BKA_TRANSLATE_ADDR
 
 typedef struct{
     u32 unk0;
@@ -24,12 +24,20 @@ void overlay_load(
     u32 sp2C;
     u32 *tmp;
 
+    // Translate all N64 addresses to host pointers.
+    // Without this, the decompressor crashes because it tries to write
+    // to unmapped addresses.
+    u8 *ram_start_ptr  = BKA_TRANSLATE_ADDR(ram_start);
+    u8 *code_start_ptr = BKA_TRANSLATE_ADDR(code_start);
+    u8 *data_start_ptr = BKA_TRANSLATE_ADDR(data_start);
+    u8 *bss_start_ptr  = bss_start ? BKA_TRANSLATE_ADDR(bss_start) : NULL;
+
     osWriteBackDCacheAll();
-    osInvalDCache(ram_start, ram_end - ram_start);
-    osInvalICache(ram_start, ram_end - ram_start);
+    osInvalDCache(ram_start_ptr, ram_end - ram_start);
+    osInvalICache(ram_start_ptr, ram_end - ram_start);
 
     if(bss_start){
-        osInvalDCache(bss_start, bss_end - bss_start);
+        osInvalDCache(bss_start_ptr, bss_end - bss_start);
     }
 
     rom_start = D_803FFE10[overlay_id].unk0;
@@ -37,21 +45,20 @@ void overlay_load(
 
     if(overlay_id){
         func_80254008();
-        sp34 = &D_8000E800;
+        sp34 = (u32)&D_8000E800;    // host address of temporary buffer
+    } else {
+        sp34 = (u32)&D_8002D500;
     }
-    else{
-        sp34 = &D_8002D500;
-    }
-    piMgr_read(sp34, rom_start, rom_end - rom_start);
-    rarezip_uncompress(&sp34, &ram_start);
+    piMgr_read((u8*)sp34, rom_start, rom_end - rom_start);
+    rarezip_uncompress((u8**)&sp34, &ram_start_ptr);
     sp2C = D_8027BF2C;
     sp30 = D_8027BF30;
-    rarezip_uncompress(&sp34, &ram_start);
+    rarezip_uncompress((u8**)&sp34, &ram_start_ptr);
 
     if(bss_start){
-        bzero(bss_start, bss_end - bss_start);
+        bzero(bss_start_ptr, bss_end - bss_start);
         osWriteBackDCacheAll();
-        tmp = (u32*) bss_start;
+        tmp = (u32*) bss_start_ptr;
         tmp[0] = sp2C;
         tmp[1] = sp30;
         tmp[2] = D_8027BF2C;
