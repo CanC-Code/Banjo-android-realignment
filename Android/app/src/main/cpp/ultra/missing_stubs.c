@@ -62,6 +62,14 @@ void     __osSetCompare(uint32_t val)  { (void)val; }
 void     osMapTLBRdb(void)             {}
 uint32_t __osProbeTLB(void* a)         { (void)a; return 0; }
 
+// FIXED: osPiGetStatus was missing entirely. The DMA in func_80000450
+// spins on "while(osPiGetStatus() & PI_STATUS_DMA_BUSY);" — with no
+// implementation the call returned garbage (often with the busy bit set),
+// causing an infinite busy loop at 98% CPU and ANR.
+// Since our osPiRawStartDma completes synchronously, status is never busy.
+#define PI_STATUS_DMA_BUSY  0x01
+uint32_t osPiGetStatus(void)           { return 0; }
+
 // -----------------------------------------------------------------------
 // Unknown decompiled functions
 // -----------------------------------------------------------------------
