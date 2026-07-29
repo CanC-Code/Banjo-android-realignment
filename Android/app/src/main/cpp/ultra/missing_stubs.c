@@ -82,6 +82,12 @@ void osViSwapBuffer(void *vaddr)                         { (void)vaddr; }
 void osViSetEvent(OSMesgQueue *mq, OSMesg m, u32 count) { (void)mq; (void)m; (void)count; }
 void osCreateViManager(OSPri pri)                        { (void)pri; }
 
+// Original N64 inflate — we have a safe replacement in rarezip.c
+// (bkboot_inflate_unlocked). The original writes directly to raw N64
+// addresses and will crash. This stub prevents the linker from pulling
+// in the dangerous original implementation.
+s32 inflate(void) { return 0; }
+
 // -----------------------------------------------------------------------
 // Unknown decompiled functions
 // -----------------------------------------------------------------------
