@@ -71,6 +71,16 @@ uint32_t __osProbeTLB(void* a)         { (void)a; return 0; }
 uint32_t osPiGetStatus(void)           { return 0; }
 
 // -----------------------------------------------------------------------
+// VI stubs — the original functions crash because they dereference
+// N64‑specific OSViMode structures that don't exist on Android.
+// These are safe no‑ops so the game can initialise the VI manager
+// without crashing.
+// -----------------------------------------------------------------------
+void osViSetMode(void *modep)           { (void)modep; }
+void osViSetSpecialFeatures(u32 func)   { (void)func; }
+void osViSwapBuffer(void *vaddr)        { (void)vaddr; }
+
+// -----------------------------------------------------------------------
 // Unknown decompiled functions
 // -----------------------------------------------------------------------
 int  func_8025C29C(void) { return 0; }
