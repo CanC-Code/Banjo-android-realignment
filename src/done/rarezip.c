@@ -142,25 +142,9 @@ u32 func_80000570(u8 *inPtr, u8 *outPtr) {
 }
 
 u32 func_80000594(u8 **inPtr, u8 **outPtr) {
-    // FIXED: inPtr and outPtr point to u8* variables on the stack
-    // (tmp and dst in func_80000450). These variables hold 64-bit host
-    // pointers on ARM64. The original code used bka_resolve_ptr to
-    // resolve inPtr/outPtr themselves, then read/wrote 32-bit values
-    // through the resolved addresses. This corrupted the upper 32 bits
-    // of the 64-bit pointers, causing crashes on subsequent calls.
-    //
-    // The fix: dereference inPtr/outPtr directly to get the full 64-bit
-    // pointer values, resolve those values through bka_resolve_ptr to
-    // get the actual buffer addresses, decompress, then write back the
-    // updated pointers as full 64-bit values.
-
-    // Read the current values as full 64-bit pointers
     u8* p_in  = *inPtr;
     u8* p_out = *outPtr;
 
-    // Resolve the buffer addresses through the N64 address resolver.
-    // If the pointer is already a host address (Case B), it passes through.
-    // If it's an N64 address (Case A/C), it gets mapped to RDRAM.
     u8* resolved_in  = bka_resolve_ptr((uintptr_t)p_in);
     u8* resolved_out = bka_resolve_ptr((uintptr_t)p_out);
 
@@ -173,14 +157,10 @@ u32 func_80000594(u8 **inPtr, u8 **outPtr) {
     u8* temp_in = resolved_in;
     u8* temp_out = resolved_out;
 
-    /* Securely lock the state and invoke the legacy inflater with host pointers */
     pthread_mutex_lock(&g_decomp_mutex);
     u32 result = func_80000618(&temp_in, &temp_out, D_80007270);
     pthread_mutex_unlock(&g_decomp_mutex);
 
-    // Write back the updated pointers as full 64-bit values.
-    // func_80000618 advances temp_in/temp_out by the number of bytes
-    // consumed/emitted, so we just write them back directly.
     *inPtr  = temp_in;
     *outPtr = temp_out;
 
@@ -200,6 +180,12 @@ u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2) {
     inflate_inbuf = inbuf;
     inflate_slide = D_80007284;
     inflate_huft  = (struct huft_s *)arg2;
+
+    // DIAGNOSTIC: log the input buffer and its header before skipping
+    LOGI("BKA: func_80000618 in=%p out=%p header=%02X%02X size=%u",
+         (void*)inbuf, (void*)D_80007284,
+         inbuf[0], inbuf[1],
+         (inbuf[2] << 24) | (inbuf[3] << 16) | (inbuf[4] << 8) | inbuf[5]);
 
     // FIXED: Skip the 6-byte BK compressed header (0x1172 magic + 4 bytes
     // decompressed size) that precedes every compressed segment.  The original
@@ -726,7 +712,6 @@ static int inflate_block(int *e) {
     return 2;
 }
 
-// Renamed to match the wrapper in stubs.cpp
 int bkboot_inflate_unlocked(void) {
     int e;
     int r;
@@ -771,7 +756,6 @@ int bkboot_inflate_unlocked(void) {
 
 /* ============================================================
    Wrappers for original N64 function names
-   overlaymanager.c and other game code call these directly.
    ============================================================ */
 
 void rarezip_init(void) {
