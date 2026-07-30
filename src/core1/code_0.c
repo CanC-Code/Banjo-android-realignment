@@ -32,6 +32,12 @@ static u64 sDebugVar_8027BEF0;
 
 extern u8 core2_TEXT_START[];
 
+// The following symbols are defined in lowlevel_bridge.cpp.
+// We need them to write the framebuffer and set the VI registers.
+extern uint8_t*  gN64_RDRAM;
+extern uint32_t* gN64_Reg_Base;
+#define VI_ORIGIN_REG_IDX  (0x00400000 / 4)   // VI_ORIGIN_REG in emulated reg space
+
 void func_8023DA20(s32 arg0){
     if (core2_TEXT_START && core2_TEXT_START > (u8*)&D_8027A130) {
         bzero(&D_8027A130, core2_TEXT_START - (u8*)&D_8027A130);
@@ -167,16 +173,22 @@ void mainLoop(void){
             func_80255ACC();
             spawnQueue_func_802C3A18();
 
-            // ---- TEST: fill framebuffer with solid red ----
-            for(y = 0; y < gFramebufferHeight; y++) {
-                for(x = 0; x < gFramebufferWidth; x++) {
-                    offset = x + y * gFramebufferWidth;
-                    // RGBA: R=31, G=0, B=0, A=1
-                    gFramebuffers[0][offset] = 0xF800 | 0x0001;
-                    gFramebuffers[1][offset] = 0xF800 | 0x0001;
+            // ---- TEST: fill the N64 framebuffer with solid red ----
+            // Use a known RDRAM offset (0x1000) so the GL upload can find it.
+            u16 *fb = (u16 *)(gN64_RDRAM + 0x1000);
+            s32 w = 320;
+            s32 h = 240;
+            for (y = 0; y < h; y++) {
+                for (x = 0; x < w; x++) {
+                    // Solid red in RGBA5551: R=31, G=0, B=0, A=1
+                    fb[x + y * w] = 0xF800 | 0x0001;
                 }
             }
-            // Remove the normal game_draw for now
+            // Tell the VI hardware where the framebuffer is.
+            gN64_Reg_Base[VI_ORIGIN_REG_IDX] = 0x1000;
+            gFramebufferWidth  = w;
+            gFramebufferHeight = h;
+            // Re-enable game_draw when the test is complete.
             // if(func_802E4424()) game_draw(0);
 
             spawnQueue_flush();
