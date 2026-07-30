@@ -17,6 +17,7 @@
 
 #include <string.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <android/log.h>
 
 #define LOG_TAG "BKA_STUBS"
@@ -93,7 +94,13 @@ s32 inflate(void) { return 0; }
 // -----------------------------------------------------------------------
 int  func_8025C29C(void) { return 0; }
 int  func_80253010(void) { return 0; }
-int  func_80253034(void) { return 0; }
+// FIXED: func_80253034 must actually clear the framebuffer. The old stub
+// returned 0 and accepted no arguments, leaving the framebuffer uninitialised
+// and displaying whatever garbage was in memory. The real implementation
+// (missing from the decompilation) is a simple memset with size passed in.
+void func_80253034(void *dst, int val, size_t size) {
+    memset(dst, val, size);
+}
 void func_8026A2E0(void) {}
 
 // -----------------------------------------------------------------------
