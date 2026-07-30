@@ -11,6 +11,14 @@ struct SnsPayload *snsBasePayloadPtr2 = NULL;
 struct SnsPayload *snsBasePayloadPtr3 = NULL;
 struct SnsPayload *snsBasePayloadPtr4 = NULL;
 
+/* Static buffers for the four SNS payloads.
+ * sizeof(struct SnsPayload) == 0x80 (128 bytes), so these avoid the
+ * heap allocator which currently returns truncated 32‑bit addresses. */
+static struct SnsPayload sns_payload_buf_1;
+static struct SnsPayload sns_payload_buf_2;
+static struct SnsPayload sns_payload_buf_3;
+static struct SnsPayload sns_payload_buf_4;
+
 /* .bss */
 StopNSwop_Data snsParsedKeys;
 struct GlobalSave gSaveData;
@@ -134,15 +142,12 @@ void sns_find_and_parse_payload(void)
 
 void sns_init_base_payloads(void)
 {
-    // All payloads are now allocated from the heap instead of using
-    // hardcoded RDRAM addresses. The original addresses (0x803FFF00,
-    // 0x803A5C00) are not pre-initialized on the Android port, causing
-    // null-pointer crashes. Heap allocation matches the pattern already
-    // used for snsBasePayloadPtr1 and snsBasePayloadPtr2.
-    snsBasePayloadPtr3 = snspayload_init_new_payload((struct SnsPayload *)func_8025484C(0x100));
-    snsBasePayloadPtr4 = snspayload_init_new_payload((struct SnsPayload *)func_8025484C(0x100));
-    snsBasePayloadPtr1 = snspayload_init_new_payload((struct SnsPayload *)func_8025484C(0x100));
-    snsBasePayloadPtr2 = snspayload_init_new_payload((struct SnsPayload *)func_80254898(0x100));
+    // Use static buffers because the heap allocator currently returns
+    // truncated 32‑bit pointers that crash on aarch64.
+    snsBasePayloadPtr1 = snspayload_init_new_payload(&sns_payload_buf_1);
+    snsBasePayloadPtr2 = snspayload_init_new_payload(&sns_payload_buf_2);
+    snsBasePayloadPtr3 = snspayload_init_new_payload(&sns_payload_buf_3);
+    snsBasePayloadPtr4 = snspayload_init_new_payload(&sns_payload_buf_4);
 }
 
 n64_bool sns_get_or_set_key(n64_bool state, struct SnsPayload *payload, s32 key, s32 mode)
