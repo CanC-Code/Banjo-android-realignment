@@ -36,10 +36,8 @@ static u64 sDebugVar_8027BEF0;
 
 extern u8 core2_TEXT_START[];
 
-// The following symbols are defined in lowlevel_bridge.cpp.
-// We need them to write the framebuffer and set the VI registers.
-extern uint8_t*  gN64_RDRAM;
-extern uint32_t* gN64_Reg_Base;
+// gN64_RDRAM and gN64_Reg_Base are declared in bka_safe_base.h (included via ultra64.h).
+// Do NOT redeclare them here, or the linker may resolve them to a different (zero) copy.
 #define VI_ORIGIN_REG_IDX  (0x00400000 / 4)   // VI_ORIGIN_REG in emulated reg space
 
 void func_8023DA20(s32 arg0){
@@ -148,7 +146,6 @@ void mainLoop(void){
     u16 rgba;
     s32 offset;
 
-    // Clear framebuffer every frame to wipe stale data.
     viMgr_clearFramebuffers();
 
     if((globalTimer_getTime() & 0x7f) == 0x11)
@@ -179,27 +176,24 @@ void mainLoop(void){
 
             // ---- DIAGNOSTIC: fill RDRAM with solid red (first 5 frames only) ----
             static int diagFrame = 0;
-            if (diagFrame <= 5) {
-                LOGI("BKA: gN64_RDRAM=%p gN64_Reg_Base=%p", (void*)gN64_RDRAM, (void*)gN64_Reg_Base);
-
+            if (diagFrame < 5) {
                 u8 *fb = gN64_RDRAM + 0x1000;
                 s32 w = 320;
                 s32 h = 240;
                 for (y = 0; y < h; y++) {
                     for (x = 0; x < w; x++) {
-                        fb[(x + y * w) * 2 + 0] = 0xF8;  // RRRRR GGG
-                        fb[(x + y * w) * 2 + 1] = 0x01;  // GGB BBBB A
+                        fb[(x + y * w) * 2 + 0] = 0xF8;
+                        fb[(x + y * w) * 2 + 1] = 0x01;
                     }
                 }
                 gN64_Reg_Base[VI_ORIGIN_REG_IDX] = 0x1000;
-                LOGI("BKA: SET VI_ORIGIN = 0x1000, value read back = %08X",
+                LOGI("BKA: SET VI_ORIGIN = 0x1000 (frame %d), reg_base=%p, readback=%08X",
+                     diagFrame, (void*)gN64_Reg_Base,
                      gN64_Reg_Base[VI_ORIGIN_REG_IDX]);
                 gFramebufferWidth  = w;
                 gFramebufferHeight = h;
                 diagFrame++;
             }
-
-            // if(func_802E4424()) game_draw(0);
 
             spawnQueue_flush();
             break;
