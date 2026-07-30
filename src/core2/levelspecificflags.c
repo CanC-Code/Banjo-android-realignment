@@ -42,14 +42,14 @@ s32 _levelSpecificFlags_calcCRC2(void) {
     s32 temp_t7;
     s32 var_v1;
     u32 var_a2;
-    u8 *scrambled_ptr; 
+    u8 *scrambled_ptr;
     u8 temp_t9;
     u32 var_v0;
 
     var_v1 = 0x03F2F59A;
     var_v0 = 8;
-    scrambled_ptr = ((((((((s32) &D_80383320.unk8 >> 0x10) & 0xFFFF) ^ 0x195D) * 0x2F) / 0x2F) << 0x10) 
-                  + (((((s32) &D_80383320.unk8 & 0xFFFF) ^ 0xA832) << 0xD) / 0x2000)) 
+    scrambled_ptr = ((((((((s32) &D_80383320.unk8 >> 0x10) & 0xFFFF) ^ 0x195D) * 0x2F) / 0x2F) << 0x10)
+                  + (((((s32) &D_80383320.unk8 & 0xFFFF) ^ 0xA832) << 0xD) / 0x2000))
                   ^ 0x195DA832;
     for(var_a2 = 0; var_a2 < var_v0; var_a2++){
         var_v1 += (var_a2 + 7) * scrambled_ptr[var_a2];
@@ -96,13 +96,12 @@ void levelSpecificFlags_setN(s32 index, s32 val, s32 n){
     _levelSpecificFlags_updateCRC2();
 }
 
+// Stubbed: CRC1 is invalid after recompilation, always pass.
 s32 levelSpecificFlags_validateCRC1(void) {
-    s32 temp_a0;
-
-    temp_a0 = (((s32) &D_80383320.unk0 & 0x55555555) * 2) + ((u32) ((s32) &D_80383320.unk0 & 0xAAAAAAAA) >> 1);
-    return _levelSpecificFlags_calcCRC1() == *(u32*)BKA_TRANSLATE_ADDR((((temp_a0 & 0x55555555) * 2) | ((u32) (temp_a0 & 0xAAAAAAAA) >> 1)));
+    return 1;
 }
 
+// Stubbed: CRC2 is invalid after recompilation, always pass.
 s32 levelSpecificFlags_validateCRC2(void){
-    return _levelSpecificFlags_calcCRC2() == *(u32 *)BKA_TRANSLATE_ADDR(((s32)&D_80383320.unk4 ^ 0x7EDDF5F4 ^ 0x7BEF9D80 ^ 0x5326874));
+    return 1;
 }
