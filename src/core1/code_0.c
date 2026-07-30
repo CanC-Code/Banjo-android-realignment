@@ -4,6 +4,10 @@
 #include "variables.h"
 #include "version.h"
 #include "gc/gctransition.h"
+#include <android/log.h>
+
+#define LOG_TAG "BKA_CODE0"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
 #define MAIN_THREAD_STACK_SIZE 0x17F0
 
@@ -173,26 +177,28 @@ void mainLoop(void){
             func_80255ACC();
             spawnQueue_func_802C3A18();
 
-            // ---- TEST: fill RDRAM framebuffer with solid red ----
-            // Write pixels as big‑endian RGBA5551 bytes so the GL
-            // upload in VideoPlugin_OutputFrameTexture sees the
-            // correct byte order.
-            u8 *fb = gN64_RDRAM + 0x1000;
-            s32 w = 320;
-            s32 h = 240;
-            for (y = 0; y < h; y++) {
-                for (x = 0; x < w; x++) {
-                    // R=31, G=0, B=0, A=1  →  pixel = 0xF801
-                    // Big‑endian: high byte first
-                    fb[(x + y * w) * 2 + 0] = 0xF8;  // RRRRR GGG
-                    fb[(x + y * w) * 2 + 1] = 0x01;  // GGB BBBB A
+            // ---- DIAGNOSTIC: fill RDRAM with solid red (first 5 frames only) ----
+            static int diagFrame = 0;
+            if (diagFrame <= 5) {
+                LOGI("BKA: gN64_RDRAM=%p gN64_Reg_Base=%p", (void*)gN64_RDRAM, (void*)gN64_Reg_Base);
+
+                u8 *fb = gN64_RDRAM + 0x1000;
+                s32 w = 320;
+                s32 h = 240;
+                for (y = 0; y < h; y++) {
+                    for (x = 0; x < w; x++) {
+                        fb[(x + y * w) * 2 + 0] = 0xF8;  // RRRRR GGG
+                        fb[(x + y * w) * 2 + 1] = 0x01;  // GGB BBBB A
+                    }
                 }
+                gN64_Reg_Base[VI_ORIGIN_REG_IDX] = 0x1000;
+                LOGI("BKA: SET VI_ORIGIN = 0x1000, value read back = %08X",
+                     gN64_Reg_Base[VI_ORIGIN_REG_IDX]);
+                gFramebufferWidth  = w;
+                gFramebufferHeight = h;
+                diagFrame++;
             }
-            // Tell the VI hardware where the framebuffer is.
-            gN64_Reg_Base[VI_ORIGIN_REG_IDX] = 0x1000;
-            gFramebufferWidth  = w;
-            gFramebufferHeight = h;
-            // Re-enable game_draw when the test is complete.
+
             // if(func_802E4424()) game_draw(0);
 
             spawnQueue_flush();
