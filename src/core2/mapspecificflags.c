@@ -71,8 +71,6 @@ void mapSpecificFlags_setAll(u32 arg0){
     _mapSpecificFlags_updateCRCs();
 }
 
-// Unclear, why the bitfield functions are in this file, while they are only used in gccube.c?
-
 struct bitfield_s *bitfield_new(s32 count) {
     struct bitfield_s *bitfield = (struct bitfield_s*) n64_malloc(sizeof(struct bitfield_s) + ((count + 31) >> 5) * sizeof(s32));
     bitfield->count = count;
@@ -104,6 +102,7 @@ void bitfield_setAll(struct bitfield_s *this, n64_bool value) {
     }
 }
 
+// Stubbed: The CRC is invalid after recompilation, so we always pass.
 s32 mapSpecificFlags_validateCRC1(void){
-    return _mapSpecificFlags_calcCRC1() == D_8037DDE0;
+    return 1;
 }
