@@ -37,8 +37,9 @@ static u64 sDebugVar_8027BEF0;
 extern u8 core2_TEXT_START[];
 
 // gN64_RDRAM and gN64_Reg_Base are declared in bka_safe_base.h (included via ultra64.h).
-// Do NOT redeclare them here, or the linker may resolve them to a different (zero) copy.
-#define VI_ORIGIN_REG_IDX  (0x00400000 / 4)   // VI_ORIGIN_REG in emulated reg space
+// Do NOT redeclare them here.
+// gFramebuffers is declared in missing_stubs.c and lowlevel_bridge.cpp.
+extern void* gFramebuffers[3];
 
 void func_8023DA20(s32 arg0){
     if (core2_TEXT_START && core2_TEXT_START > (u8*)&D_8027A130) {
@@ -141,10 +142,6 @@ void globalTimer_decTimer(void){
 
 void mainLoop(void){
     s32 x, y;
-    s32 r, g, b, a;
-    u16 tmp;
-    u16 rgba;
-    s32 offset;
 
     viMgr_clearFramebuffers();
 
@@ -174,7 +171,7 @@ void mainLoop(void){
             func_80255ACC();
             spawnQueue_func_802C3A18();
 
-            // ---- DIAGNOSTIC: fill RDRAM with solid red (first 5 frames only) ----
+            // ---- DIAGNOSTIC: fill RDRAM with solid red ----
             static int diagFrame = 0;
             if (diagFrame < 5) {
                 u8 *fb = gN64_RDRAM + 0x1000;
@@ -186,12 +183,11 @@ void mainLoop(void){
                         fb[(x + y * w) * 2 + 1] = 0x01;
                     }
                 }
-                gN64_Reg_Base[VI_ORIGIN_REG_IDX] = 0x1000;
-                LOGI("BKA: SET VI_ORIGIN = 0x1000 (frame %d), reg_base=%p, readback=%08X",
-                     diagFrame, (void*)gN64_Reg_Base,
-                     gN64_Reg_Base[VI_ORIGIN_REG_IDX]);
+                // Set the framebuffer pointer so the video plugin can find it.
+                gFramebuffers[0] = gN64_RDRAM + 0x1000;
                 gFramebufferWidth  = w;
                 gFramebufferHeight = h;
+                LOGI("BKA: SET fb0=%p w=%d h=%d", gFramebuffers[0], w, h);
                 diagFrame++;
             }
 
@@ -213,14 +209,11 @@ void mainLoop(void){
         for(y= 0x1e; y < gFramebufferHeight - 0x1e; y++){
             for(x = 0x14; x < 0xeb; x++){
                 tmp = ((8 * globalTimer_getTime()) + ((x*x) + (y*y)));
-
                 r = _SHIFTL(x>>3, 11, 5);
                 g = _SHIFTL(y>>3, 6, 5);
                 b = _SHIFTL(tmp>>3, 1, 5);
                 a = 1;
-
                 rgba = b | r | g | a;
-
                 offset = ((gFramebufferWidth - 0xFF) / 2) + x + (y*gFramebufferWidth);
                 gFramebuffers[0][offset] = (s32) rgba;
                 gFramebuffers[1][offset] = (s32) rgba;
