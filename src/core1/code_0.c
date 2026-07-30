@@ -1,135 +1,3 @@
-#include <ultra64.h>
-#include "core1/core1.h"
-#include "functions.h"
-#include "variables.h"
-#include "version.h"
-#include "gc/gctransition.h"
-
-#define MAIN_THREAD_STACK_SIZE 0x17F0
-
-#if VERSION == VERSION_PAL
-    extern s32 D_80000300;
-#endif
-
-s32 D_80275610 = 0;
-s32 D_80275614 = 0;
-u32 gGlobalTimer = 0;
-u32 sDebugVar_8027561C[] = { 0x9, 0x4, 0xA, 0x3, 0xB, 0x2, 0xC, 0x5, 0x0,  0x1, 0x6, 0xD,  -1 };
-u32 D_80275650 = VER_SELECT(0xAD019D3C, 0xA371A8F3, 0, 0);
-u32 D_80275654 = VER_SELECT(0xD381B72F, 0xD0709154, 0, 0);
-char sDebugVar_80275658[] = VER_SELECT("HjunkDire:218755", "HjunkDire:300875", "HjunkDire:", "HjunkDire:");
-
-u32 D_8027A130;
-u8 pad_8027A138[0x400];
-u64 sDebugVar_8027A538;
-u64 sDebugVar_8027A540;
-u8 sMainThreadStack[MAIN_THREAD_STACK_SIZE];
-OSThread sMainThread;
-s32 gBootMap;
-static n64_bool sDisableInput;
-static u64 sDebugVar_8027BEF0;
-
-extern u8 core2_TEXT_START[];
-
-void func_8023DA20(s32 arg0){
-    if (core2_TEXT_START && core2_TEXT_START > (u8*)&D_8027A130) {
-        bzero(&D_8027A130, core2_TEXT_START - (u8*)&D_8027A130);
-    }
-    osWriteBackDCacheAll();
-    sns_find_and_parse_payload();
-    osInitialize();
-    initThread_create();
-}
-
-void func_8023DA74(void){
-    func_8033BD6C();
-    func_80255198();
-}
-
-void func_8023DA9C(s32 arg0){
-    func_80254008();
-    viMgr_clearFramebuffers();
-    if (D_8027A130 == 4){
-        func_802E3580();
-    }
-    if (D_8027A130 == 3){
-        func_802E4170();
-    }
-    func_8023DA74();
-    D_8027A130 = arg0;
-    if (D_8027A130 == 3){
-        func_802E4214(gBootMap);
-    }
-    if (D_8027A130 == 4){
-        dummy_func_802E35D0();
-    }
-    ucode_stub1();
-}
-
-u32 globalTimer_getTimeMasked(u32 mask){
-    return gGlobalTimer & mask;
-}
-
-s32 globalTimer_getTime(void){
-    return gGlobalTimer;
-}
-
-void globalTimer_reset(void){
-    gGlobalTimer = 0;
-}
-
-enum map_e getSpecialBootMap(void){
-    return (DEBUG_use_special_bootmap())? MAP_80_GL_FF_ENTRANCE : MAP_91_FILE_SELECT;
-}
-
-enum map_e getDefaultBootMap(void){
-    return MAP_1F_CS_START_RAREWARE;
-}
-
-void func_8023DBAC(void){
-    setBootMap(getDefaultBootMap());
-    func_8023DFF0(3);
-}
-
-void func_8023DBDC(void){
-    setBootMap(getSpecialBootMap());
-    func_8023DFF0(3);
-}
-
-void core1_init(void) {
-#if VERSION == VERSION_PAL
-     osTvType = 0;
-#endif
-    ucode_load();
-    setBootMap(getDefaultBootMap());
-    rarezip_init();
-    viMgr_init();
-    overlayManagerloadCore2();
-    sDebugVar_8027BEF0 = sDebugVar_8027A538;
-    heap_init();
-    func_80254028();
-    dummy_func_8025AFB0();
-    allocUnusedBlock();
-    assetCache_init();
-    pfsManager_init();
-    baMotor_init();
-    audioManager_init();
-    graphicsCache_init();
-    ml_init();
-    gctransition_reset();
-    D_8027A130 = 0;
-    gGlobalTimer = 0;
-    func_8023DA9C(3);
-}
-
-void globalTimer_incTimer(void){
-    gGlobalTimer++;
-}
-
-void globalTimer_decTimer(void){
-    gGlobalTimer--;
-}
-
 void mainLoop(void){
     s32 x, y;
     s32 r, g, b, a;
@@ -137,8 +5,7 @@ void mainLoop(void){
     u16 rgba;
     s32 offset;
 
-    // Clear framebuffer every frame to wipe any stale CRC or test pattern.
-    // This guarantees we start with a clean slate.
+    // Clear framebuffer every frame to wipe stale data.
     viMgr_clearFramebuffers();
 
     if((globalTimer_getTime() & 0x7f) == 0x11)
@@ -166,8 +33,19 @@ void mainLoop(void){
             func_80255524();
             func_80255ACC();
             spawnQueue_func_802C3A18();
-            if(func_802E4424())
-                game_draw(0);
+
+            // ---- TEST: fill framebuffer with solid red ----
+            for(y = 0; y < gFramebufferHeight; y++) {
+                for(x = 0; x < gFramebufferWidth; x++) {
+                    offset = x + y * gFramebufferWidth;
+                    // RGBA: R=31, G=0, B=0, A=1
+                    gFramebuffers[0][offset] = 0xF800 | 0x0001;
+                    gFramebuffers[1][offset] = 0xF800 | 0x0001;
+                }
+            }
+            // Remove the normal game_draw for now
+            // if(func_802E4424()) game_draw(0);
+
             spawnQueue_flush();
             break;
     }
@@ -177,8 +55,6 @@ void mainLoop(void){
         D_80275610 = 0;
     }
 
-    // The CRC failure screen is permanently disabled.
-    // (Leave the original code inside #if 0 for reference.)
 #if 0
     if( !func_8032056C()
         || !levelSpecificFlags_validateCRC1()
@@ -203,37 +79,4 @@ void mainLoop(void){
         }
     }
 #endif
-}
-
-void mainThread_entry(void *arg) { 
-    core1_init();
-    sns_write_payload_over_heap();
-
-    while (1) {
-        mainLoop();
-    }
-}
-
-void func_8023DFF0(s32 arg0){
-    D_80275610 = arg0 + 1;
-}
-
-s32 func_8023E000(void){
-    return D_8027A130;
-}
-
-void setBootMap(enum map_e map_id){
-    gBootMap = map_id;
-}
-
-void mainThread_create(void) {
-    osCreateThread(&sMainThread, 6, mainThread_entry, NULL, sMainThreadStack + MAIN_THREAD_STACK_SIZE, 20);
-}
-
-OSThread *mainThread_get(void) {
-    return &sMainThread;
-}
-
-void disableInput_set(void){
-    sDisableInput = TRUE;
 }
