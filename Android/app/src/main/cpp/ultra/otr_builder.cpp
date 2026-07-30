@@ -214,7 +214,6 @@ static std::vector<SplatSegment> parse_splat_yaml(const char* yamlPath) {
             char typeBuf[64] = {0};
             char nameBuf[128] = {0};
 
-            // Safely parse [offset, type, name] or [offset, type] using %i to automatically handle 0x
             if (sscanf(ptr, "[ %i , %63[^,] , %127[^]] ]", &startVal, typeBuf, nameBuf) >= 2 ||
                 sscanf(ptr, "[ %i , %63[^]] ]", &startVal, typeBuf) >= 2) {
 
@@ -237,7 +236,6 @@ static std::vector<SplatSegment> parse_splat_yaml(const char* yamlPath) {
                 clean_str(key);
                 clean_str(val);
 
-                // Exact match required to prevent `vram_start` or `ram_start` from overwriting ROM offsets
                 if (strcmp(key, "start") == 0) {
                     currentSeg.start = static_cast<uint32_t>(strtoul(val, nullptr, 0));
                     hasActiveSeg = true;
@@ -445,8 +443,6 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
                     if (offset >= 0x10000000 && (offset - 0x10000000) < romSize) {
                         offset -= 0x10000000;
                     } else {
-                        // These are expected .bss/virtual memory segments mapped beyond physical cart size.
-                        // Quietly bypass them to prevent log spam and failed extraction counts.
                         LOGD("Bypassing virtual/BSS segment %s (offset: 0x%X)", seg.name, seg.start);
                         continue;
                     }
@@ -476,6 +472,29 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
                 uint8_t* srcBuffer = romData + offset;
                 uint8_t* destBuffer = romBaseBuffer + offset;
 
+                // --- Skip core1 and code_0 ---
+                // These segments are recompiled and linked directly into
+                // libbkawrapper.so.  Zero them out in the ROM buffer so
+                // the runtime picks up our modified versions.
+                bool skipForRecompiled = (strcmp(seg.name, "core1") == 0 ||
+                                          strcmp(seg.name, "code_0") == 0);
+                if (skipForRecompiled) {
+                    memset(destBuffer, 0, size);
+                    extracted++;
+                    LOGI("Skipping %s (using recompiled version)", seg.name);
+                    // Update progress and continue
+                    int percent = 10 + static_cast<int>(((uint64_t)i * 89) / segCount);
+                    if (percent != lastPercent) {
+                        char status[128];
+                        snprintf(status, sizeof(status), "Processing: %.64s", seg.name);
+                        if (!debug_ui(env, callback, progressMid, percent, status)) {
+                            break;
+                        }
+                        lastPercent = percent;
+                    }
+                    continue;
+                }
+
                 bool isRareCompressed = false;
                 if (size >= 8 && srcBuffer[0] == 0x11 && srcBuffer[1] == 0x72) {
                     uint32_t declaredSize = (static_cast<uint32_t>(srcBuffer[2]) << 24) | 
@@ -489,7 +508,6 @@ Java_com_bkawrapper_OtrService_runNativeOtrGeneration(
 
                 if (isRareCompressed) {
                     uint32_t written = 0;
-                    // Properly shift pointer past the 6-byte Rare compression header (2 magic bytes + 4 size bytes)
                     uint8_t* decompressedData = decompress_rare_asset(srcBuffer + 6, size - 6, &written);
                     if (decompressedData && written > 0) {
                         if (written <= size || (offset + written <= romSize)) {
