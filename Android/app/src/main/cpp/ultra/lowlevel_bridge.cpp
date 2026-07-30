@@ -9,41 +9,21 @@
 
 #define LOG_TAG "BKA_MEM"
 
-// Size allocations matching the expectations of bka_safe_base.h
-//
-// FIXED: BKA_RDRAM_ALLOC_SIZE increased from 0x1000000 (16MB) to 0x1001000
-// (16MB + 4KB). The decompressor in src/done/rarezip.c writes decompressed
-// core1 code into RDRAM starting at offset 0x1000, and g_decomp_out_cap is
-// set to 16MB unconditionally (from InitializeDecompressionBuffers). This
-// allows writes up to RDRAM+0x1000+16MB = one page past the 16MB boundary,
-// causing SIGSEGV at exactly RDRAM+0x1000000. The extra 4KB padding absorbs
-// this overflow safely.
-#define BKA_RDRAM_ALLOC_SIZE  0x1001000 // 16MB + 4KB overflow guard
-#define N64_REG_SPACE_SIZE    0x1000000 // 16MB (Covers RCP/RCP register ranges)
-#define N64_PIF_SPACE_SIZE    0x0010000 // 64KB (Abundantly covers PIF ROM/RAM)
-#define N64_ROM_SPACE_SIZE    0x04000000 // 64MB (Covers the full N64 physical ROM limit)
+#define BKA_RDRAM_ALLOC_SIZE  0x1001000
+#define N64_REG_SPACE_SIZE    0x1000000
+#define N64_PIF_SPACE_SIZE    0x0010000
+#define N64_ROM_SPACE_SIZE    0x04000000
 
-// CRITICAL CORRECTION: MI_INTR_REG physical offset is 0x04300008.
-// Mapped against our 0x04000000 register allocation block base, the correct byte offset is 0x300008.
-// Offset 0x30000C maps to MI_INTR_MASK_REG, which broke signal updates.
 #define MI_INTR_REG_IDX       (0x00300008 / 4)
 #define MI_INTR_VI            0x08
 
-// N64 VI register indices (physical addresses 0x04400000-0x04400038 mapped into gN64_Reg_Base)
-// gN64_Reg_Base starts at physical address 0x04000000, so VI registers are at offset 0x00400000.
-#define VI_ORIGIN_REG_IDX     (0x00400000 / 4)  // VI_ORIGIN_REG   @ 0x04400000
-#define VI_WIDTH_REG_IDX      (0x00400004 / 4)  // VI_WIDTH_REG    @ 0x04400004
-#define VI_V_START_REG_IDX    (0x0040001C / 4)  // VI_V_START_REG  @ 0x0440001C (vertical start = height)
+#define VI_ORIGIN_REG_IDX     (0x00400000 / 4)
+#define VI_WIDTH_REG_IDX      (0x00400004 / 4)
+#define VI_V_START_REG_IDX    (0x0040001C / 4)
 
-// N64 heap base offset within RDRAM (used by D_8002D500)
 #define N64_HEAP_OFFSET       0x002D500
 #define N64_HEAP_SIZE         0x211120
 
-// FIXED: gN64_ROM_Base is the SINGLE authoritative definition.
-// resource_mgr.cpp now uses "extern uint8_t* gN64_ROM_Base;" to reference this.
-// The --allow-multiple-definition flag previously let both TUs define their
-// own copy, causing isGenuineRom checks in ResourceMgr_HandleDma to use
-// the wrong g_romSize/gN64_ROM_Base pair.
 uint8_t* gN64_RDRAM    = nullptr;
 uint32_t* gN64_Reg_Base = nullptr;
 uint32_t* gN64_PIF_Base = nullptr;
@@ -51,116 +31,62 @@ uint8_t* gN64_ROM_Base = nullptr;
 
 extern "C" {
 
-    // Forward declaration of the native event routing bridge from emulator/stubs.cpp
     void HLE_TriggerN64Event(int event_id);
 
-    // External framebuffer pointers from the game code.
-    // NOTE: These stay 0 (null) in our port because the N64 VI hardware would
-    // normally write the framebuffer address to *framep during vblank.
-    // Since we HLE the VI, we read the framebuffer address directly from
-    // the VI_ORIGIN_REG register instead.
     extern void* gFramebuffers[3];
     extern s32 gFramebufferWidth;
     extern s32 gFramebufferHeight;
 
-    // Signature updated to capture the dynamic asset path string
     void InitN64Registers(const char* assetDir) {
-        // Idempotency guard: Prevent double allocation if called repeatedly
         if (gN64_RDRAM != nullptr && gN64_Reg_Base != nullptr &&
             gN64_PIF_Base != nullptr && gN64_ROM_Base != nullptr) {
             return;
         }
 
-        // 1. Allocate Main N64 RDRAM Memory Space (16MB + 4KB overflow guard)
-        gN64_RDRAM = (uint8_t*)mmap(
-            nullptr,
-            BKA_RDRAM_ALLOC_SIZE,
-            PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS,
-            -1, 0
-        );
+        gN64_RDRAM = (uint8_t*)mmap(nullptr, BKA_RDRAM_ALLOC_SIZE,
+                                    PROT_READ | PROT_WRITE,
+                                    MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        gN64_Reg_Base = (uint32_t*)mmap(nullptr, N64_REG_SPACE_SIZE,
+                                        PROT_READ | PROT_WRITE,
+                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        gN64_PIF_Base = (uint32_t*)mmap(nullptr, N64_PIF_SPACE_SIZE,
+                                        PROT_READ | PROT_WRITE,
+                                        MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+        gN64_ROM_Base = (uint8_t*)mmap(nullptr, N64_ROM_SPACE_SIZE,
+                                       PROT_READ | PROT_WRITE,
+                                       MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-        // 2. Allocate N64 Hardware Emulation Register Space
-        gN64_Reg_Base = (uint32_t*)mmap(
-            nullptr,
-            N64_REG_SPACE_SIZE,
-            PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS,
-            -1, 0
-        );
-
-        // 3. Allocate N64 PIF Subsystem Memory Space
-        gN64_PIF_Base = (uint32_t*)mmap(
-            nullptr,
-            N64_PIF_SPACE_SIZE,
-            PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS,
-            -1, 0
-        );
-
-        // 4. Allocate Virtual Cartridge ROM Header Space (Now 64MB)
-        // FIXED: This is the AUTHORITATIVE gN64_ROM_Base allocation.
-        // resource_mgr.cpp will populate it in ResourceMgr_Init.
-        gN64_ROM_Base = (uint8_t*)mmap(
-            nullptr,
-            N64_ROM_SPACE_SIZE,
-            PROT_READ | PROT_WRITE,
-            MAP_PRIVATE | MAP_ANONYMOUS,
-            -1, 0
-        );
-
-        // Hard Fail Verification: Ensure the Android kernel granted all spaces securely
         if (gN64_RDRAM == MAP_FAILED || gN64_Reg_Base == MAP_FAILED ||
             gN64_PIF_Base == MAP_FAILED || gN64_ROM_Base == MAP_FAILED) {
             __android_log_print(ANDROID_LOG_FATAL, LOG_TAG,
                 "Critical virtual memory mapping failure: %s", strerror(errno));
-
-            // Cleanup any partial allocations before panicking
             if (gN64_RDRAM    != MAP_FAILED && gN64_RDRAM    != nullptr) munmap(gN64_RDRAM,    BKA_RDRAM_ALLOC_SIZE);
             if (gN64_Reg_Base != MAP_FAILED && gN64_Reg_Base != nullptr) munmap(gN64_Reg_Base, N64_REG_SPACE_SIZE);
             if (gN64_PIF_Base != MAP_FAILED && gN64_PIF_Base != nullptr) munmap(gN64_PIF_Base, N64_PIF_SPACE_SIZE);
             if (gN64_ROM_Base != MAP_FAILED && gN64_ROM_Base != nullptr) munmap(gN64_ROM_Base, N64_ROM_SPACE_SIZE);
-
-            gN64_RDRAM    = nullptr;
-            gN64_Reg_Base = nullptr;
-            gN64_PIF_Base = nullptr;
-            gN64_ROM_Base = nullptr;
+            gN64_RDRAM = gN64_Reg_Base = gN64_PIF_Base = gN64_ROM_Base = nullptr;
             abort();
         }
 
-        // Zero out all allocated pools to guarantee clean emulation states
         memset(gN64_RDRAM,    0, BKA_RDRAM_ALLOC_SIZE);
         memset(gN64_Reg_Base, 0, N64_REG_SPACE_SIZE);
         memset(gN64_PIF_Base, 0, N64_PIF_SPACE_SIZE);
         memset(gN64_ROM_Base, 0, N64_ROM_SPACE_SIZE);
 
-        // CRITICAL FIX: Verify the heap region (D_8002D500 at RDRAM offset 0x002D500)
-        // is accessible and properly zeroed. The bka_resolve_ptr in src/done/rarezip.c
-        // maps N64 address 0x8002D500 to gN64_RDRAM + 0x002D500 via case A/C.
-        // func_80000450 uses this as the DMA target for core1 decompression.
         if (N64_HEAP_OFFSET + N64_HEAP_SIZE <= BKA_RDRAM_ALLOC_SIZE) {
             __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
                 "Heap region validated: RDRAM+0x%X (0x%X bytes) for D_8002D500",
                 N64_HEAP_OFFSET, N64_HEAP_SIZE);
         } else {
             __android_log_print(ANDROID_LOG_ERROR, LOG_TAG,
-                "FATAL: Heap region exceeds RDRAM allocation! offset=0x%X size=0x%X limit=0x%X",
-                N64_HEAP_OFFSET, N64_HEAP_SIZE, BKA_RDRAM_ALLOC_SIZE);
+                "FATAL: Heap region exceeds RDRAM allocation!");
         }
-
-        // Log the RDRAM overflow guard for diagnostics
         __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
-            "RDRAM allocated: %zu bytes (16MB usable + 4KB overflow guard at +0x1000000)",
+            "RDRAM allocated: %zu bytes (16MB usable + 4KB overflow guard)",
             (size_t)BKA_RDRAM_ALLOC_SIZE);
 
-        // CRITICAL CORRECTION: Map the physical ROM base dumped by the OTR Builder directly
-        // into the emulated cartridge memory block so raw PI Subsystem reads succeed.
-        // Note: ResourceMgr_Init also loads rom_base.bin into gN64_ROM_Base.
-        // This is a secondary load that may be redundant but ensures the cartridge
-        // address space (0x10000000+) has valid ROM data for direct PI reads.
         char romPath[512];
         snprintf(romPath, sizeof(romPath), "%s/rom_base.bin", assetDir);
-
         FILE* f = fopen(romPath, "rb");
         if (f) {
             size_t bytesRead = fread(gN64_ROM_Base, 1, N64_ROM_SPACE_SIZE, f);
@@ -168,38 +94,19 @@ extern "C" {
             __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
                 "Memory Engine Stabilized: physical ROM mapped from %s (%zu bytes).", romPath, bytesRead);
         } else {
-            // Safe fallback if the dump is somehow missing or unreadable
             __android_log_print(ANDROID_LOG_WARN, LOG_TAG, "WARNING: rom_base.bin missing, fallback memory will be zeroed.");
-            gN64_ROM_Base[0x3B] = 'N';
-            gN64_ROM_Base[0x3C] = 'B';
-            gN64_ROM_Base[0x3D] = 'K';
-            gN64_ROM_Base[0x3E] = 'E';
+            gN64_ROM_Base[0x3B] = 'N'; gN64_ROM_Base[0x3C] = 'B';
+            gN64_ROM_Base[0x3D] = 'K'; gN64_ROM_Base[0x3E] = 'E';
         }
     }
 
     void HardwareRegs_Shutdown() {
-        if (gN64_RDRAM != nullptr) {
-            munmap(gN64_RDRAM, BKA_RDRAM_ALLOC_SIZE);
-            gN64_RDRAM = nullptr;
-        }
-        if (gN64_Reg_Base != nullptr) {
-            munmap(gN64_Reg_Base, N64_REG_SPACE_SIZE);
-            gN64_Reg_Base = nullptr;
-        }
-        if (gN64_PIF_Base != nullptr) {
-            munmap(gN64_PIF_Base, N64_PIF_SPACE_SIZE);
-            gN64_PIF_Base = nullptr;
-        }
-        if (gN64_ROM_Base != nullptr) {
-            munmap(gN64_ROM_Base, N64_ROM_SPACE_SIZE);
-            gN64_ROM_Base = nullptr;
-        }
+        if (gN64_RDRAM)    { munmap(gN64_RDRAM,    BKA_RDRAM_ALLOC_SIZE); gN64_RDRAM    = nullptr; }
+        if (gN64_Reg_Base) { munmap(gN64_Reg_Base, N64_REG_SPACE_SIZE);   gN64_Reg_Base = nullptr; }
+        if (gN64_PIF_Base) { munmap(gN64_PIF_Base, N64_PIF_SPACE_SIZE);   gN64_PIF_Base = nullptr; }
+        if (gN64_ROM_Base) { munmap(gN64_ROM_Base, N64_ROM_SPACE_SIZE);   gN64_ROM_Base = nullptr; }
         __android_log_print(ANDROID_LOG_INFO, LOG_TAG, "Memory Engine Closed down cleanly.");
     }
-
-    // -------------------------------------------------------------------------
-    // ANDROID NATIVE BRIDGE HOOKS
-    // -------------------------------------------------------------------------
 
     struct BKA_ControllerPad {
         uint16_t button;
@@ -207,83 +114,44 @@ extern "C" {
         int8_t   stick_y;
         uint8_t  errno_val;
     };
-
-    // Allocate the physical memory array for all 4 standard controller ports.
     BKA_ControllerPad gN64_ControllerData[4] = {{0, 0, 0, 0}};
 
-    // Engine Clock Signal Pass:
-    // Connects the asynchronous Android OpenGL thread to the synchronous N64 OS.
     void N64_TriggerVirtualVBlankInterrupt(void) {
-        if (gN64_Reg_Base == nullptr) return;
-
-        // Assert the VI Interrupt bit inside the emulated hardware register space.
+        if (!gN64_Reg_Base) return;
         gN64_Reg_Base[MI_INTR_REG_IDX] |= MI_INTR_VI;
-
-        // Pump the OS_EVENT_VI (ID: 14) message straight into the POSIX HLE event queues.
-        // This instantly wakes up the blocked scheduler threads to step the system forward.
         HLE_TriggerN64Event(14);
     }
 
-    // Hardware Renderer:
-    // Copies the N64 framebuffer from RDRAM to the Android GL texture for display.
-    // Called from updateTexture on the GL render thread while the engine lock is held.
     void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId) {
-        // DIAGNOSTIC: Log the first 5 calls to see what's happening
         static int diagCount = 0;
         if (++diagCount <= 5) {
             __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
-                "VideoPlugin: call=%d texId=%u rdr=%p reg=%p fb0=%p fbPhys=%08X w=%d h=%d",
+                "VideoPlugin: call=%d texId=%u rdr=%p reg=%p fb0=%p w=%d h=%d",
                 diagCount, hostTextureId, gN64_RDRAM, gN64_Reg_Base,
-                gFramebuffers[0],
-                gN64_Reg_Base ? gN64_Reg_Base[VI_ORIGIN_REG_IDX] : 0,
-                gFramebufferWidth, gFramebufferHeight);
+                gFramebuffers[0], gFramebufferWidth, gFramebufferHeight);
         }
 
         if (!gN64_RDRAM || !gN64_Reg_Base || hostTextureId == 0) return;
 
-        // FIXED: gFramebuffers[] stays null in our port because the N64 VI
-        // hardware normally writes the framebuffer address to *framep during
-        // vblank. Since we HLE the VI, we read the framebuffer address
-        // directly from the VI_ORIGIN_REG register, which is set by
-        // __osViSwapContext via IO_WRITE(VI_ORIGIN_REG, origin).
-        uint32_t fbPhysAddr = gN64_Reg_Base[VI_ORIGIN_REG_IDX];
+        // Read the framebuffer pointer from the game's global.
+        // The game code sets gFramebuffers[0] to point into RDRAM.
+        void* fbPtr = gFramebuffers[0];
+        if (!fbPtr) return;
 
-        // The diagnostic test pattern that previously showed a moving colour
-        // pattern has been removed.  When the VI registers are not yet
-        // configured we simply return, leaving the GL texture as-is.
-        if (fbPhysAddr == 0) {
-            return;
-        }
-
-        // Convert physical RDRAM address to host pointer.
-        // Physical addresses are in the range 0x00000000-0x007FFFFF (8MB).
-        uint8_t* fbBase = gN64_RDRAM + (fbPhysAddr & 0x007FFFFFu);
-
-        // Validate the pointer is within RDRAM
+        uint8_t* fbBase = (uint8_t*)fbPtr;
         if (fbBase < gN64_RDRAM || fbBase >= gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) return;
 
-        // Read framebuffer dimensions from VI registers.
-        // VI_WIDTH_REG holds the horizontal resolution in pixels.
-        // VI_V_START_REG holds (vertical start << 16) | (vertical end).
-        // Height = (vStart - vEnd) / 2 for interlaced, or just the difference.
-        uint32_t viWidth  = gN64_Reg_Base[VI_WIDTH_REG_IDX];
-        uint32_t viVStart = gN64_Reg_Base[VI_V_START_REG_IDX];
-        s32 fbWidth  = (s32)(viWidth & 0x00000FFFu);  // typically 320
-        s32 fbHeight = (s32)(((viVStart >> 16) - (viVStart & 0xFFFF)) / 2);  // typically 240
+        // Read framebuffer dimensions from game globals (set by the test code).
+        s32 fbWidth  = gFramebufferWidth;
+        s32 fbHeight = gFramebufferHeight;
+        if (fbWidth <= 0 || fbWidth > 640)  fbWidth  = 320;
+        if (fbHeight <= 0 || fbHeight > 480) fbHeight = 240;
 
-        // Fall back to game globals if VI registers look invalid
-        if (fbWidth <= 0 || fbWidth > 640)  fbWidth  = gFramebufferWidth;
-        if (fbHeight <= 0 || fbHeight > 480) fbHeight = gFramebufferHeight;
-        if (fbWidth <= 0 || fbHeight <= 0) return;  // Nothing to display
-
-        // N64 framebuffer is 16-bit RGBA5551; each pixel = 2 bytes
         size_t fbSize = (size_t)fbWidth * fbHeight * 2;
         if (fbBase + fbSize > gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) return;
 
-        // Bind the GL texture and upload pixel data
         glBindTexture(GL_TEXTURE_2D, hostTextureId);
 
-        // Allocate or reuse conversion buffer (RGBA5551 -> RGBA8888)
         static uint32_t* s_convBuffer = nullptr;
         static size_t    s_convBufferSize = 0;
         size_t neededSize = (size_t)fbWidth * fbHeight * 4;
@@ -299,16 +167,13 @@ extern "C" {
             for (s32 y = 0; y < fbHeight; y++) {
                 for (s32 x = 0; x < fbWidth; x++) {
                     uint16_t pixel = *src++;
-                    // RGBA5551: R=bits 11-15, G=6-10, B=1-5, A=bit 0
                     uint8_t r = (uint8_t)(((pixel >> 11) & 0x1F) << 3);
                     uint8_t g = (uint8_t)(((pixel >> 6)  & 0x1F) << 3);
                     uint8_t b = (uint8_t)(((pixel >> 1)  & 0x1F) << 3);
                     uint8_t a = (pixel & 1) ? 0xFF : 0x00;
-                    // GL expects RGBA packed as R<<24 | G<<16 | B<<8 | A
                     *dst++ = (r << 24) | (g << 16) | (b << 8) | a;
                 }
             }
-
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, fbWidth, fbHeight, 0,
                          GL_RGBA, GL_UNSIGNED_BYTE, s_convBuffer);
         }
