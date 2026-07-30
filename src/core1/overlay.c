@@ -12,6 +12,7 @@ typedef struct{
 extern struct49s D_803FFE10[];
 
 extern u8  D_8002D500;
+extern u8  D_8000E800;          // D_8000E800 is now a u8, not an int
 extern u32 D_8027BF2C;
 extern u32 D_8027BF30;
 
@@ -19,14 +20,12 @@ void overlay_load(
     s32 overlay_id, u32 ram_start, u32 ram_end, u32 rom_start, u32 rom_end, 
     u32 code_start, u32 code_end, u32 data_start, u32 data_end, u32 bss_start, u32 bss_end
 ){
-    u32 sp34;
+    u8 *sp34;                    // must be a pointer, not u32
     u32 sp30;
     u32 sp2C;
     u32 *tmp;
 
     // Translate all N64 addresses to host pointers.
-    // Without this, the decompressor crashes because it tries to write
-    // to unmapped addresses.
     u8 *ram_start_ptr  = BKA_TRANSLATE_ADDR(ram_start);
     u8 *code_start_ptr = BKA_TRANSLATE_ADDR(code_start);
     u8 *data_start_ptr = BKA_TRANSLATE_ADDR(data_start);
@@ -45,15 +44,16 @@ void overlay_load(
 
     if(overlay_id){
         func_80254008();
-        sp34 = (u32)&D_8000E800;    // host address of temporary buffer
+        sp34 = &D_8000E800;     // assign host pointer directly
     } else {
-        sp34 = (u32)&D_8002D500;
+        sp34 = &D_8002D500;
     }
-    piMgr_read((u8*)sp34, rom_start, rom_end - rom_start);
-    rarezip_uncompress((u8**)&sp34, &ram_start_ptr);
+
+    piMgr_read(sp34, rom_start, rom_end - rom_start);
+    rarezip_uncompress(&sp34, &ram_start_ptr);
     sp2C = D_8027BF2C;
     sp30 = D_8027BF30;
-    rarezip_uncompress((u8**)&sp34, &ram_start_ptr);
+    rarezip_uncompress(&sp34, &ram_start_ptr);
 
     if(bss_start){
         bzero(bss_start_ptr, bss_end - bss_start);
