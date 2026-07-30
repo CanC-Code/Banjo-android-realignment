@@ -38,8 +38,8 @@ extern u8 core2_TEXT_START[];
 
 // gN64_RDRAM and gN64_Reg_Base are declared in bka_safe_base.h (included via ultra64.h).
 // Do NOT redeclare them here.
-// gFramebuffers is declared in missing_stubs.c and lowlevel_bridge.cpp.
-extern void* gFramebuffers[3];
+// Shared variable to communicate the framebuffer offset to the video plugin.
+extern u32 g_active_fb_offset;
 
 void func_8023DA20(s32 arg0){
     if (core2_TEXT_START && core2_TEXT_START > (u8*)&D_8027A130) {
@@ -183,11 +183,11 @@ void mainLoop(void){
                         fb[(x + y * w) * 2 + 1] = 0x01;
                     }
                 }
-                // Set the framebuffer pointer so the video plugin can find it.
-                gFramebuffers[0] = gN64_RDRAM + 0x1000;
+                // Tell the video plugin where the framebuffer is.
+                g_active_fb_offset = 0x1000;
                 gFramebufferWidth  = w;
                 gFramebufferHeight = h;
-                LOGI("BKA: SET fb0=%p w=%d h=%d", gFramebuffers[0], w, h);
+                LOGI("BKA: SET fb_offset=0x%04X w=%d h=%d", g_active_fb_offset, w, h);
                 diagFrame++;
             }
 
