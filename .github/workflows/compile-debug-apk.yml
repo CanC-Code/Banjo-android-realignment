@@ -27,6 +27,11 @@ jobs:
         with:
           gradle-version: 8.2
 
+      - name: 🧹 Clean previous build artifacts
+        run: |
+          rm -rf Android/app/.cxx
+          rm -rf Android/app/build
+
       - name: 🐘 Build Verification APK
         run: |
           cd Android
