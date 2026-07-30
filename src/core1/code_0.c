@@ -173,15 +173,19 @@ void mainLoop(void){
             func_80255ACC();
             spawnQueue_func_802C3A18();
 
-            // ---- TEST: fill the N64 framebuffer with solid red ----
-            // Use a known RDRAM offset (0x1000) so the GL upload can find it.
-            u16 *fb = (u16 *)(gN64_RDRAM + 0x1000);
+            // ---- TEST: fill RDRAM framebuffer with solid red ----
+            // Write pixels as big‑endian RGBA5551 bytes so the GL
+            // upload in VideoPlugin_OutputFrameTexture sees the
+            // correct byte order.
+            u8 *fb = gN64_RDRAM + 0x1000;
             s32 w = 320;
             s32 h = 240;
             for (y = 0; y < h; y++) {
                 for (x = 0; x < w; x++) {
-                    // Solid red in RGBA5551: R=31, G=0, B=0, A=1
-                    fb[x + y * w] = 0xF800 | 0x0001;
+                    // R=31, G=0, B=0, A=1  →  pixel = 0xF801
+                    // Big‑endian: high byte first
+                    fb[(x + y * w) * 2 + 0] = 0xF8;  // RRRRR GGG
+                    fb[(x + y * w) * 2 + 1] = 0x01;  // GGB BBBB A
                 }
             }
             // Tell the VI hardware where the framebuffer is.
