@@ -145,6 +145,30 @@ void mainLoop(void){
 
     viMgr_clearFramebuffers();
 
+    // ---- DIAGNOSTIC: fill RDRAM with solid red (first 5 frames only) ----
+    // Run BEFORE any game logic so it's guaranteed to execute.
+    static int diagFrame = 0;
+    if (diagFrame < 5) {
+        LOGI("BKA: RDRAM=%p RegBase=%p fb_ofs_var=%p",
+             (void*)gN64_RDRAM, (void*)gN64_Reg_Base, (void*)&g_active_fb_offset);
+
+        u8 *fb = gN64_RDRAM + 0x1000;
+        s32 w = 320;
+        s32 h = 240;
+        for (y = 0; y < h; y++) {
+            for (x = 0; x < w; x++) {
+                fb[(x + y * w) * 2 + 0] = 0xF8;
+                fb[(x + y * w) * 2 + 1] = 0x01;
+            }
+        }
+        g_active_fb_offset = 0x1000;
+        gFramebufferWidth  = w;
+        gFramebufferHeight = h;
+        LOGI("BKA: SET fb_offset=0x%04X (frame %d)", g_active_fb_offset, diagFrame);
+        diagFrame++;
+    }
+    // ---- END DIAGNOSTIC ----
+
     if((globalTimer_getTime() & 0x7f) == 0x11)
         sns_write_payload_over_heap();
     func_8023DA74();
@@ -170,27 +194,7 @@ void mainLoop(void){
             func_80255524();
             func_80255ACC();
             spawnQueue_func_802C3A18();
-
-            // ---- DIAGNOSTIC: fill RDRAM with solid red ----
-            static int diagFrame = 0;
-            if (diagFrame < 5) {
-                u8 *fb = gN64_RDRAM + 0x1000;
-                s32 w = 320;
-                s32 h = 240;
-                for (y = 0; y < h; y++) {
-                    for (x = 0; x < w; x++) {
-                        fb[(x + y * w) * 2 + 0] = 0xF8;
-                        fb[(x + y * w) * 2 + 1] = 0x01;
-                    }
-                }
-                // Tell the video plugin where the framebuffer is.
-                g_active_fb_offset = 0x1000;
-                gFramebufferWidth  = w;
-                gFramebufferHeight = h;
-                LOGI("BKA: SET fb_offset=0x%04X w=%d h=%d", g_active_fb_offset, w, h);
-                diagFrame++;
-            }
-
+            // if(func_802E4424()) game_draw(0);
             spawnQueue_flush();
             break;
     }
