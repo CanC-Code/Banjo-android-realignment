@@ -64,7 +64,10 @@ extern "C" {
             if (gN64_Reg_Base != MAP_FAILED && gN64_Reg_Base != nullptr) munmap(gN64_Reg_Base, N64_REG_SPACE_SIZE);
             if (gN64_PIF_Base != MAP_FAILED && gN64_PIF_Base != nullptr) munmap(gN64_PIF_Base, N64_PIF_SPACE_SIZE);
             if (gN64_ROM_Base != MAP_FAILED && gN64_ROM_Base != nullptr) munmap(gN64_ROM_Base, N64_ROM_SPACE_SIZE);
-            gN64_RDRAM = gN64_Reg_Base = gN64_PIF_Base = gN64_ROM_Base = nullptr;
+            gN64_RDRAM    = nullptr;
+            gN64_Reg_Base = nullptr;
+            gN64_PIF_Base = nullptr;
+            gN64_ROM_Base = nullptr;
             abort();
         }
 
@@ -134,14 +137,12 @@ extern "C" {
         if (!gN64_RDRAM || !gN64_Reg_Base || hostTextureId == 0) return;
 
         // Read the framebuffer pointer from the game's global.
-        // The game code sets gFramebuffers[0] to point into RDRAM.
         void* fbPtr = gFramebuffers[0];
         if (!fbPtr) return;
 
         uint8_t* fbBase = (uint8_t*)fbPtr;
         if (fbBase < gN64_RDRAM || fbBase >= gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) return;
 
-        // Read framebuffer dimensions from game globals (set by the test code).
         s32 fbWidth  = gFramebufferWidth;
         s32 fbHeight = gFramebufferHeight;
         if (fbWidth <= 0 || fbWidth > 640)  fbWidth  = 320;
