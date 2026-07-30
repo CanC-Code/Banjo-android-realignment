@@ -31,6 +31,7 @@ extern u32 D_803FFE00[4];
 
 void func_80000594(u8 **, u8 **);
 void func_8023DA20(s32);
+void __osTimerServicesInit(void);   // from timerintr.c
 
 void func_80000450(s32 arg0){
     u8 *tmp;
@@ -41,6 +42,8 @@ void func_80000450(s32 arg0){
     dst = (u8*)(uintptr_t)CORE1_VRAM_N64_ADDR;
 
     osInitialize();
+    __osTimerServicesInit();     // set up the timer linked list before any timers are used
+
     LOGI("func_80000450: osInitialize done, starting DMA");
 
     // DMA: copy compressed core1 code from ROM offset 0x1050 into the D_8002D500 heap buffer.
