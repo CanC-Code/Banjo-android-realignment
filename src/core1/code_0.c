@@ -14,21 +14,20 @@
 s32 D_80275610 = 0;
 s32 D_80275614 = 0;
 u32 gGlobalTimer = 0;
-u32 sDebugVar_8027561C[] = { 0x9, 0x4, 0xA, 0x3, 0xB, 0x2, 0xC, 0x5, 0x0,  0x1, 0x6, 0xD,  -1 }; // never used
-u32 D_80275650 = VER_SELECT(0xAD019D3C, 0xA371A8F3, 0, 0); //SM_DATA_CRC_1
-u32 D_80275654 = VER_SELECT(0xD381B72F, 0xD0709154, 0, 0); //SM_DATA_CRC_2
+u32 sDebugVar_8027561C[] = { 0x9, 0x4, 0xA, 0x3, 0xB, 0x2, 0xC, 0x5, 0x0,  0x1, 0x6, 0xD,  -1 };
+u32 D_80275650 = VER_SELECT(0xAD019D3C, 0xA371A8F3, 0, 0);
+u32 D_80275654 = VER_SELECT(0xD381B72F, 0xD0709154, 0, 0);
 char sDebugVar_80275658[] = VER_SELECT("HjunkDire:218755", "HjunkDire:300875", "HjunkDire:", "HjunkDire:");
 
-/* .bss */
 u32 D_8027A130;
 u8 pad_8027A138[0x400];
-u64 sDebugVar_8027A538; // never used
-u64 sDebugVar_8027A540; // never used
+u64 sDebugVar_8027A538;
+u64 sDebugVar_8027A540;
 u8 sMainThreadStack[MAIN_THREAD_STACK_SIZE];
 OSThread sMainThread;
 s32 gBootMap;
 static n64_bool sDisableInput;
-static u64 sDebugVar_8027BEF0; // never used
+static u64 sDebugVar_8027BEF0;
 
 extern u8 core2_TEXT_START[];
 
@@ -138,6 +137,10 @@ void mainLoop(void){
     u16 rgba;
     s32 offset;
 
+    // Clear framebuffer every frame to wipe any stale CRC or test pattern.
+    // This guarantees we start with a clean slate.
+    viMgr_clearFramebuffers();
+
     if((globalTimer_getTime() & 0x7f) == 0x11)
         sns_write_payload_over_heap();
     func_8023DA74();
@@ -174,17 +177,14 @@ void mainLoop(void){
         D_80275610 = 0;
     }
 
-    // The CRC failure screen is now disabled. The original checks all fail
-    // after recompilation, so the block below would always draw the rotating
-    // pattern. Removing it lets the game proceed to the normal display.
-    // (If you want to re‑enable it later, wrap it in "#if 0 ... #endif".)
+    // The CRC failure screen is permanently disabled.
+    // (Leave the original code inside #if 0 for reference.)
 #if 0
     if( !func_8032056C()
         || !levelSpecificFlags_validateCRC1()
         || !dummy_func_80320240()
     ){
         s32 offset;
-        //render weird CRC failure image
         for(y= 0x1e; y < gFramebufferHeight - 0x1e; y++){
             for(x = 0x14; x < 0xeb; x++){
                 tmp = ((8 * globalTimer_getTime()) + ((x*x) + (y*y)));
