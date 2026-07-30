@@ -6,33 +6,33 @@
 
 typedef struct struct_2a_s{
     char *name;
-    u8* ram_start;
-    u8* ram_end;
-    u8* unkC; //uncompressed_rom_range_start
-    u8* unk10; //uncompressed_rom_range_end
-    u8* code_start;
-    u8* code_end;
-    u8* data_start;
-    u8* data_end;
-    u8* bss_start;
-    u8* bss_end;
+    u32 ram_start;                  // changed from u8* to u32 (N64 address)
+    u32 ram_end;
+    u32 unkC;                       // uncompressed_rom_range_start
+    u32 unk10;                      // uncompressed_rom_range_end
+    u32 code_start;
+    u32 code_end;
+    u32 data_start;
+    u32 data_end;
+    u32 bss_start;
+    u32 bss_end;
 } OverlayAddressMap;
 
-
-
+// Declare as external u32 variables, not arrays.
+// This matches the definitions in missing_stubs.c.
 #define SEGMENT_EXTERNS(segname) \
-    extern u8 segname##_VRAM[]; \
-    extern u8 segname##_VRAM_END[]; \
-    extern u8 segname##_ROM_START[]; \
-    extern u8 segname##_ROM_END[]; \
-    extern u8 segname##_TEXT_START[]; \
-    extern u8 segname##_TEXT_END[]; \
-    extern u8 segname##_DATA_START[]; \
-    extern u8 segname##_DATA_END[]; \
-    extern u8 segname##_RODATA_START[]; \
-    extern u8 segname##_RODATA_END[]; \
-    extern u8 segname##_BSS_START[]; \
-    extern u8 segname##_BSS_END[]
+    extern u32 segname##_VRAM; \
+    extern u32 segname##_VRAM_END; \
+    extern u32 segname##_ROM_START; \
+    extern u32 segname##_ROM_END; \
+    extern u32 segname##_TEXT_START; \
+    extern u32 segname##_TEXT_END; \
+    extern u32 segname##_DATA_START; \
+    extern u32 segname##_DATA_END; \
+    extern u32 segname##_RODATA_START; \
+    extern u32 segname##_RODATA_END; \
+    extern u32 segname##_BSS_START; \
+    extern u32 segname##_BSS_END
 
 SEGMENT_EXTERNS(core2);
 SEGMENT_EXTERNS(emptyLvl);
@@ -54,7 +54,7 @@ SEGMENT_EXTERNS(fight);
     {#realname, segname##_VRAM, segname##_VRAM_END, segname##_ROM_START, segname##_ROM_END, segname##_TEXT_START, segname##_TEXT_END, segname##_DATA_START, segname##_RODATA_END, segname##_BSS_START, segname##_BSS_END}
 
 #define DUMMY_SEGMENT_ENTRY(segname, realname) \
-    {#realname, segname##_VRAM, segname##_VRAM_END, segname##_ROM_START, segname##_ROM_END, NULL, NULL, NULL, NULL, NULL, NULL}
+    {#realname, segname##_VRAM, segname##_VRAM_END, segname##_ROM_START, segname##_ROM_END, 0, 0, 0, 0, 0, 0}
 
 /* .data */
 static OverlayAddressMap overlayAddressMap[] = {
@@ -107,7 +107,6 @@ s32 __overlayManager80251178(void){
     s32 sp1C;
     s32 sp18;
 
-
     largest_overlay = __overlayManagergetLargetOverlayAddressMap();
     sp18 = func_802546DC();
     sp1C = __overlayManager80251170();
@@ -142,7 +141,7 @@ n64_bool overlayManagerisOverlayLoaded(int overlay_id){
     return overlayMgrLoadedId == overlay_id;
 }
 
-n64_bool overlayManagerload(enum overlay_e overlay_id){ 
+n64_bool overlayManagerload(enum overlay_e overlay_id){
     s32 rom_addr;
 
     if(overlay_id == 0)
@@ -165,7 +164,7 @@ n64_bool overlayManagerload(enum overlay_e overlay_id){
         ((OverlayAddressMap*)rom_addr)->data_start,
         ((OverlayAddressMap*)rom_addr)->data_end,
         ((OverlayAddressMap*)rom_addr)->bss_start,
-        ((OverlayAddressMap*)rom_addr)->bss_end 
+        ((OverlayAddressMap*)rom_addr)->bss_end
     );
     return TRUE;
 }
@@ -176,7 +175,7 @@ s32 overlayManagerclearLoadedId(void){
 
 void overlayManagerloadCore2(void){
     overlayManagerclearLoadedId();
-    overlay_load(0, 
+    overlay_load(0,
         core2_VRAM, core2_VRAM_END,
         core2_ROM_START, core2_ROM_END,
         core2_TEXT_START, core2_TEXT_END,
