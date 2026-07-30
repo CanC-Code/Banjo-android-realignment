@@ -134,8 +134,13 @@ void sns_find_and_parse_payload(void)
 
 void sns_init_base_payloads(void)
 {
-    snsBasePayloadPtr3 = snspayload_init_new_payload((struct SnsPayload *)BKA_TRANSLATE_ADDR(0x803FFF00));
-    snsBasePayloadPtr4 = snspayload_init_new_payload((struct SnsPayload *)BKA_TRANSLATE_ADDR(0x803A5C00));
+    // All payloads are now allocated from the heap instead of using
+    // hardcoded RDRAM addresses. The original addresses (0x803FFF00,
+    // 0x803A5C00) are not pre-initialized on the Android port, causing
+    // null-pointer crashes. Heap allocation matches the pattern already
+    // used for snsBasePayloadPtr1 and snsBasePayloadPtr2.
+    snsBasePayloadPtr3 = snspayload_init_new_payload((struct SnsPayload *)func_8025484C(0x100));
+    snsBasePayloadPtr4 = snspayload_init_new_payload((struct SnsPayload *)func_8025484C(0x100));
     snsBasePayloadPtr1 = snspayload_init_new_payload((struct SnsPayload *)func_8025484C(0x100));
     snsBasePayloadPtr2 = snspayload_init_new_payload((struct SnsPayload *)func_80254898(0x100));
 }
@@ -372,4 +377,3 @@ void sns_restore_backed_up_items(void)
 
     snsToRestoreItems = FALSE;
 }
-
