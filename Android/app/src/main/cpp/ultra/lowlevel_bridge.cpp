@@ -17,10 +17,6 @@
 #define MI_INTR_REG_IDX       (0x00300008 / 4)
 #define MI_INTR_VI            0x08
 
-#define VI_ORIGIN_REG_IDX     (0x00400000 / 4)
-#define VI_WIDTH_REG_IDX      (0x00400004 / 4)
-#define VI_V_START_REG_IDX    (0x0040001C / 4)
-
 #define N64_HEAP_OFFSET       0x002D500
 #define N64_HEAP_SIZE         0x211120
 
@@ -36,6 +32,7 @@ extern "C" {
     extern void* gFramebuffers[3];
     extern s32 gFramebufferWidth;
     extern s32 gFramebufferHeight;
+    extern uint32_t g_active_fb_offset;
 
     void InitN64Registers(const char* assetDir) {
         if (gN64_RDRAM != nullptr && gN64_Reg_Base != nullptr &&
@@ -129,18 +126,17 @@ extern "C" {
         static int diagCount = 0;
         if (++diagCount <= 5) {
             __android_log_print(ANDROID_LOG_INFO, LOG_TAG,
-                "VideoPlugin: call=%d texId=%u rdr=%p reg=%p fb0=%p w=%d h=%d",
-                diagCount, hostTextureId, gN64_RDRAM, gN64_Reg_Base,
-                gFramebuffers[0], gFramebufferWidth, gFramebufferHeight);
+                "VideoPlugin: call=%d texId=%u rdr=%p fb_ofs=%08X w=%d h=%d",
+                diagCount, hostTextureId, gN64_RDRAM,
+                g_active_fb_offset, gFramebufferWidth, gFramebufferHeight);
         }
 
-        if (!gN64_RDRAM || !gN64_Reg_Base || hostTextureId == 0) return;
+        if (!gN64_RDRAM || hostTextureId == 0) return;
 
-        // Read the framebuffer pointer from the game's global.
-        void* fbPtr = gFramebuffers[0];
-        if (!fbPtr) return;
+        uint32_t fbPhysAddr = g_active_fb_offset;
+        if (fbPhysAddr == 0) return;
 
-        uint8_t* fbBase = (uint8_t*)fbPtr;
+        uint8_t* fbBase = gN64_RDRAM + fbPhysAddr;
         if (fbBase < gN64_RDRAM || fbBase >= gN64_RDRAM + BKA_RDRAM_ALLOC_SIZE) return;
 
         s32 fbWidth  = gFramebufferWidth;
