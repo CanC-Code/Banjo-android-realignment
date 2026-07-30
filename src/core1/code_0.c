@@ -107,6 +107,7 @@ void func_8023DBDC(void){
 }
 
 void core1_init(void) {
+    LOGI("BKA: core1_init START");
 #if VERSION == VERSION_PAL
      osTvType = 0;
 #endif
@@ -130,6 +131,7 @@ void core1_init(void) {
     D_8027A130 = 0;
     gGlobalTimer = 0;
     func_8023DA9C(3);
+    LOGI("BKA: core1_init DONE");
 }
 
 void globalTimer_incTimer(void){
@@ -146,11 +148,9 @@ void mainLoop(void){
     viMgr_clearFramebuffers();
 
     // ---- DIAGNOSTIC: fill RDRAM with solid red (first 5 frames only) ----
-    // Run BEFORE any game logic so it's guaranteed to execute.
     static int diagFrame = 0;
     if (diagFrame < 5) {
-        LOGI("BKA: RDRAM=%p RegBase=%p fb_ofs_var=%p",
-             (void*)gN64_RDRAM, (void*)gN64_Reg_Base, (void*)&g_active_fb_offset);
+        LOGI("BKA: mainLoop frame %d — setting fb_offset", diagFrame);
 
         u8 *fb = gN64_RDRAM + 0x1000;
         s32 w = 320;
@@ -164,10 +164,9 @@ void mainLoop(void){
         g_active_fb_offset = 0x1000;
         gFramebufferWidth  = w;
         gFramebufferHeight = h;
-        LOGI("BKA: SET fb_offset=0x%04X (frame %d)", g_active_fb_offset, diagFrame);
+        LOGI("BKA: SET fb_offset=0x%04X", g_active_fb_offset);
         diagFrame++;
     }
-    // ---- END DIAGNOSTIC ----
 
     if((globalTimer_getTime() & 0x7f) == 0x11)
         sns_write_payload_over_heap();
@@ -227,10 +226,13 @@ void mainLoop(void){
 #endif
 }
 
-void mainThread_entry(void *arg) { 
+void mainThread_entry(void *arg) {
+    LOGI("BKA: mainThread_entry START");
+
     core1_init();
     sns_write_payload_over_heap();
 
+    LOGI("BKA: entering main loop");
     while (1) {
         mainLoop();
     }
