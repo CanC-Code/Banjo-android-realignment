@@ -2,7 +2,6 @@
 #include "bka_safe_base.h"
 #include "core1/core1.h"
 
-/* Bridge to the safe decompressor in src/done/rarezip.c */
 extern u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2);
 
 static int _rarezip_uncompress(u8 **arg0, u8 **arg1, struct huft * arg2);
@@ -81,7 +80,6 @@ void rarezip_inflate(u8 *src, u8 *dst){
 }
 
 void rarezip_uncompress(u8 **srcPtr, u8 **dstPtr){
-    //updates in and out buffer ptrs,
     _rarezip_uncompress(srcPtr, dstPtr, D_8027BF00);
 }
 
@@ -94,15 +92,14 @@ static int _rarezip_inflate(u8 * src, u8 * dst, struct huft * arg2){
     u8 *out = dst;
     u32 result;
 
-    /* Use the safe decompression bridge that skips the 6‑byte BK header
-     * and uses the port’s working bkboot_inflate_unlocked() underneath. */
     result = func_80000618(&in, &out, arg2);
 
-    /* Mirror the state that the original callers expect. */
+    /* in has been advanced past the consumed data (including the 6‑byte header),
+       out points to the end of the decompressed output. */
     D_8027BF1C = result;                /* wp  (decompressed bytes written) */
-    D_8027BF18 = (u32)(in - src);       /* inptr (bytes consumed, incl. header) */
-    D_8027BF10 = in;                    /* updated input pointer */
-    D_8027BF14 = out;                   /* updated output pointer */
+    D_8027BF18 = (u32)(in - src);       /* total bytes consumed from src, header included */
+    D_8027BF10 = in;
+    D_8027BF14 = out;
 
     return result;
 }
@@ -110,8 +107,12 @@ static int _rarezip_inflate(u8 * src, u8 * dst, struct huft * arg2){
 static int _rarezip_uncompress(u8 **srcPtr, u8 **dstPtr, struct huft * arg2){
     int result;
     result = _rarezip_inflate(*srcPtr, *dstPtr, arg2);
+
+    /* Advance the caller’s pointers. D_8027BF18 already includes the header,
+       so do not add COMP_HEADER_SIZE again. The output pointer is a host
+       address; skip the old N64 alignment logic to avoid truncation. */
     *dstPtr = *dstPtr + D_8027BF1C;
-    *dstPtr = ((u32)*dstPtr & 0xF) ? (u8 *)BKA_TRANSLATE_ADDR(((u32)*dstPtr & -0x10)) + 0x10: *dstPtr;
-    *srcPtr = *srcPtr + D_8027BF18 + COMP_HEADER_SIZE;
+    *srcPtr = *srcPtr + D_8027BF18;
+
     return result;
 }
