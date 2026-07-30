@@ -6,7 +6,7 @@
 
 typedef struct struct_2a_s{
     char *name;
-    u32 ram_start;                  // changed from u8* to u32 (N64 address)
+    u32 ram_start;                  // N64 address
     u32 ram_end;
     u32 unkC;                       // uncompressed_rom_range_start
     u32 unk10;                      // uncompressed_rom_range_end
@@ -18,8 +18,7 @@ typedef struct struct_2a_s{
     u32 bss_end;
 } OverlayAddressMap;
 
-// Declare as external u32 variables, not arrays.
-// This matches the definitions in missing_stubs.c.
+// External u32 variables defined in missing_stubs.c
 #define SEGMENT_EXTERNS(segname) \
     extern u32 segname##_VRAM; \
     extern u32 segname##_VRAM_END; \
@@ -50,35 +49,119 @@ SEGMENT_EXTERNS(cutscenes);
 SEGMENT_EXTERNS(lair);
 SEGMENT_EXTERNS(fight);
 
-#define SEGMENT_ENTRY(segname, realname) \
-    {#realname, segname##_VRAM, segname##_VRAM_END, segname##_ROM_START, segname##_ROM_END, segname##_TEXT_START, segname##_TEXT_END, segname##_DATA_START, segname##_RODATA_END, segname##_BSS_START, segname##_BSS_END}
+// Number of overlay entries
+#define OVERLAY_COUNT 15
 
-#define DUMMY_SEGMENT_ENTRY(segname, realname) \
-    {#realname, segname##_VRAM, segname##_VRAM_END, segname##_ROM_START, segname##_ROM_END, 0, 0, 0, 0, 0, 0}
+/* .data – initialized at runtime */
+static OverlayAddressMap overlayAddressMap[OVERLAY_COUNT];
 
-/* .data */
-static OverlayAddressMap overlayAddressMap[] = {
-    SEGMENT_ENTRY(core2, gs),
-    DUMMY_SEGMENT_ENTRY(emptyLvl, coshow),
-    SEGMENT_ENTRY(CC, whale),
-    SEGMENT_ENTRY(MMM, haunted),
-    SEGMENT_ENTRY(GV, desert),
-    SEGMENT_ENTRY(TTC, beach),
-    SEGMENT_ENTRY(MM, jungle),
-    SEGMENT_ENTRY(BGS, swamp),
-    SEGMENT_ENTRY(RBB, ship),
-    SEGMENT_ENTRY(FP, snow),
-    SEGMENT_ENTRY(CCW, tree),
-    SEGMENT_ENTRY(SM, training),
-    SEGMENT_ENTRY(cutscenes, intro),
-    SEGMENT_ENTRY(lair, witch),
-    SEGMENT_ENTRY(fight, battle),
-};
-static s32 overlayCount = sizeof(overlayAddressMap) / sizeof(overlayAddressMap[0]);
+static void initOverlayAddressMap(void) {
+    // This function must be called before any overlay load.
+    // Fill each entry using the external u32 variables.
+    #define ASSIGN_ENTRY(segname, realname) \
+        overlayAddressMap[1] = (OverlayAddressMap){#realname, \
+            segname##_VRAM, segname##_VRAM_END, \
+            segname##_ROM_START, segname##_ROM_END, \
+            segname##_TEXT_START, segname##_TEXT_END, \
+            segname##_DATA_START, segname##_RODATA_END, \
+            segname##_BSS_START, segname##_BSS_END};
+
+    // index 0: core2
+    overlayAddressMap[0] = (OverlayAddressMap){"gs",
+        core2_VRAM, core2_VRAM_END,
+        core2_ROM_START, core2_ROM_END,
+        core2_TEXT_START, core2_TEXT_END,
+        core2_DATA_START, core2_RODATA_END,
+        core2_BSS_START, core2_BSS_END};
+    // index 1: emptyLvl (dummy)
+    overlayAddressMap[1] = (OverlayAddressMap){"coshow",
+        emptyLvl_VRAM, emptyLvl_VRAM_END,
+        emptyLvl_ROM_START, emptyLvl_ROM_END,
+        0,0,0,0,0,0};
+    overlayAddressMap[2] = (OverlayAddressMap){"whale",
+        CC_VRAM, CC_VRAM_END,
+        CC_ROM_START, CC_ROM_END,
+        CC_TEXT_START, CC_TEXT_END,
+        CC_DATA_START, CC_RODATA_END,
+        CC_BSS_START, CC_BSS_END};
+    overlayAddressMap[3] = (OverlayAddressMap){"haunted",
+        MMM_VRAM, MMM_VRAM_END,
+        MMM_ROM_START, MMM_ROM_END,
+        MMM_TEXT_START, MMM_TEXT_END,
+        MMM_DATA_START, MMM_RODATA_END,
+        MMM_BSS_START, MMM_BSS_END};
+    overlayAddressMap[4] = (OverlayAddressMap){"desert",
+        GV_VRAM, GV_VRAM_END,
+        GV_ROM_START, GV_ROM_END,
+        GV_TEXT_START, GV_TEXT_END,
+        GV_DATA_START, GV_RODATA_END,
+        GV_BSS_START, GV_BSS_END};
+    overlayAddressMap[5] = (OverlayAddressMap){"beach",
+        TTC_VRAM, TTC_VRAM_END,
+        TTC_ROM_START, TTC_ROM_END,
+        TTC_TEXT_START, TTC_TEXT_END,
+        TTC_DATA_START, TTC_RODATA_END,
+        TTC_BSS_START, TTC_BSS_END};
+    overlayAddressMap[6] = (OverlayAddressMap){"jungle",
+        MM_VRAM, MM_VRAM_END,
+        MM_ROM_START, MM_ROM_END,
+        MM_TEXT_START, MM_TEXT_END,
+        MM_DATA_START, MM_RODATA_END,
+        MM_BSS_START, MM_BSS_END};
+    overlayAddressMap[7] = (OverlayAddressMap){"swamp",
+        BGS_VRAM, BGS_VRAM_END,
+        BGS_ROM_START, BGS_ROM_END,
+        BGS_TEXT_START, BGS_TEXT_END,
+        BGS_DATA_START, BGS_RODATA_END,
+        BGS_BSS_START, BGS_BSS_END};
+    overlayAddressMap[8] = (OverlayAddressMap){"ship",
+        RBB_VRAM, RBB_VRAM_END,
+        RBB_ROM_START, RBB_ROM_END,
+        RBB_TEXT_START, RBB_TEXT_END,
+        RBB_DATA_START, RBB_RODATA_END,
+        RBB_BSS_START, RBB_BSS_END};
+    overlayAddressMap[9] = (OverlayAddressMap){"snow",
+        FP_VRAM, FP_VRAM_END,
+        FP_ROM_START, FP_ROM_END,
+        FP_TEXT_START, FP_TEXT_END,
+        FP_DATA_START, FP_RODATA_END,
+        FP_BSS_START, FP_BSS_END};
+    overlayAddressMap[10] = (OverlayAddressMap){"tree",
+        CCW_VRAM, CCW_VRAM_END,
+        CCW_ROM_START, CCW_ROM_END,
+        CCW_TEXT_START, CCW_TEXT_END,
+        CCW_DATA_START, CCW_RODATA_END,
+        CCW_BSS_START, CCW_BSS_END};
+    overlayAddressMap[11] = (OverlayAddressMap){"training",
+        SM_VRAM, SM_VRAM_END,
+        SM_ROM_START, SM_ROM_END,
+        SM_TEXT_START, SM_TEXT_END,
+        SM_DATA_START, SM_RODATA_END,
+        SM_BSS_START, SM_BSS_END};
+    overlayAddressMap[12] = (OverlayAddressMap){"intro",
+        cutscenes_VRAM, cutscenes_VRAM_END,
+        cutscenes_ROM_START, cutscenes_ROM_END,
+        cutscenes_TEXT_START, cutscenes_TEXT_END,
+        cutscenes_DATA_START, cutscenes_RODATA_END,
+        cutscenes_BSS_START, cutscenes_BSS_END};
+    overlayAddressMap[13] = (OverlayAddressMap){"witch",
+        lair_VRAM, lair_VRAM_END,
+        lair_ROM_START, lair_ROM_END,
+        lair_TEXT_START, lair_TEXT_END,
+        lair_DATA_START, lair_RODATA_END,
+        lair_BSS_START, lair_BSS_END};
+    overlayAddressMap[14] = (OverlayAddressMap){"battle",
+        fight_VRAM, fight_VRAM_END,
+        fight_ROM_START, fight_ROM_END,
+        fight_TEXT_START, fight_TEXT_END,
+        fight_DATA_START, fight_RODATA_END,
+        fight_BSS_START, fight_BSS_END};
+}
+
+static s32 overlayCount = OVERLAY_COUNT;
 
 /* .bss */
 enum overlay_e overlayMgrLoadedId;
-
 
 void overlayManagerdebug(void);
 
@@ -174,6 +257,13 @@ s32 overlayManagerclearLoadedId(void){
 }
 
 void overlayManagerloadCore2(void){
+    // Ensure the map is initialized before any overlay load
+    static int mapInitialized = 0;
+    if (!mapInitialized) {
+        initOverlayAddressMap();
+        mapInitialized = 1;
+    }
+
     overlayManagerclearLoadedId();
     overlay_load(0,
         core2_VRAM, core2_VRAM_END,
