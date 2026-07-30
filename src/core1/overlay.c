@@ -3,6 +3,10 @@
 #include "functions.h"
 #include "variables.h"
 #include "bka_safe_base.h"     // for BKA_TRANSLATE_ADDR
+#include <android/log.h>
+
+#define LOG_TAG "BKA_OVERLAY"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
 typedef struct{
     u32 unk0;
@@ -12,7 +16,7 @@ typedef struct{
 extern struct49s D_803FFE10[];
 
 extern u8  D_8002D500;
-extern u8  D_8000E800;          // D_8000E800 is now a u8, not an int
+extern u8  D_8000E800;
 extern u32 D_8027BF2C;
 extern u32 D_8027BF30;
 
@@ -20,7 +24,7 @@ void overlay_load(
     s32 overlay_id, u32 ram_start, u32 ram_end, u32 rom_start, u32 rom_end, 
     u32 code_start, u32 code_end, u32 data_start, u32 data_end, u32 bss_start, u32 bss_end
 ){
-    u8 *sp34;                    // must be a pointer, not u32
+    u8 *sp34;
     u32 sp30;
     u32 sp2C;
     u32 *tmp;
@@ -44,16 +48,33 @@ void overlay_load(
 
     if(overlay_id){
         func_80254008();
-        sp34 = &D_8000E800;     // assign host pointer directly
+        sp34 = &D_8000E800;
     } else {
         sp34 = &D_8002D500;
     }
 
+    // DIAGNOSTIC: decompression temporarily bypassed to isolate crash.
+    // The compressed data is read from ROM, but we skip the actual
+    // decompression and just zero out the target area.
+    LOGI("BKA: overlay_load bypass decompress for overlay %d, size=%d",
+         overlay_id, rom_end - rom_start);
+
     piMgr_read(sp34, rom_start, rom_end - rom_start);
-    rarezip_uncompress(&sp34, &ram_start_ptr);
-    sp2C = D_8027BF2C;
-    sp30 = D_8027BF30;
-    rarezip_uncompress(&sp34, &ram_start_ptr);
+
+    // Bypass decompression — zero the overlay memory for now.
+    memset(ram_start_ptr, 0, ram_end - ram_start);
+
+    // Fake the CRC values so the game doesn't reject the overlay.
+    sp2C = 0;
+    sp30 = 0;
+    D_8027BF2C = 0;
+    D_8027BF30 = 0;
+
+    // Original decompression calls are commented out:
+    // rarezip_uncompress(&sp34, &ram_start_ptr);
+    // sp2C = D_8027BF2C;
+    // sp30 = D_8027BF30;
+    // rarezip_uncompress(&sp34, &ram_start_ptr);
 
     if(bss_start){
         bzero(bss_start_ptr, bss_end - bss_start);
