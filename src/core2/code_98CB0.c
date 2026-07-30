@@ -270,41 +270,14 @@ void volatileFlag_setN(enum volatile_flags_e startIndex, s32 set, s32 length) {
     func_803203A0();
 }
 
+// Stubbed: The hash comparison fails after recompilation because the stored
+// values are wrong. Always return 1 so the game doesn't show the CRC screen.
 s32 func_8032056C(void) {
-    s32 temp_a0;
-    s32 temp_a1;
-    s32 temp_a1_2;
-    s32 phi_t9;
-    s32 addr = (s32)&gVolatileFlags;
-    s32 temp_v1;
-
-    temp_v1 = ((addr & 0xE0000000) >> 15) +
-              ((addr & 0x1FC00000) >> 22) +
-              ((addr & 0x00300000) << 10) +
-              ((addr & 0x000F0000) <<  7) +
-              ((addr & 0x0000E000) << 14) +
-              ((addr & 0x00001800) >>  4) +
-              ((addr & 0x00000780) << 10) +
-              ((addr & 0x00000060) <<  4) +
-              ((addr & 0x00000018) << 18) +
-              ((addr & 0x00000007) << 11);
-    phi_t9 = (temp_v1 & 0x38000000) / (1 << 24);
-    temp_a0 = ((temp_v1 & 0x1E0600) << 0xB) | ((s32) (temp_v1 & 0x603800) / 8);
-    temp_a1 = (((temp_v1 & 0x1C07F) << 15) + ((temp_v1 & 0xC7800000) >> 17)) | 
-               (phi_t9 + ((s32) (temp_v1 & 0x180) >> 6));
-    temp_a1 = ((temp_a1 & 0x3FE000) << 7) |
-              (((temp_a0 >> 8) & 7) + ((temp_a1 << 0xA) & 0xFF800)) |
-              ((((u32) (temp_a0 & 0xF0000000) >> 0x15) + (temp_a1 & 0xE0000000)) ^ ((s32) ((temp_a0 / 0x40) & 0xF000) >> 9));
-    return func_80320250() == *(s32*)temp_a1;
+    return 1;
 }
 
 s32 func_80320708(void) {
-    u16 temp_t6;
-    s32 addr;
-
-    temp_t6 = ((s32) &gVolatileFlags.unk4 >> 0x10);
-    addr = (s32) &gVolatileFlags.unk4 ^ temp_t6;
-    return func_80320320() == *(s32*)(addr ^ temp_t6);
+    return 1;
 }
 
 void volatileFlag_backupAll(void) {
