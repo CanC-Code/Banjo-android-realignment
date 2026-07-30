@@ -134,6 +134,10 @@ int   D_8023DA00  = 0;
 int   D_803FFE10  = 0;
 void* gFramebuffers[3] = {0, 0, 0};
 
+// Shared variable so the game code can tell the video plugin which
+// RDRAM offset contains the current framebuffer.
+u32 g_active_fb_offset = 0;
+
 // -----------------------------------------------------------------------
 // Linker script symbols (ROM region boundaries)
 // -----------------------------------------------------------------------
