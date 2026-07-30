@@ -24,7 +24,7 @@ u32 D_8027A130;
 u8 pad_8027A138[0x400];
 u64 sDebugVar_8027A538; // never used
 u64 sDebugVar_8027A540; // never used
-u8 sMainThreadStack[MAIN_THREAD_STACK_SIZE]; // The real size of the stack is unclear yet, maybe there are some out-optimized debug variables below the stack
+u8 sMainThreadStack[MAIN_THREAD_STACK_SIZE];
 OSThread sMainThread;
 s32 gBootMap;
 static n64_bool sDisableInput;
@@ -33,12 +33,6 @@ static u64 sDebugVar_8027BEF0; // never used
 extern u8 core2_TEXT_START[];
 
 void func_8023DA20(s32 arg0){
-    // FIXED: Removed over-aggressive safety guard that checked core2_TEXT_START.
-    // core2_TEXT_START = 0 (from missing_stubs.c DEFINE_OVERLAY macro) until
-    // core2 is loaded by overlayManagerloadCore2() in core1_init(). The original
-    // guard returned immediately when core2_TEXT_START was null or less than
-    // &D_8027A130, which prevented the entire game from initializing.
-    // Now we only zero the BSS region if core2 is actually loaded.
     if (core2_TEXT_START && core2_TEXT_START > (u8*)&D_8027A130) {
         bzero(&D_8027A130, core2_TEXT_START - (u8*)&D_8027A130);
     }
@@ -50,7 +44,7 @@ void func_8023DA20(s32 arg0){
 
 void func_8023DA74(void){
     func_8033BD6C();
-    func_80255198(); //heap_flush_free_queue
+    func_80255198();
 }
 
 void func_8023DA9C(s32 arg0){
@@ -109,7 +103,7 @@ void core1_init(void) {
 #endif
     ucode_load();
     setBootMap(getDefaultBootMap());
-    rarezip_init(); //initialize decompressor's huft table
+    rarezip_init();
     viMgr_init();
     overlayManagerloadCore2();
     sDebugVar_8027BEF0 = sDebugVar_8027A538;
@@ -173,19 +167,25 @@ void mainLoop(void){
                 game_draw(0);
             spawnQueue_flush();
             break;
-    }//L8023DE34
+    }
 
     if(D_80275610){
         func_8023DA9C(D_80275610 - 1);
         D_80275610 = 0;
-    }//L8023DE54
+    }
+
+    // The CRC failure screen is now disabled. The original checks all fail
+    // after recompilation, so the block below would always draw the rotating
+    // pattern. Removing it lets the game proceed to the normal display.
+    // (If you want to re‑enable it later, wrap it in "#if 0 ... #endif".)
+#if 0
     if( !func_8032056C()
         || !levelSpecificFlags_validateCRC1()
         || !dummy_func_80320240()
     ){
         s32 offset;
         //render weird CRC failure image
-        for(y= 0x1e; y < gFramebufferHeight - 0x1e; y++){//L8023DEB4
+        for(y= 0x1e; y < gFramebufferHeight - 0x1e; y++){
             for(x = 0x14; x < 0xeb; x++){
                 tmp = ((8 * globalTimer_getTime()) + ((x*x) + (y*y)));
 
@@ -201,7 +201,8 @@ void mainLoop(void){
                 gFramebuffers[1][offset] = (s32) rgba;
             }
         }
-    }//L8023DF70
+    }
+#endif
 }
 
 void mainThread_entry(void *arg) { 
