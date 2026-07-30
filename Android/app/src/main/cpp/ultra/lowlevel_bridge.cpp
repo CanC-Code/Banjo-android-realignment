@@ -248,28 +248,10 @@ extern "C" {
         // __osViSwapContext via IO_WRITE(VI_ORIGIN_REG, origin).
         uint32_t fbPhysAddr = gN64_Reg_Base[VI_ORIGIN_REG_IDX];
 
+        // The diagnostic test pattern that previously showed a moving colour
+        // pattern has been removed.  When the VI registers are not yet
+        // configured we simply return, leaving the GL texture as-is.
         if (fbPhysAddr == 0) {
-            // DIAGNOSTIC: VI not configured yet — draw a moving test pattern
-            // to confirm the GL pipeline is working. Remove this once real
-            // rendering works.
-            static int frameNum = 0;
-            frameNum++;
-            s32 w = 320, h = 240;
-            static uint32_t* s_testBuf = nullptr;
-            if (!s_testBuf) s_testBuf = (uint32_t*)malloc(w * h * 4);
-            if (s_testBuf) {
-                for (s32 y = 0; y < h; y++) {
-                    for (s32 x = 0; x < w; x++) {
-                        uint8_t r = (uint8_t)((x + frameNum) & 0xFF);
-                        uint8_t g = (uint8_t)((y + frameNum) & 0xFF);
-                        uint8_t b = (uint8_t)(((x ^ y) + frameNum) & 0xFF);
-                        s_testBuf[y * w + x] = (r << 24) | (g << 16) | (b << 8) | 0xFF;
-                    }
-                }
-                glBindTexture(GL_TEXTURE_2D, hostTextureId);
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0,
-                             GL_RGBA, GL_UNSIGNED_BYTE, s_testBuf);
-            }
             return;
         }
 
@@ -332,4 +314,4 @@ extern "C" {
         }
     }
 
-} // end extern "C"
+}
