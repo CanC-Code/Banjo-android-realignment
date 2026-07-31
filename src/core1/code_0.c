@@ -35,10 +35,6 @@ static n64_bool sDisableInput;
 static u64 sDebugVar_8027BEF0;
 
 extern u8 core2_TEXT_START[];
-
-// gN64_RDRAM and gN64_Reg_Base are declared in bka_safe_base.h (included via ultra64.h).
-// Do NOT redeclare them here.
-// Shared variable to communicate the framebuffer offset to the video plugin.
 extern u32 g_active_fb_offset;
 
 void func_8023DA20(s32 arg0){
@@ -111,25 +107,57 @@ void core1_init(void) {
 #if VERSION == VERSION_PAL
      osTvType = 0;
 #endif
+    LOGI("BKA: ucode_load...");
     ucode_load();
+    LOGI("BKA: ucode_load done");
+
+    LOGI("BKA: setBootMap...");
     setBootMap(getDefaultBootMap());
+    LOGI("BKA: setBootMap done");
+
+    LOGI("BKA: rarezip_init...");
     rarezip_init();
+    LOGI("BKA: rarezip_init done");
+
+    LOGI("BKA: viMgr_init...");
     viMgr_init();
+    LOGI("BKA: viMgr_init done");
+
+    LOGI("BKA: overlayManagerloadCore2...");
     overlayManagerloadCore2();
+    LOGI("BKA: overlayManagerloadCore2 done");
+
     sDebugVar_8027BEF0 = sDebugVar_8027A538;
+
+    LOGI("BKA: heap_init...");
     heap_init();
+    LOGI("BKA: heap_init done");
+
+    LOGI("BKA: func_80254028...");
     func_80254028();
+    LOGI("BKA: dummy_func_8025AFB0...");
     dummy_func_8025AFB0();
+    LOGI("BKA: allocUnusedBlock...");
     allocUnusedBlock();
+    LOGI("BKA: assetCache_init...");
     assetCache_init();
+    LOGI("BKA: pfsManager_init...");
     pfsManager_init();
+    LOGI("BKA: baMotor_init...");
     baMotor_init();
+    LOGI("BKA: audioManager_init...");
     audioManager_init();
+    LOGI("BKA: graphicsCache_init...");
     graphicsCache_init();
+    LOGI("BKA: ml_init...");
     ml_init();
+    LOGI("BKA: gctransition_reset...");
     gctransition_reset();
+
     D_8027A130 = 0;
     gGlobalTimer = 0;
+
+    LOGI("BKA: func_8023DA9C...");
     func_8023DA9C(3);
     LOGI("BKA: core1_init DONE");
 }
@@ -147,7 +175,6 @@ void mainLoop(void){
 
     viMgr_clearFramebuffers();
 
-    // ---- DIAGNOSTIC: fill RDRAM with solid red (first 5 frames only) ----
     static int diagFrame = 0;
     if (diagFrame < 5) {
         LOGI("BKA: mainLoop frame %d — setting fb_offset", diagFrame);
@@ -193,7 +220,6 @@ void mainLoop(void){
             func_80255524();
             func_80255ACC();
             spawnQueue_func_802C3A18();
-            // if(func_802E4424()) game_draw(0);
             spawnQueue_flush();
             break;
     }
@@ -202,36 +228,12 @@ void mainLoop(void){
         func_8023DA9C(D_80275610 - 1);
         D_80275610 = 0;
     }
-
-#if 0
-    if( !func_8032056C()
-        || !levelSpecificFlags_validateCRC1()
-        || !dummy_func_80320240()
-    ){
-        s32 offset;
-        for(y= 0x1e; y < gFramebufferHeight - 0x1e; y++){
-            for(x = 0x14; x < 0xeb; x++){
-                tmp = ((8 * globalTimer_getTime()) + ((x*x) + (y*y)));
-                r = _SHIFTL(x>>3, 11, 5);
-                g = _SHIFTL(y>>3, 6, 5);
-                b = _SHIFTL(tmp>>3, 1, 5);
-                a = 1;
-                rgba = b | r | g | a;
-                offset = ((gFramebufferWidth - 0xFF) / 2) + x + (y*gFramebufferWidth);
-                gFramebuffers[0][offset] = (s32) rgba;
-                gFramebuffers[1][offset] = (s32) rgba;
-            }
-        }
-    }
-#endif
 }
 
 void mainThread_entry(void *arg) {
     LOGI("BKA: mainThread_entry START");
-
     core1_init();
     sns_write_payload_over_heap();
-
     LOGI("BKA: entering main loop");
     while (1) {
         mainLoop();
