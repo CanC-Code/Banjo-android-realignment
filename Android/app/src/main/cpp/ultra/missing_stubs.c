@@ -257,3 +257,10 @@ int  sfxSource_getSampleRate(int a)                         { (void)a; return 0;
 void func_8030DE44(void)                                   {}
 void func_8030E704(void)                                   {}
 void func_8030DCCC(void)                                   {}
+
+// -----------------------------------------------------------------------
+// Music player stubs – prevent early allocation crashes
+// -----------------------------------------------------------------------
+void coMusicPlayer_init(void)  {}
+void coMusicPlayer_free(void)  {}
+void coMusicPlayer_update(void) {}
