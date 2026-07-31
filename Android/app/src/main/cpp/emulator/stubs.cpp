@@ -16,7 +16,7 @@
 
 #include "n64_types.h"
 #include "bka_safe_base.h"
-#include "rarezip.h" // For D_80007284, D_80007290, inbuf, etc.
+#include "rarezip.h"
 
 // -------------------------------------------------------------------------
 // HIGH-LEVEL EMULATION NATIVE STRUCTURES
@@ -27,6 +27,7 @@ struct NativeThread {
     void *arg;
     OSId id;
     OSPri pri;
+    uint64_t last_yield_us;
 };
 
 struct NativeQueue {
@@ -135,6 +136,35 @@ static void WaitForResourcesReady(void) {
 }
 
 /* ============================================================
+   2b. PREEMPTIVE GIL YIELD HELPER
+   ============================================================ */
+
+// Yield the N64 global interpreter lock briefly so that:
+//  1. The Android UI thread can process input events (prevents ANR)
+//  2. Other N64 threads can make progress
+// Call this periodically from any N64 thread that loops.
+
+static inline uint64_t get_time_us(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+}
+
+// Must be called while holding s_n64_gil
+static void PreemptiveYield(NativeThread* nt) {
+    uint64_t now = get_time_us();
+    // Yield at most once every 500 µs to avoid excessive overhead
+    if (now - nt->last_yield_us < 500) {
+        return;
+    }
+    nt->last_yield_us = now;
+
+    s_n64_gil.unlock();
+    usleep(50);  // 50 µs – enough for the UI thread to grab the lock
+    s_n64_gil.lock();
+}
+
+/* ============================================================
    3. HLE NATIVE THREADING WITH GIL
    ============================================================ */
 
@@ -145,11 +175,12 @@ void osCreateThread(OSThread *t, OSId id, void (*entry)(void *), void *arg, void
     t->priority = p;
 
     auto nt = std::make_shared<NativeThread>();
-    nt->entry  = entry;
-    nt->arg    = arg;
-    nt->id     = id;
-    nt->pri    = p;
-    nt->thread = 0;
+    nt->entry   = entry;
+    nt->arg     = arg;
+    nt->id      = id;
+    nt->pri     = p;
+    nt->thread  = 0;
+    nt->last_yield_us = get_time_us();
 
     s_threadRegistry[t] = nt;
 }
@@ -199,7 +230,7 @@ void osDestroyThread(OSThread *t) {
 void osYieldThread(void) {
     s_n64_gil.unlock();
     std::this_thread::yield();
-    usleep(100); // 100 microseconds sleep allows Linux kernel scheduler to service Android main/UI thread
+    usleep(100);
     s_n64_gil.lock();
 }
 
@@ -252,7 +283,6 @@ void HLE_TriggerN64Event(int event_id) {
         }
     }
 
-    // Call osSendMesg without holding s_eventMutex to prevent lock nesting deadlock
     if (found && route.mq != nullptr) {
         osSendMesg(route.mq, route.msg, OS_MESG_NOBLOCK);
     }
@@ -265,7 +295,6 @@ s32 osSendMesg(OSMesgQueue *mq, OSMesg msg, s32 flag) {
     std::unique_lock<std::mutex> lock(nq->mtx);
     if (flag == OS_MESG_BLOCK) {
         while ((int)nq->buffer.size() >= nq->capacity) {
-            // CRITICAL FIX: Unlock nq->mtx prior to acquiring GIL to eliminate Lock-Order Inversion Deadlock
             s_n64_gil.unlock();
             nq->cv_send.wait(lock);
             lock.unlock();
@@ -337,11 +366,26 @@ static void* HLE_PiManagerWorker(void* arg) {
     LOGI("BKA-HLE: Peripheral Interface (PI) Async Manager Thread Engaged.");
     s_n64_gil.lock();
 
+    // Retrieve our own NativeThread record for periodic yielding
+    std::shared_ptr<NativeThread> myNT = nullptr;
+    {
+        std::lock_guard<std::mutex> lock(s_threadMutex);
+        for (auto& pair : s_threadRegistry) {
+            if (pair.second->thread == pthread_self()) {
+                myNT = pair.second;
+                break;
+            }
+        }
+    }
+
     while (true) {
         if (s_hlePiCmdQueue == nullptr) {
-            s_n64_gil.unlock();
-            usleep(10000); // Sleep 10ms if PI command queue is not yet bound
-            s_n64_gil.lock();
+            if (myNT) PreemptiveYield(myNT.get());
+            else {
+                s_n64_gil.unlock();
+                usleep(10000);
+                s_n64_gil.lock();
+            }
             continue;
         }
 
@@ -349,9 +393,7 @@ static void* HLE_PiManagerWorker(void* arg) {
         s32 ret = osRecvMesg(s_hlePiCmdQueue, &msg, OS_MESG_BLOCK);
 
         if (ret != 0 || msg == nullptr) {
-            s_n64_gil.unlock();
-            usleep(2000); // Prevent tight GIL spin-locking when empty
-            s_n64_gil.lock();
+            if (myNT) PreemptiveYield(myNT.get());
             continue;
         }
 
@@ -480,5 +522,3 @@ void core1_loadOTR(uint8_t* data, size_t size) {}
 int  func_80258A4C(void)                    { return 0; }
 void func_8025A123(void)                    {}
 void initInterruptTables(void)              {}
-
-} // extern "C"
