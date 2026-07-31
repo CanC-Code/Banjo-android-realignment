@@ -55,8 +55,23 @@ void func_8023DA74(void){
 }
 
 void func_8023DA9C(s32 arg0){
-    // Stubbed: the real implementation blocks waiting for vblank
-    LOGI("BKA: func_8023DA9C SKIPPED");
+    func_80254008();
+    viMgr_clearFramebuffers();
+    if (D_8027A130 == 4){
+        func_802E3580();
+    }
+    if (D_8027A130 == 3){
+        func_802E4170();
+    }
+    func_8023DA74();
+    D_8027A130 = arg0;
+    if (D_8027A130 == 3){
+        func_802E4214(gBootMap);
+    }
+    if (D_8027A130 == 4){
+        dummy_func_802E35D0();
+    }
+    ucode_stub1();
 }
 
 u32 globalTimer_getTimeMasked(u32 mask){
@@ -106,15 +121,15 @@ void core1_init(void) {
     dummy_func_8025AFB0();
     allocUnusedBlock();
     assetCache_init();
-    // All other init functions are stubbed to avoid crashes/blocks.
+    // The following init functions are stubbed to avoid crashes/blocks:
     // pfsManager_init();      // crashes in controller init
     // audioManager_init();    // crashes in sfxInstruments_init
     // graphicsCache_init();   // may block
     // ml_init();              // may block
     // gctransition_reset();   // may block
-    // func_8023DA9C(3);       // blocks on vblank
-    D_8027A130 = 3;             // set game state to "game" so mainLoop runs
+    D_8027A130 = 3;             // set game state to "game"
     gGlobalTimer = 0;
+    func_8023DA9C(3);           // now safe to call (stubbed internal vblank wait)
     LOGI("BKA: core1_init DONE");
 }
 
@@ -127,26 +142,68 @@ void globalTimer_decTimer(void){
 }
 
 void mainLoop(void){
-    static int frameCount = 0;
-    frameCount++;
+    s32 x, y;
 
-    // Fill RDRAM with solid red and tell the video plugin.
-    u8 *fb = gN64_RDRAM + 0x1000;
-    s32 w = 320;
-    s32 h = 240;
-    for (s32 y = 0; y < h; y++) {
-        for (s32 x = 0; x < w; x++) {
-            fb[(x + y * w) * 2 + 0] = 0xF8;
-            fb[(x + y * w) * 2 + 1] = 0x01;
+    viMgr_clearFramebuffers();
+
+    if((globalTimer_getTime() & 0x7f) == 0x11)
+        sns_write_payload_over_heap();
+    func_8023DA74();
+
+    if(D_8027A130 != 3 || getGameMode() != GAME_MODE_4_PAUSED)
+        globalTimer_incTimer();
+
+    // pfsManager_update() and sDisableInput are skipped because
+    // pfsManager_init was stubbed.
+    sDisableInput = FALSE;
+
+    baMotor_80250C08();
+
+    if(!mapSpecificFlags_validateCRC1()){
+        eeprom_writeBlocks(0, 0, 0x80397AD0, 0x40);
+    }
+
+    switch(D_8027A130){
+        case 4:
+            func_802E35D8();
+            break;
+        case 3:
+            func_80255524();
+            func_80255ACC();
+            spawnQueue_func_802C3A18();
+            if(func_802E4424())
+                game_draw(0);               // real game rendering
+            spawnQueue_flush();
+            break;
+    }
+
+    if(D_80275610){
+        func_8023DA9C(D_80275610 - 1);
+        D_80275610 = 0;
+    }
+
+    // The CRC failure screen is permanently disabled.
+#if 0
+    if( !func_8032056C()
+        || !levelSpecificFlags_validateCRC1()
+        || !dummy_func_80320240()
+    ){
+        s32 offset;
+        for(y= 0x1e; y < gFramebufferHeight - 0x1e; y++){
+            for(x = 0x14; x < 0xeb; x++){
+                tmp = ((8 * globalTimer_getTime()) + ((x*x) + (y*y)));
+                r = _SHIFTL(x>>3, 11, 5);
+                g = _SHIFTL(y>>3, 6, 5);
+                b = _SHIFTL(tmp>>3, 1, 5);
+                a = 1;
+                rgba = b | r | g | a;
+                offset = ((gFramebufferWidth - 0xFF) / 2) + x + (y*gFramebufferWidth);
+                gFramebuffers[0][offset] = (s32) rgba;
+                gFramebuffers[1][offset] = (s32) rgba;
+            }
         }
     }
-    g_active_fb_offset = 0x1000;
-    gFramebufferWidth  = w;
-    gFramebufferHeight = h;
-
-    if (frameCount <= 3) {
-        LOGI("BKA: frame %d — SET fb_offset=0x%04X", frameCount, g_active_fb_offset);
-    }
+#endif
 }
 
 void mainThread_entry(void *arg) {
