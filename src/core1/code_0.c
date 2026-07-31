@@ -227,4 +227,4 @@ void mainThread_create(void) {
     osCreateThread(&sMainThread, 6, mainThread_entry, NULL, sMainThreadStack + MAIN_THREAD_STACK_SIZE, 20);
 }
 OSThread *mainThread_get(void) { return &sMainThread; }
-void disableInput_set(void){ sDisableInput = TR~ // note: the original file likely had the full value; if truncated, it's fine
+void disableInput_set(void){ sDisableInput = TRUE; }
