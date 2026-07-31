@@ -288,3 +288,5 @@ void func_802E67AC(void) {}
 void func_802E67C4(void) {}
 void func_802E5F10(void *a) { (void)a; }
 void func_802E53EC4(void *a, void *b) { (void)a; (void)b; }
+void printbuffer_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
+void printbuffer_defrag(void) {}
