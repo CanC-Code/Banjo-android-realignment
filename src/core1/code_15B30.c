@@ -19,12 +19,26 @@ u16  gScissorBoxTop;
 u16  gScissorBoxBottom;
 Gfx *D_80283214;
 
-void func_80253550(void){
-    osRecvMesg(&D_802831F0, NULL, OS_MESG_BLOCK);
+// ---------------------------------------------------------------------------
+// STUB: Graphics queue mutex is no longer used – prevent deadlocks.
+// ---------------------------------------------------------------------------
+void func_80253550(void) {
 }
 
-void func_8025357C(void){
-    osSendMesg(&D_802831F0, NULL, OS_MESG_BLOCK);
+void func_8025357C(void) {
+}
+
+// ---------------------------------------------------------------------------
+// STUB: Do not create the graphics task manager thread.
+// ---------------------------------------------------------------------------
+void func_80247560(void) {
+}
+
+// ---------------------------------------------------------------------------
+// STUB: Do not enqueue a graphics task. The original N64 RDP task is not
+// used; rendering is handled by the host OpenGL pipeline.
+// ---------------------------------------------------------------------------
+void func_80254008(void) {
 }
 
 void func_802535A8(Acmd *arg0, Acmd *arg1, OSMesgQueue *arg2, UNK_TYPE(s32) arg3) {
@@ -164,10 +178,6 @@ void scissorBox_get(u32 *left, u32 *top, u32 *right, u32 *bottom){
 
 void func_80253FE8(void){
     viMgr_func_8024BFAC();
-}
-
-void func_80254008(void){
-    func_80246670(3);
 }
 
 void func_80254028(void){
