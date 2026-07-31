@@ -106,7 +106,7 @@ void func_8023DBDC(void){
 
 void core1_init(void) {
     LOGI("BKA: core1_init START");
-    __osTimerServicesInit();   // MUST be before any timer use
+    __osTimerServicesInit();
 #if VERSION == VERSION_PAL
      osTvType = 0;
 #endif
@@ -121,10 +121,11 @@ void core1_init(void) {
     dummy_func_8025AFB0();
     allocUnusedBlock();
     assetCache_init();
-    // pfsManager_init();   // STUBBED: crashes in controller init
+    // pfsManager_init();      // STUBBED: crashes in controller init
     LOGI("BKA: pfsManager_init SKIPPED");
     baMotor_init();
-    audioManager_init();
+    // audioManager_init();    // STUBBED: crashes in sfxInstruments_init
+    LOGI("BKA: audioManager_init SKIPPED");
     graphicsCache_init();
     ml_init();
     gctransition_reset();
@@ -171,7 +172,6 @@ void mainLoop(void){
     func_8023DA74();
     if(D_8027A130 != 3 || getGameMode() != GAME_MODE_4_PAUSED)
         globalTimer_incTimer();
-    // pfsManager_update() removed – crashes without pfsManager_init
     sDisableInput = FALSE;
     baMotor_80250C08();
     if(!mapSpecificFlags_validateCRC1()){
