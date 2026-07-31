@@ -12,15 +12,11 @@ static s32 D_80283384;
 static s32 D_80283388;
 
 void ucode_load(void) {
-    D_80283384 = *(s32 *)PHYS_TO_K1(0x04000000) ^ -1;
-    D_80283388 = D_80283384 ? 0x01 : 0x00;
-
-    D_80283380 = *(s32 *)PHYS_TO_K1(0x04001000) ^ 0x17D7;
-    D_80283388 |= D_80283380 ? 0x02 : 0x00;
-
-    if (D_80283388 == 0) {
-        piMgr_read(&sUcodeData, 0xB0000B70, UCODE_SIZE);
-    }
+    // Stubbed: the original code reads physical RCP registers to detect
+    // the RSP microcode version, but those registers don't exist in our
+    // HLE environment and cause a SIGSEGV.  The ucode is only needed for
+    // the original N64 RSP audio/graphics tasks; we skip it entirely.
+    return;
 }
 
 void ucode_stub1(void) {}
