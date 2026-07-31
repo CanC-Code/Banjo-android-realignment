@@ -301,3 +301,5 @@ void func_802E5F10(void *a) { (void)a; }
 void func_802E53EC4(void *a, void *b) { (void)a; (void)b; }
 void printbuffer_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
 void printbuffer_defrag(void) {}
+// print_init stub — missing from Android source
+void print_init(void) {}
