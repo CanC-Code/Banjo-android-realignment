@@ -49,46 +49,6 @@ void func_8023DA20(s32 arg0){
     initThread_create();
 }
 
-void func_8023DA74(void){
-    func_8033BD6C();
-    func_80255198();
-}
-
-void func_8023DA9C(s32 arg0){
-    // Stubbed: calls func_802E4214 which blocks waiting for vblank
-    LOGI("BKA: func_8023DA9C SKIPPED");
-}
-
-u32 globalTimer_getTimeMasked(u32 mask){
-    return gGlobalTimer & mask;
-}
-
-s32 globalTimer_getTime(void){
-    return gGlobalTimer;
-}
-
-void globalTimer_reset(void){
-    gGlobalTimer = 0;
-}
-
-enum map_e getSpecialBootMap(void){
-    return (DEBUG_use_special_bootmap())? MAP_80_GL_FF_ENTRANCE : MAP_91_FILE_SELECT;
-}
-
-enum map_e getDefaultBootMap(void){
-    return MAP_1F_CS_START_RAREWARE;
-}
-
-void func_8023DBAC(void){
-    setBootMap(getDefaultBootMap());
-    func_8023DFF0(3);
-}
-
-void func_8023DBDC(void){
-    setBootMap(getSpecialBootMap());
-    func_8023DFF0(3);
-}
-
 void core1_init(void) {
     LOGI("BKA: core1_init START");
     __osTimerServicesInit();
@@ -106,61 +66,33 @@ void core1_init(void) {
     dummy_func_8025AFB0();
     allocUnusedBlock();
     assetCache_init();
-    // pfsManager_init();      // STUBBED
-    LOGI("BKA: pfsManager_init SKIPPED");
-    baMotor_init();
-    // audioManager_init();    // STUBBED
-    LOGI("BKA: audioManager_init SKIPPED");
-    // graphicsCache_init();   // STUBBED (blocks)
-    LOGI("BKA: graphicsCache_init SKIPPED");
-    // ml_init();              // STUBBED (may block)
-    LOGI("BKA: ml_init SKIPPED");
-    // gctransition_reset();   // STUBBED (may block)
-    LOGI("BKA: gctransition_reset SKIPPED");
+    // All other init functions are stubbed to avoid crashes.
+    LOGI("BKA: all other inits SKIPPED");
     D_8027A130 = 0;
     gGlobalTimer = 0;
-    // func_8023DA9C(3);       // STUBBED (blocks on vblank)
-    LOGI("BKA: func_8023DA9C SKIPPED");
     LOGI("BKA: core1_init DONE");
 }
 
-void globalTimer_incTimer(void){
-    gGlobalTimer++;
-}
-
-void globalTimer_decTimer(void){
-    gGlobalTimer--;
-}
-
 void mainLoop(void){
-    s32 x, y;
+    static int frameCount = 0;
+    frameCount++;
 
-    viMgr_clearFramebuffers();
-
-    static int diagFrame = 0;
-    if (diagFrame < 5) {
-        LOGI("BKA: mainLoop frame %d — setting fb_offset", diagFrame);
-        u8 *fb = gN64_RDRAM + 0x1000;
-        s32 w = 320;
-        s32 h = 240;
-        for (y = 0; y < h; y++) {
-            for (x = 0; x < w; x++) {
-                fb[(x + y * w) * 2 + 0] = 0xF8;
-                fb[(x + y * w) * 2 + 1] = 0x01;
-            }
+    // Write solid red to RDRAM every frame and tell the video plugin.
+    u8 *fb = gN64_RDRAM + 0x1000;
+    s32 w = 320;
+    s32 h = 240;
+    for (s32 y = 0; y < h; y++) {
+        for (s32 x = 0; x < w; x++) {
+            fb[(x + y * w) * 2 + 0] = 0xF8;
+            fb[(x + y * w) * 2 + 1] = 0x01;
         }
-        g_active_fb_offset = 0x1000;
-        gFramebufferWidth  = w;
-        gFramebufferHeight = h;
-        LOGI("BKA: SET fb_offset=0x%04X", g_active_fb_offset);
-        diagFrame++;
     }
+    g_active_fb_offset = 0x1000;
+    gFramebufferWidth  = w;
+    gFramebufferHeight = h;
 
-    // Skip the game logic that depends on uninitialized subsystems.
-    // Just let the diagnostic loop run.
-    if(D_80275610){
-        // func_8023DA9C(D_80275610 - 1);
-        D_80275610 = 0;
+    if (frameCount <= 3) {
+        LOGI("BKA: frame %d — SET fb_offset=0x%04X", frameCount, g_active_fb_offset);
     }
 }
 
