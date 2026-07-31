@@ -49,6 +49,46 @@ void func_8023DA20(s32 arg0){
     initThread_create();
 }
 
+void func_8023DA74(void){
+    func_8033BD6C();
+    func_80255198();
+}
+
+void func_8023DA9C(s32 arg0){
+    // Stubbed: the real implementation blocks waiting for vblank
+    LOGI("BKA: func_8023DA9C SKIPPED");
+}
+
+u32 globalTimer_getTimeMasked(u32 mask){
+    return gGlobalTimer & mask;
+}
+
+s32 globalTimer_getTime(void){
+    return gGlobalTimer;
+}
+
+void globalTimer_reset(void){
+    gGlobalTimer = 0;
+}
+
+enum map_e getSpecialBootMap(void){
+    return (DEBUG_use_special_bootmap())? MAP_80_GL_FF_ENTRANCE : MAP_91_FILE_SELECT;
+}
+
+enum map_e getDefaultBootMap(void){
+    return MAP_1F_CS_START_RAREWARE;
+}
+
+void func_8023DBAC(void){
+    setBootMap(getDefaultBootMap());
+    func_8023DFF0(3);
+}
+
+void func_8023DBDC(void){
+    setBootMap(getSpecialBootMap());
+    func_8023DFF0(3);
+}
+
 void core1_init(void) {
     LOGI("BKA: core1_init START");
     __osTimerServicesInit();
@@ -66,18 +106,31 @@ void core1_init(void) {
     dummy_func_8025AFB0();
     allocUnusedBlock();
     assetCache_init();
-    // All other init functions are stubbed to avoid crashes.
-    LOGI("BKA: all other inits SKIPPED");
-    D_8027A130 = 0;
+    // All other init functions are stubbed to avoid crashes/blocks.
+    // pfsManager_init();      // crashes in controller init
+    // audioManager_init();    // crashes in sfxInstruments_init
+    // graphicsCache_init();   // may block
+    // ml_init();              // may block
+    // gctransition_reset();   // may block
+    // func_8023DA9C(3);       // blocks on vblank
+    D_8027A130 = 3;             // set game state to "game" so mainLoop runs
     gGlobalTimer = 0;
     LOGI("BKA: core1_init DONE");
+}
+
+void globalTimer_incTimer(void){
+    gGlobalTimer++;
+}
+
+void globalTimer_decTimer(void){
+    gGlobalTimer--;
 }
 
 void mainLoop(void){
     static int frameCount = 0;
     frameCount++;
 
-    // Write solid red to RDRAM every frame and tell the video plugin.
+    // Fill RDRAM with solid red and tell the video plugin.
     u8 *fb = gN64_RDRAM + 0x1000;
     s32 w = 320;
     s32 h = 240;
