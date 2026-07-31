@@ -78,13 +78,17 @@ struct5DBC0s *func_802E4B50(void){
 void func_802E4C0C(struct5DBC0_2s *arg0, u32 arg1)
 {
     while(arg1--){
-        assetcache_release(arg0[arg1].font_bin);   
+        assetcache_release(arg0[arg1].font_bin);
         n64_free(arg0[arg1].letter_texture);
     }
     n64_free(arg0);
 }
 
 void func_802E4C78(void){
+    // Guard: print system not initialized yet – nothing to free
+    if (D_8037E900 == NULL) {
+        return;
+    }
     if(D_8037E900->unk0 != NULL){
         n64_free(D_8037E900->unk0);
     }
@@ -223,7 +227,7 @@ void func_802E533C(struct5DBC0_1s *arg0, char arg1, s32 *arg2, s32 *arg3, Gfx **
 
     if (arg1 == ' ') {
         *arg2 += D_8037E900->unk4[arg0->unkE].half_width;
-    } else if (arg1 == '\t') { 
+    } else if (arg1 == '\t') {
         (*arg2)++;
         while ((*arg2 % (s32) (D_8037E900->unk4[arg0->unkE].half_width * 4)) != 0) {
             (*arg2)++;
@@ -266,7 +270,7 @@ void func_802E57E0(struct5DBC0_1s *arg0, Gfx **gfx) {
         gDPPipeSync((*gfx)++);
         gDPSetPrimColor((*gfx)++, 0, 0, 0x28, 0x28, 0x28, 0x96);
         gDPSetCombineMode((*gfx)++, G_CC_PRIMITIVE, G_CC_PRIMITIVE);
-        gDPScisFillRectangle((*gfx)++, 
+        gDPScisFillRectangle((*gfx)++,
             (arg0->unk0 - 2),
             arg0->unk4,
             (arg0->unk0 + temp_v0 + 2),
@@ -345,14 +349,16 @@ void func_802E5F38(void){
 }
 
 void func_802E5F68(void){
-    func_802E4C78();
+    if (D_8037E900 != NULL) {
+        func_802E4C78();
+    }
 }
 
 void func_802E5F88(s32 arg0, s32 arg1, char *arg2) {
     s32 sp24;
     u8 sp20[3];
     n64_memcpy(sp20, D_80368834, 3 * sizeof(u8));
-    
+
     sp24 =  func_802E4E54(0);
     func_802E502C(arg0, arg1, sp24, arg2, sp20);
 }
@@ -361,7 +367,7 @@ void func_802E5FE4(s32 arg0, s32 arg1, char *arg2) {
     s32 sp24;
     u8 sp20[3];
     n64_memcpy(sp20, D_80368838, 3 * sizeof(u8));
-    
+
     sp24 =  func_802E4E54(0);
     func_802E502C(arg0, arg1, sp24, arg2, sp20);
 }
@@ -428,7 +434,7 @@ void func_802E635C(u16 arg0){
 
 u8 func_802E639C(u8 arg0, f32 arg1){
     s32 var_v1;
-    
+
     var_v1 = (s32)((f32)(s32)arg0 *arg1);
     var_v1 = (var_v1 > 0xFF) ? 0xff : var_v1;
     return var_v1;
@@ -534,7 +540,7 @@ void func_802E6820(s32 arg0) {
                 if (D_8037E900->unk4[var_s5].letter_texture != NULL) {
                     D_8037E900->unk4[var_s5].letter_texture = (BKSpriteTextureBlock **)defrag(D_8037E900->unk4[var_s5].letter_texture);
                 }
-                
+
                 prev_sprite_ptr = D_8037E900->unk4[var_s5].font_bin;
                 if (D_8037E900->unk4[var_s5].font_bin != NULL) {
                     chunk_count = sprite_getFramePtr(prev_sprite_ptr, 0U)->chunkCnt;
