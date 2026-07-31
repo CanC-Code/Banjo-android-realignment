@@ -366,12 +366,45 @@ void func_802E4170(void){
 }
 
 void func_802E4214(enum map_e map_id){
-    // STUB: Skip world initialisation during early boot.
-    // The original function initialises the game world, which triggers
-    // many memory allocations and hardware accesses that are not yet
-    // supported.  Skipping this allows the main loop to start and
-    // `game_draw(0)` to be called without crashing.
-    // This stub will be removed once all subsystems are properly ported.
+    D_8037E8E0.transition = TRANSITION_0_NONE;
+    D_8037E8E0.unk19 = D_8037E8E0.unk18 = 0;
+    D_8037E8E0.map = D_8037E8E0.exit = D_8037E8E0.unk17 = 0;
+    D_8037E8E0.unk1B = D_8037E8E0.unk1A = 0;
+    D_8037E8E0.unkC = 0;
+    D_8037E8E0.unk1C = 0;
+    savedata_init();
+    sns_save_and_update_global_data();
+    func_8030D86C();
+    coMusicPlayer_init();
+    func_80322764();
+    timedFuncQueue_init();
+    func_802F9CD8();
+    func_8031B62C();
+    if(!func_802E4A08())
+        print_init();
+    func_802E5F38();
+    defragManager_init();
+    modelRender_init();
+    depthbuffer_enable(TRUE);
+    animCache_init();
+    viewport_reset();
+    viewport_setNearAndFar(1.0f, 10000.0f);
+    rand_reset();
+    scissorBox_setDefault();
+    func_80253FE8();
+    time_reset();
+    func_8033DC04();
+    clearScoreStates();
+    D_8037E8E0.game_mode = GAME_MODE_2_UNKNOWN;
+    D_8037E8E0.unk8 = 0.0f;
+    time_setDeltaReal_sec(0.0f);
+    time_setDeltaReal_frames(0);
+    func_803216D0(map_id);
+    func_8030AFA0(map_id);
+    func_802E3854();
+    func_802E38E8(map_id, 0, 0);
+    D_8037E8E0.unk0 = 0;
+    game_setMode(GAME_MODE_3_NORMAL,1);
 }
 
 void func_802E4384(void){
