@@ -15,6 +15,8 @@
     extern s32 D_80000300;
 #endif
 
+extern void __osTimerServicesInit(void);
+
 s32 D_80275610 = 0;
 s32 D_80275614 = 0;
 u32 gGlobalTimer = 0;
@@ -104,6 +106,7 @@ void func_8023DBDC(void){
 
 void core1_init(void) {
     LOGI("BKA: core1_init START");
+    __osTimerServicesInit();   // Timer list must be valid before any timer use
 #if VERSION == VERSION_PAL
      osTvType = 0;
 #endif
@@ -143,6 +146,7 @@ void core1_init(void) {
     assetCache_init();
     LOGI("BKA: pfsManager_init...");
     pfsManager_init();
+    LOGI("BKA: pfsManager_init done");
     LOGI("BKA: baMotor_init...");
     baMotor_init();
     LOGI("BKA: audioManager_init...");
