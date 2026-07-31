@@ -5,6 +5,7 @@
 #include "version.h"
 #include "gc/gctransition.h"
 #include <android/log.h>
+#include <string.h>
 
 #define LOG_TAG "BKA_CODE0"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
@@ -208,6 +209,17 @@ void mainLoop(void){
         }
     }
 #endif
+
+    // --- Copy the game's framebuffer to RDRAM so the video plugin can upload it ---
+    {
+        extern u16 gFramebuffers[2][292 * 216];
+        extern u32 g_active_fb_offset;
+        extern uint8_t* gN64_RDRAM;
+        s32 fbSize = gFramebufferWidth * gFramebufferHeight * sizeof(u16);
+        if (gN64_RDRAM && g_active_fb_offset) {
+            memcpy(gN64_RDRAM + g_active_fb_offset, gFramebuffers[getActiveFramebuffer()], fbSize);
+        }
+    }
 
     // --- Frame synchronisation: wait for the host to present the current frame ---
     BKA_FrameSyncHook();
