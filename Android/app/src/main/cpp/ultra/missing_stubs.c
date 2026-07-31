@@ -303,3 +303,5 @@ void printbuffer_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
 void printbuffer_defrag(void) {}
 // print_init stub — missing from Android source
 void print_init(void) {}
+// Additional stubs needed for func_802E4214 re-enablement
+void depthbuffer_enable(int a) { (void)a; }
