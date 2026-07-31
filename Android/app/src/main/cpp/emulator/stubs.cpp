@@ -71,6 +71,28 @@ static volatile bool   s_resourceReady     = false;
 // Decompression mutex (for thread-safe bkboot_inflate)
 extern pthread_mutex_t g_inflateMutex;
 
+// -------------------------------------------------------------------------
+// PREEMPTIVE GIL YIELD HELPER (outside extern "C" to use C++ structs)
+// -------------------------------------------------------------------------
+static inline uint64_t get_time_us(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
+}
+
+// Must be called while holding s_n64_gil
+static void PreemptiveYield(NativeThread* nt) {
+    uint64_t now = get_time_us();
+    if (now - nt->last_yield_us < 500) {
+        return;
+    }
+    nt->last_yield_us = now;
+
+    s_n64_gil.unlock();
+    usleep(50);
+    s_n64_gil.lock();
+}
+
 extern "C" {
 // Recompiled OS headers
 #include <PR/os_pi.h>
@@ -136,35 +158,6 @@ static void WaitForResourcesReady(void) {
 }
 
 /* ============================================================
-   2b. PREEMPTIVE GIL YIELD HELPER
-   ============================================================ */
-
-// Yield the N64 global interpreter lock briefly so that:
-//  1. The Android UI thread can process input events (prevents ANR)
-//  2. Other N64 threads can make progress
-// Call this periodically from any N64 thread that loops.
-
-static inline uint64_t get_time_us(void) {
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    return (uint64_t)ts.tv_sec * 1000000ULL + (uint64_t)ts.tv_nsec / 1000ULL;
-}
-
-// Must be called while holding s_n64_gil
-static void PreemptiveYield(NativeThread* nt) {
-    uint64_t now = get_time_us();
-    // Yield at most once every 500 µs to avoid excessive overhead
-    if (now - nt->last_yield_us < 500) {
-        return;
-    }
-    nt->last_yield_us = now;
-
-    s_n64_gil.unlock();
-    usleep(50);  // 50 µs – enough for the UI thread to grab the lock
-    s_n64_gil.lock();
-}
-
-/* ============================================================
    3. HLE NATIVE THREADING WITH GIL
    ============================================================ */
 
@@ -188,7 +181,7 @@ void osCreateThread(OSThread *t, OSId id, void (*entry)(void *), void *arg, void
 static void* NativeThreadWrapper(void* arg) {
     auto ntPtr = static_cast<std::shared_ptr<NativeThread>*>(arg);
     std::shared_ptr<NativeThread> nt = *ntPtr;
-    delete ntPtr; // Free wrapper container
+    delete ntPtr;
 
     LOGI("BKA-HLE: Native Thread ID %d starting execution.", nt->id);
 
@@ -464,17 +457,15 @@ s32 osEepromWrite(OSMesgQueue *mq, u8 address, u8 *buffer) { return 0; }
    8. SECURE ENGINE IGNITION
    ============================================================ */
 
-extern "C" {
-    extern uint8_t* gN64_RDRAM;
-    extern uint8_t* gN64_ROM_Base;
-}
+extern uint8_t* gN64_RDRAM;
+extern uint8_t* gN64_ROM_Base;
 
 extern void func_80000450(int32_t arg0);
 
 // Thread-safe wrapper for bkboot_inflate
 extern "C" int bkboot_inflate_unlocked(void);
 
-extern "C" int bkboot_inflate(void) {
+int bkboot_inflate(void) {
     pthread_mutex_lock(&g_inflateMutex);
     int result = bkboot_inflate_unlocked();
     pthread_mutex_unlock(&g_inflateMutex);
@@ -497,7 +488,6 @@ void BKA_StartEngine(void) {
         return;
     }
 
-    // Verify decompression buffers are initialized
     if (!D_80007284 || !D_80007290 || !inbuf) {
         LOGE("BKA-STUBS: FATAL: Decompression buffers (D_80007284=%p, D_80007290=%p, inbuf=%p) are not initialized!",
              D_80007284, D_80007290, inbuf);
@@ -517,6 +507,11 @@ void BKA_StartEngine(void) {
 void BKA_DropEngineLock(void)  { s_n64_gil.unlock(); }
 void BKA_ClaimEngineLock(void) { s_n64_gil.lock(); }
 
+} // end extern "C"
+
+// -------------------------------------------------------------------------
+// C++ linkage stubs for functions called from recompiled code
+// -------------------------------------------------------------------------
 void mainLoop(void)                         {}
 void core1_loadOTR(uint8_t* data, size_t size) {}
 int  func_80258A4C(void)                    { return 0; }
