@@ -58,7 +58,7 @@ int func_802F9C0C(s32 arg0){
 }
 
 void func_802F9C48(void){
-    // Guard: if the SFX pool hasn't been allocated yet, nothing to free
+    // Guard: SFX pool not yet initialised – nothing to free
     if (D_803810A0 == NULL) {
         return;
     }
@@ -193,7 +193,7 @@ void func_802FA0F8(void){
     startPtr = vector_getBegin(D_803810A0);
     endPtr = vector_getEnd(D_803810A0);
 
-    for(iPtr = startPtr; iPtr < endPtr; iPtr++){//L802FA178
+    for(iPtr = startPtr; iPtr < endPtr; iPtr++){
         if(iPtr->unk0){
             iPtr->unk4 += tick;
             if( iPtr->unkC + iPtr->unk14 + iPtr->unk10 <= iPtr->unk4){
@@ -206,7 +206,7 @@ void func_802FA0F8(void){
                     f20 = MIN(iPtr->unk1C, f20);
                     f20 = MAX(iPtr->unk20, f20);
                 }
-                else if(iPtr->unk3E == 2){//L802FA238
+                else if(iPtr->unk3E == 2){
                     f20 = ml_map_f(iPtr->unk4, iPtr->unk24, iPtr->unk28, iPtr->unk2C, iPtr->unk30);
                 }
                 sfxsource_playSfxAtVolume(iPtr->unk0, f20);
@@ -223,24 +223,34 @@ void func_802FA0F8(void){
                         continue;
                     }
                 }
-                else if(iPtr->unk4 < iPtr->unkC){//L802FA2E4
+                else if(iPtr->unk4 < iPtr->unkC){
                     iPtr->unk8 = ((iPtr->unk4/iPtr->unkC)*((f32)( iPtr->unk3A + iPtr->unk38 )))/2;
                 }
                 else if(iPtr->unk4 <= iPtr->unkC + iPtr->unk14){
-                        if( iPtr->unk8 < iPtr->unk3A
-                            || iPtr->unk38 < iPtr->unk8
-                        ){
-                            iPtr->unk8 = (iPtr->unk3A + iPtr->unk38)/2;
-                        }
-                        iPtr->unk8 += sfx_randf2(-1.0f, 1.0f) * iPtr->unk34;
+                    if( iPtr->unk8 < iPtr->unk3A
+                        || iPtr->unk38 < iPtr->unk8
+                    ){
+                        iPtr->unk8 = (iPtr->unk3A + iPtr->unk38)/2;
+                    }
+                    iPtr->unk8 += sfx_randf2(-1.0f, 1.0f) * iPtr->unk34;
 
-                        iPtr->unk8 = MIN(iPtr->unk38, iPtr->unk8);
-                        iPtr->unk8 = MAX(iPtr->unk3A, iPtr->unk8);
+                    iPtr->unk8 = MIN(iPtr->unk38, iPtr->unk8);
+                    iPtr->unk8 = MAX(iPtr->unk3A, iPtr->unk8);
                 }
                 else{
-                    iPtr->unk8 = (1.0f - ((iPtr->unk4 - iPtr->unkC) - iPtr->unk14)/iPtr->unk10) * (iPtr->unk3A + iPtr->unk38) / 2;                                  }                                    if(iPtr->unk3F && !func_8030E3FC(iPtr->unk0)){                                sfxSource_func_8030E2C4(iPtr->unk0);                                  }                                    sfxsource_setSampleRate(iPtr->unk0, (s32)iPtr->unk8);                 }                                }//L802FA4A0                     }//L802FA4B4                     }
+                    iPtr->unk8 = (1.0f - ((iPtr->unk4 - iPtr->unkC) - iPtr->unk14)/iPtr->unk10) * (iPtr->unk3A + iPtr->unk38) / 2;
+                }
+                if(iPtr->unk3F && !func_8030E3FC(iPtr->unk0)){
+                    sfxSource_func_8030E2C4(iPtr->unk0);
+                }
+                sfxsource_setSampleRate(iPtr->unk0, (s32)iPtr->unk8);
+            }
+        }
+    }
+}
 
 void func_802FA4E0(void){
+    // Guard: SFX pool not yet initialised – nothing to defrag
     if (D_803810A0 != NULL) {
         D_803810A0 = vector_defrag(D_803810A0);
     }
