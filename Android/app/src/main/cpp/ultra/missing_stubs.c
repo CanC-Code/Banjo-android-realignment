@@ -305,3 +305,5 @@ void printbuffer_defrag(void) {}
 void print_init(void) {}
 // Additional stubs needed for func_802E4214 re-enablement
 void depthbuffer_enable(int a) { (void)a; }
+void func_802E5F38(void) {}
+void func_802E4E54(int a) { (void)a; }
