@@ -273,3 +273,13 @@ void itemPrint_update(void) {}
 void itemPrint_free(void) {}
 void itemPrint_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
 void itemPrint_defrag(void) {}
+
+// -----------------------------------------------------------------------
+// Graphics helper stubs – prevent null-pointer crash during rendering
+// -----------------------------------------------------------------------
+void func_80253208(void *a, int b, int c, int d, int e, void *f) {
+    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
+}
+void zBuffer_set(void *a)                           { (void)a; }
+void func_802476EC(void *a)                         { (void)a; }
+void func_80246670(void *a)                         { (void)a; }
