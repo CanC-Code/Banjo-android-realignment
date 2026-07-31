@@ -132,11 +132,22 @@ int   D_803FBE00  = 0;
 int   D_8000E800  = 0;
 int   D_8023DA00  = 0;
 int   D_803FFE10  = 0;
-void* gFramebuffers[3] = {0, 0, 0};
 
-// Shared variable so the game code can tell the video plugin which
-// RDRAM offset contains the current framebuffer.
-u32 g_active_fb_offset = 0;
+// -----------------------------------------------------------------------
+// FRAMEBUFFER ALLOCATION IN RDRAM
+// The game draws into a double-buffered framebuffer in N64 RDRAM.
+// Each buffer is 320×240×2 bytes (153,600 bytes), placed at a safe
+// offset past the heap (0x400000 = 4 MB). The video plugin reads
+// from gN64_RDRAM + g_active_fb_offset to upload each frame to GL.
+// -----------------------------------------------------------------------
+#define FB_WIDTH   292
+#define FB_HEIGHT  216
+#define FB_SIZE    (FB_WIDTH * FB_HEIGHT * sizeof(u16))  // 126,144 bytes
+#define FB0_OFFSET 0x400000  // 4 MB – well past the ~2.1 MB heap
+#define FB1_OFFSET (FB0_OFFSET + FB_SIZE)
+
+u16 gFramebuffers[2][FB_WIDTH * FB_HEIGHT];
+u32 g_active_fb_offset = FB0_OFFSET;
 
 // -----------------------------------------------------------------------
 // Linker script symbols (ROM region boundaries)
