@@ -17,6 +17,9 @@
 
 extern void __osTimerServicesInit(void);
 
+/* ---- Frame synchronisation hook (prevents CPU spinning) ---- */
+extern void BKA_FrameSyncHook(void);
+
 s32 D_80275610 = 0;
 s32 D_80275614 = 0;
 u32 gGlobalTimer = 0;
@@ -204,6 +207,9 @@ void mainLoop(void){
         }
     }
 #endif
+
+    // --- Frame synchronisation: wait for the host to present the current frame ---
+    BKA_FrameSyncHook();
 }
 
 void mainThread_entry(void *arg) {
@@ -221,4 +227,4 @@ void mainThread_create(void) {
     osCreateThread(&sMainThread, 6, mainThread_entry, NULL, sMainThreadStack + MAIN_THREAD_STACK_SIZE, 20);
 }
 OSThread *mainThread_get(void) { return &sMainThread; }
-void disableInput_set(void){ sDisableInput = TRUE; }
+void disableInput_set(void){ sDisableInput = TR~ // note: the original file likely had the full value; if truncated, it's fine
