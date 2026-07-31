@@ -106,62 +106,30 @@ void func_8023DBDC(void){
 
 void core1_init(void) {
     LOGI("BKA: core1_init START");
-    __osTimerServicesInit();   // Timer list must be valid before any timer use
+    __osTimerServicesInit();   // MUST be before any timer use (pfsManager_init)
 #if VERSION == VERSION_PAL
      osTvType = 0;
 #endif
-    LOGI("BKA: ucode_load...");
     ucode_load();
-    LOGI("BKA: ucode_load done");
-
-    LOGI("BKA: setBootMap...");
     setBootMap(getDefaultBootMap());
-    LOGI("BKA: setBootMap done");
-
-    LOGI("BKA: rarezip_init...");
     rarezip_init();
-    LOGI("BKA: rarezip_init done");
-
-    LOGI("BKA: viMgr_init...");
     viMgr_init();
-    LOGI("BKA: viMgr_init done");
-
-    LOGI("BKA: overlayManagerloadCore2...");
     overlayManagerloadCore2();
-    LOGI("BKA: overlayManagerloadCore2 done");
-
     sDebugVar_8027BEF0 = sDebugVar_8027A538;
-
-    LOGI("BKA: heap_init...");
     heap_init();
-    LOGI("BKA: heap_init done");
-
-    LOGI("BKA: func_80254028...");
     func_80254028();
-    LOGI("BKA: dummy_func_8025AFB0...");
     dummy_func_8025AFB0();
-    LOGI("BKA: allocUnusedBlock...");
     allocUnusedBlock();
-    LOGI("BKA: assetCache_init...");
     assetCache_init();
-    LOGI("BKA: pfsManager_init...");
     pfsManager_init();
     LOGI("BKA: pfsManager_init done");
-    LOGI("BKA: baMotor_init...");
     baMotor_init();
-    LOGI("BKA: audioManager_init...");
     audioManager_init();
-    LOGI("BKA: graphicsCache_init...");
     graphicsCache_init();
-    LOGI("BKA: ml_init...");
     ml_init();
-    LOGI("BKA: gctransition_reset...");
     gctransition_reset();
-
     D_8027A130 = 0;
     gGlobalTimer = 0;
-
-    LOGI("BKA: func_8023DA9C...");
     func_8023DA9C(3);
     LOGI("BKA: core1_init DONE");
 }
@@ -182,7 +150,6 @@ void mainLoop(void){
     static int diagFrame = 0;
     if (diagFrame < 5) {
         LOGI("BKA: mainLoop frame %d — setting fb_offset", diagFrame);
-
         u8 *fb = gN64_RDRAM + 0x1000;
         s32 w = 320;
         s32 h = 240;
@@ -202,24 +169,17 @@ void mainLoop(void){
     if((globalTimer_getTime() & 0x7f) == 0x11)
         sns_write_payload_over_heap();
     func_8023DA74();
-
     if(D_8027A130 != 3 || getGameMode() != GAME_MODE_4_PAUSED)
         globalTimer_incTimer();
-
     if (!sDisableInput)
         pfsManager_update();
     sDisableInput = FALSE;
-
     baMotor_80250C08();
-
     if(!mapSpecificFlags_validateCRC1()){
         eeprom_writeBlocks(0, 0, 0x80397AD0, 0x40);
     }
-
     switch(D_8027A130){
-        case 4:
-            func_802E35D8();
-            break;
+        case 4: func_802E35D8(); break;
         case 3:
             func_80255524();
             func_80255ACC();
@@ -227,7 +187,6 @@ void mainLoop(void){
             spawnQueue_flush();
             break;
     }
-
     if(D_80275610){
         func_8023DA9C(D_80275610 - 1);
         D_80275610 = 0;
@@ -239,31 +198,14 @@ void mainThread_entry(void *arg) {
     core1_init();
     sns_write_payload_over_heap();
     LOGI("BKA: entering main loop");
-    while (1) {
-        mainLoop();
-    }
+    while (1) { mainLoop(); }
 }
 
-void func_8023DFF0(s32 arg0){
-    D_80275610 = arg0 + 1;
-}
-
-s32 func_8023E000(void){
-    return D_8027A130;
-}
-
-void setBootMap(enum map_e map_id){
-    gBootMap = map_id;
-}
-
+void func_8023DFF0(s32 arg0){ D_80275610 = arg0 + 1; }
+s32 func_8023E000(void){ return D_8027A130; }
+void setBootMap(enum map_e map_id){ gBootMap = map_id; }
 void mainThread_create(void) {
     osCreateThread(&sMainThread, 6, mainThread_entry, NULL, sMainThreadStack + MAIN_THREAD_STACK_SIZE, 20);
 }
-
-OSThread *mainThread_get(void) {
-    return &sMainThread;
-}
-
-void disableInput_set(void){
-    sDisableInput = TRUE;
-}
+OSThread *mainThread_get(void) { return &sMainThread; }
+void disableInput_set(void){ sDisableInput = TRUE; }
