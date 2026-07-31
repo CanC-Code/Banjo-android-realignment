@@ -195,3 +195,30 @@ DEFINE_OVERLAY_VRAM(fight,     0x80386DD0, 0x80393390)
 // core1 is not in the overlay table but may be referenced elsewhere.
 u32 core1_VRAM     = 0x8023DA20;
 u32 core1_VRAM_END = 0x80286F90;
+
+// -----------------------------------------------------------------------
+// Audio/SFX function stubs
+// These are called by many actor files but were originally part of
+// audioManager_init which is currently stubbed. Provide empty stubs
+// so the game can run without sound for now.
+// -----------------------------------------------------------------------
+void gcsfx_playWithPitch(int a, float b, int c, float d)  { (void)a; (void)b; (void)c; (void)d; }
+void func_8030E878(void)                                   {}
+int  sfx_playFadeShorthand(void)                           { return 0; }
+void gcsfx_playAtSampleRate(int a, int b, int c)           { (void)a; (void)b; (void)c; }
+void func_8030E624(int a, float b, int c)                  { (void)a; (void)b; (void)c; }
+void gcsfx_play(int a, float b, int c)                     { (void)a; (void)b; (void)c; }
+void sfxSource_triggerCallbackByIndex(int a)               { (void)a; }
+void func_8030E760(void)                                   {}
+void func_8030DD90(int a, int b)                           { (void)a; (void)b; }
+void sfxsource_playSfxAtVolume(int a, float b)             { (void)a; (void)b; }
+void sfxsource_setSfxId(int a, int b)                      { (void)a; (void)b; }
+void sfxSource_setunk43_7ByIndex(int a, int b)              { (void)a; (void)b; }
+void sfxsource_setSampleRate(int a, int b)                 { (void)a; (void)b; }
+void sfxSource_func_8030E2C4(int a)                        { (void)a; }
+void sfxsource_freeSfxsourceByIndex(int a)                 { (void)a; }
+int  sfxsource_createSfxsourceAndReturnIndex(void)         { return 0; }
+void func_8030E9FC(void)                                   {}
+void func_8030EA54(void)                                   {}
+void func_8030E730(void)                                   {}
+void func_8030DBFC(void)                                   {}
