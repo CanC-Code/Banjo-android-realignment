@@ -1,12 +1,21 @@
 #include <ultra64.h>
 #include "core1/core1.h"
 
-static Gfx *sGfxStack[2] = { NULL, NULL };
+// Static graphics stacks — allocated at compile time so that game_draw
+// has valid pointers even when graphicsCache_init is stubbed.
+static char sGfxStack0_buf[29600];
+static char sGfxStack1_buf[29600];
+static char sMtxStack0_buf[44800];
+static char sMtxStack1_buf[44800];
+static char sVtxStack0_buf[6880];
+static char sVtxStack1_buf[6880];
+
+static Gfx *sGfxStack[2] = { (Gfx*)sGfxStack0_buf, (Gfx*)sGfxStack1_buf };
 s32 gFramebufferWidth = DEFAULT_FRAMEBUFFER_WIDTH;
 s32 gFramebufferHeight = DEFAULT_FRAMEBUFFER_HEIGHT;
 
-static Mtx *sMtxStack[2];
-static Vtx *sVtxStack[2];
+static Mtx *sMtxStack[2] = { (Mtx*)sMtxStack0_buf, (Mtx*)sMtxStack1_buf };
+static Vtx *sVtxStack[2] = { (Vtx*)sVtxStack0_buf, (Vtx*)sVtxStack1_buf };
 static s32 sStackSelector;
 s32  gTextureFilterPoint;
 Struct_Core1_15B30 D_80283008[20];
@@ -197,28 +206,12 @@ void drawRectangle2D(Gfx **gfx, s32 x, s32 y, s32 w, s32 h, s32 r, s32 g, s32 b)
     gDPScisFillRectangle((*gfx)++,  x, y, x + w -1, y + h -1);
 }
 
+// Graphics stacks are now static buffers — nothing to free.
 void graphicsCache_release(void) {
-    if (sGfxStack[0]) {
-        n64_free(sGfxStack[0]);
-        n64_free(sGfxStack[1]);
-        n64_free(sMtxStack[0]);
-        n64_free(sMtxStack[1]);
-        n64_free(sVtxStack[0]);
-        n64_free(sVtxStack[1]);
-        sGfxStack[0] = NULL;
-    }
 }
 
+// Graphics stacks are now static buffers — nothing to allocate.
 void graphicsCache_init(void){
-    if(sGfxStack[0] == NULL){
-        sGfxStack[0] = (Gfx *)n64_malloc(29600); // 3700 dlist commands
-        sGfxStack[1] = (Gfx *)n64_malloc(29600);
-        sMtxStack[0] = (Mtx *)n64_malloc(44800); // 700 matrices
-        sMtxStack[1] = (Mtx *)n64_malloc(44800);
-        sVtxStack[0] = (Vtx *)n64_malloc(6880); // 430 vertices
-        sVtxStack[1] = (Vtx *)n64_malloc(6880);
-        dummy_func_80254464();
-    }
     sStackSelector = 0;
     gTextureFilterPoint = 0;
 }
