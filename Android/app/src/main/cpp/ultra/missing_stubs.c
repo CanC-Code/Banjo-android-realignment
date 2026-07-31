@@ -264,3 +264,12 @@ void func_8030DCCC(void)                                   {}
 void coMusicPlayer_init(void)  {}
 void coMusicPlayer_free(void)  {}
 void coMusicPlayer_update(void) {}
+
+// -----------------------------------------------------------------------
+// itemPrint stubs – prevent null-pointer crash during early main loop
+// -----------------------------------------------------------------------
+void itemPrint_init(void)  {}
+void itemPrint_update(void) {}
+void itemPrint_free(void) {}
+void itemPrint_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
+void itemPrint_defrag(void) {}
