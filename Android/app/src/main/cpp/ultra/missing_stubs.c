@@ -307,3 +307,6 @@ void print_init(void) {}
 void depthbuffer_enable(int a) { (void)a; }
 void func_802E5F38(void) {}
 void func_802E4E54(int a) { (void)a; }
+void modelRender_init(void) {}
+void modelRender_free(void) {}
+void modelRender_defrag(void) {}
