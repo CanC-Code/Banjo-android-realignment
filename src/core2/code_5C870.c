@@ -4,7 +4,8 @@
 #include "variables.h"
 
 #include "gc/gctransition.h"
-/* Redirected */ #include <n64_time.h>
+/* Redirected */
+#include <n64_time.h>
 
 extern void func_802F5374(void);
 extern void func_802FA0F8(void);
@@ -39,14 +40,14 @@ s16 D_803687F0[] = {
     '**', ' B', 'AN', 'JO', ' K', 'AZ', 'OO', 'IE',
     ' (', 'c)', ' R', 'AR', 'E ', 'Lt', 'd ', '19',
     '98', ' *', '*\0',   0,    0,    0,    0,    0,
- 
+
 };
 
 /* .bss */
 struct{
     s32 unk0;
     s32 game_mode; //game_mode
-    f32 unk8; 
+    f32 unk8;
     s32 unkC; //freeze_scene_flag (used for pause menu)
     f32 unk10;
     u8 transition;
@@ -113,7 +114,7 @@ void func_802E398C(s32 arg0) {
 }
 
 void func_802E39D0(Gfx **gdl, Mtx **mptr, Vtx **vptr, s32 framebuffer_idx, s32 arg4){
-    Mtx* m_start = *mptr; 
+    Mtx* m_start = *mptr;
     Vtx* v_start = *vptr;
 
     scissorBox_SetForGameMode(gdl, framebuffer_idx);
@@ -131,7 +132,7 @@ void func_802E39D0(Gfx **gdl, Mtx **mptr, Vtx **vptr, s32 framebuffer_idx, s32 a
     ){
         gctransition_draw(gdl, mptr, vptr);
     }
-    
+
     if( D_8037E8E0.game_mode == GAME_MODE_8_BOTTLES_BONUS
         || D_8037E8E0.game_mode == GAME_MODE_A_SNS_PICTURE
     ){
@@ -236,7 +237,7 @@ void game_setMode(enum game_mode_e next_mode, s32 arg1){
                 gctransition_8030BD4C();
         }
         func_80346CA8();
-        D_8037E8E0.unk10 = 0.0f; 
+        D_8037E8E0.unk10 = 0.0f;
     }
     else if(next_mode == GAME_MODE_4_PAUSED){//L802E3E24
         func_80335110(0);
@@ -330,7 +331,7 @@ void func_802E40A8(s32 map, s32 exit){
 }
 
 void func_802E40C4( s32 arg0){
-    D_8037E8E0.transition = arg0;   
+    D_8037E8E0.transition = arg0;
 }
 
 void func_802E40D0(s32 map, s32 exit){
@@ -345,7 +346,7 @@ void func_802E40E8(s32 transition){
     if(transition && !gctransition_8030BDC0()){
         gctransition_8030BE60();
     }
-    
+
 }
 
 void func_802E412C(s32 arg0, s32 arg1){
@@ -357,22 +358,11 @@ void func_802E412C(s32 arg0, s32 arg1){
 }
 
 void func_802E4170(void){
-    game_setMode(GAME_MODE_2_UNKNOWN,0);
-    defragManager_free();
-    func_802E5F68();
-    if(!func_802E4A08())
-        func_802F4F64();
-    timedFuncQueue_free();
-    func_802F9C48();
-    modelRender_free();
-    depthBuffer_stub();
-    func_802E398C(0);
-    func_8030AFD8(0);
-    func_80321854();
-    debugScoreStates();
-    animCache_free();
-    coMusicPlayer_free();
-    func_8030D8DC();
+    // STUB: Do not reset game state during early boot.
+    // The original function frees and reinitialises many subsystems,
+    // but they haven't been set up yet in the Android port, causing
+    // null-pointer dereferences. We skip this until all subsystems
+    // are properly initialised.
 }
 
 void func_802E4214(enum map_e map_id){
@@ -427,7 +417,7 @@ void func_802E4384(void){
         time_setDeltaReal_frames((s32)(func_8033DC20()*60.0f + 0.5));
     }
     func_8033DC10();
-    
+
     D_8037E8E0.unk8 += time_getDelta();
 }
 
@@ -584,7 +574,7 @@ s32 game_defrag(void){
     func_802555C4(); //reset defragged flag in memory.c
     if( !level_get() )
         return NULL;
-    
+
     glspline_defrag();
     animCache_defrag();
     pem_defragAll();
@@ -625,7 +615,7 @@ s32 getGameMode(void){
 }
 
 n64_bool func_802E4A08(void){
-    return (D_8037E8E0.game_mode == GAME_MODE_6_FILE_PLAYBACK) 
+    return (D_8037E8E0.game_mode == GAME_MODE_6_FILE_PLAYBACK)
         || (D_8037E8E0.game_mode == GAME_MODE_5_UNKNOWN)
         || (D_8037E8E0.game_mode == GAME_MODE_7_ATTRACT_DEMO)
         || (D_8037E8E0.game_mode == GAME_MODE_8_BOTTLES_BONUS)
