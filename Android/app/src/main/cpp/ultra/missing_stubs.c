@@ -222,3 +222,25 @@ void func_8030E9FC(void)                                   {}
 void func_8030EA54(void)                                   {}
 void func_8030E730(void)                                   {}
 void func_8030DBFC(void)                                   {}
+
+// Additional stubs needed after build iteration
+void sfxsource_set_fade_distances(int a, float b, float c) { (void)a; (void)b; (void)c; }
+void sfxsource_set_position(int a, int b)                  { (void)a; (void)b; }
+void func_8030E6D4(void)                                   {}
+void func_8030ED2C(void)                                   {}
+void func_8030DB04(void)                                   {}
+void func_8030E200(int a)                                  { (void)a; }
+void func_8030E0FC(void)                                   {}
+void func_8030E3FC(int a)                                  { (void)a; }
+void func_8030E58C(void)                                   {}
+void sfxsource_playHighPriority(int a)                     { (void)a; }
+void func_8030E988(void)                                   {}
+void func_8030ED70(void)                                   {}
+void sfxSource_setCallbackByIndex(int a, int b)            { (void)a; (void)b; }
+void func_8030E5F4(void)                                   {}
+void func_8030EB88(void)                                   {}
+void func_8030EAAC(void)                                   {}
+void func_8030E560(void)                                   {}
+void func_8030E4E4(void)                                   {}
+void func_8030EBC8(void)                                   {}
+void func_8030E04C(void)                                   {}
