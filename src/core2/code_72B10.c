@@ -22,7 +22,7 @@ s32 func_802F9AA8(enum sfx_e arg0){
     struct4Es *iPtr;
     struct4Es *endPtr;
     struct4Es *startPtr;
-    
+
 
     endPtr = vector_getEnd(D_803810A0);
     startPtr = vector_getBegin(D_803810A0);
@@ -58,6 +58,10 @@ int func_802F9C0C(s32 arg0){
 }
 
 void func_802F9C48(void){
+    // Guard: if the SFX pool hasn't been allocated yet, nothing to free
+    if (D_803810A0 == NULL) {
+        return;
+    }
     struct4Es *iPtr;
     struct4Es *startPtr;
     struct4Es *endPtr;
@@ -69,6 +73,7 @@ void func_802F9C48(void){
             func_802F9D38(iPtr - startPtr);
     }
     vector_free(D_803810A0);
+    D_803810A0 = NULL;
 }
 
 void func_802F9CD8(void){
@@ -205,7 +210,7 @@ void func_802FA0F8(void){
                     f20 = ml_map_f(iPtr->unk4, iPtr->unk24, iPtr->unk28, iPtr->unk2C, iPtr->unk30);
                 }
                 sfxsource_playSfxAtVolume(iPtr->unk0, f20);
-                
+
                 if(iPtr->unk3C){
                     if(0.0f == iPtr->unk10){
                         iPtr->unk8 = 0.0f;
@@ -233,22 +238,19 @@ void func_802FA0F8(void){
                         iPtr->unk8 = MAX(iPtr->unk3A, iPtr->unk8);
                 }
                 else{
-                    iPtr->unk8 = (1.0f - ((iPtr->unk4 - iPtr->unkC) - iPtr->unk14)/iPtr->unk10) * (iPtr->unk3A + iPtr->unk38) / 2;
-                }
-                if(iPtr->unk3F && !func_8030E3FC(iPtr->unk0)){
-                    sfxSource_func_8030E2C4(iPtr->unk0);
-                }
-                sfxsource_setSampleRate(iPtr->unk0, (s32)iPtr->unk8);
-            }
-        }//L802FA4A0
-    }//L802FA4B4  
-}
+                    iPtr->unk8 = (1.0f - ((iPtr->unk4 - iPtr->unkC) - iPtr->unk14)/iPtr->unk10) * (iPtr->unk3A + iPtr->unk38) / 2;                                  }                                    if(iPtr->unk3F && !func_8030E3FC(iPtr->unk0)){                                sfxSource_func_8030E2C4(iPtr->unk0);                                  }                                    sfxsource_setSampleRate(iPtr->unk0, (s32)iPtr->unk8);                 }                                }//L802FA4A0                     }//L802FA4B4                     }
 
 void func_802FA4E0(void){
-    D_803810A0 = vector_defrag(D_803810A0);
+    if (D_803810A0 != NULL) {
+        D_803810A0 = vector_defrag(D_803810A0);
+    }
 }
 
 void func_802FA508(void){
+    // Guard: SFX pool not yet initialised – nothing to stop
+    if (D_803810A0 == NULL) {
+        return;
+    }
     struct4Es *startPtr;
     struct4Es *endPtr;
     struct4Es *iPtr;
