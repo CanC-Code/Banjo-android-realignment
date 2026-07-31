@@ -55,23 +55,8 @@ void func_8023DA74(void){
 }
 
 void func_8023DA9C(s32 arg0){
-    func_80254008();
-    viMgr_clearFramebuffers();
-    if (D_8027A130 == 4){
-        func_802E3580();
-    }
-    if (D_8027A130 == 3){
-        func_802E4170();
-    }
-    func_8023DA74();
-    D_8027A130 = arg0;
-    if (D_8027A130 == 3){
-        func_802E4214(gBootMap);
-    }
-    if (D_8027A130 == 4){
-        dummy_func_802E35D0();
-    }
-    ucode_stub1();
+    // Stubbed: calls func_802E4214 which blocks waiting for vblank
+    LOGI("BKA: func_8023DA9C SKIPPED");
 }
 
 u32 globalTimer_getTimeMasked(u32 mask){
@@ -121,17 +106,21 @@ void core1_init(void) {
     dummy_func_8025AFB0();
     allocUnusedBlock();
     assetCache_init();
-    // pfsManager_init();      // STUBBED: crashes in controller init
+    // pfsManager_init();      // STUBBED
     LOGI("BKA: pfsManager_init SKIPPED");
     baMotor_init();
-    // audioManager_init();    // STUBBED: crashes in sfxInstruments_init
+    // audioManager_init();    // STUBBED
     LOGI("BKA: audioManager_init SKIPPED");
-    graphicsCache_init();
-    ml_init();
-    gctransition_reset();
+    // graphicsCache_init();   // STUBBED (blocks)
+    LOGI("BKA: graphicsCache_init SKIPPED");
+    // ml_init();              // STUBBED (may block)
+    LOGI("BKA: ml_init SKIPPED");
+    // gctransition_reset();   // STUBBED (may block)
+    LOGI("BKA: gctransition_reset SKIPPED");
     D_8027A130 = 0;
     gGlobalTimer = 0;
-    func_8023DA9C(3);
+    // func_8023DA9C(3);       // STUBBED (blocks on vblank)
+    LOGI("BKA: func_8023DA9C SKIPPED");
     LOGI("BKA: core1_init DONE");
 }
 
@@ -167,27 +156,10 @@ void mainLoop(void){
         diagFrame++;
     }
 
-    if((globalTimer_getTime() & 0x7f) == 0x11)
-        sns_write_payload_over_heap();
-    func_8023DA74();
-    if(D_8027A130 != 3 || getGameMode() != GAME_MODE_4_PAUSED)
-        globalTimer_incTimer();
-    sDisableInput = FALSE;
-    baMotor_80250C08();
-    if(!mapSpecificFlags_validateCRC1()){
-        eeprom_writeBlocks(0, 0, 0x80397AD0, 0x40);
-    }
-    switch(D_8027A130){
-        case 4: func_802E35D8(); break;
-        case 3:
-            func_80255524();
-            func_80255ACC();
-            spawnQueue_func_802C3A18();
-            spawnQueue_flush();
-            break;
-    }
+    // Skip the game logic that depends on uninitialized subsystems.
+    // Just let the diagnostic loop run.
     if(D_80275610){
-        func_8023DA9C(D_80275610 - 1);
+        // func_8023DA9C(D_80275610 - 1);
         D_80275610 = 0;
     }
 }
