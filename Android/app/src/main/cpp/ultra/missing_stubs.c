@@ -244,3 +244,16 @@ void func_8030E560(void)                                   {}
 void func_8030E4E4(void)                                   {}
 void func_8030EBC8(void)                                   {}
 void func_8030E04C(void)                                   {}
+
+// Third batch of audio/SFX stubs from the latest build
+void func_8030EB00(void)                                   {}
+void func_8030EC20(void)                                   {}
+void func_8030E9C4(void)                                   {}
+void func_8030DFF0(void)                                   {}
+void func_8030DFB4(void)                                   {}
+void func_8030ED0C(void)                                   {}
+void func_8030EDAC(void)                                   {}
+int  sfxSource_getSampleRate(int a)                         { (void)a; return 0; }
+void func_8030DE44(void)                                   {}
+void func_8030E704(void)                                   {}
+void func_8030DCCC(void)                                   {}
