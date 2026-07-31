@@ -41,6 +41,7 @@ static u64 sDebugVar_8027BEF0;
 
 extern u8 core2_TEXT_START[];
 extern u32 g_active_fb_offset;
+extern uint8_t* gN64_RDRAM;
 
 void func_8023DA20(s32 arg0){
     if (core2_TEXT_START && core2_TEXT_START > (u8*)&D_8027A130) {
