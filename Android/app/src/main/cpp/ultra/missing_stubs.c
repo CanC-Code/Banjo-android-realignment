@@ -16,6 +16,12 @@
 //   CMakeLists.txt lists this file LAST so the linker always prefers
 //   the real implementations above when --allow-multiple-definition is set.
 
+// Forward declarations for print/font stubs
+void print_init(void);
+void print_getLettersFromFont(void* arg0, void* arg1);
+void func_802E5F38(void);
+void func_802E5F10(void);
+
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -506,3 +512,9 @@ void func_802E5F38(void) {}
 void func_802E5F10(void) {}
 int gsworld_getEnableUpdate(void)       { return sEnableUpdate; }
 int gsworld_getEnableDraw(void)         { return sEnableDraw; }
+
+// Stubs for print/font init to bypass null asset crashes
+void print_init(void) {}
+void print_getLettersFromFont(void* arg0, void* arg1) {}
+void func_802E5F38(void) {}
+void func_802E5F10(void) {}
