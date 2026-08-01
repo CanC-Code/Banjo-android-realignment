@@ -498,5 +498,11 @@ int gsworld_update(void) {
 // =======================================================================
 void gsworld_setEnableUpdate(int value) { sEnableUpdate = value; }
 void gsworld_setEnableDraw(int value)   { sEnableDraw = value; }
+
+// Stubs for print/font init to bypass null asset crashes
+void print_init(void) {}
+void print_getLettersFromFont(void* arg0, void* arg1) {}
+void func_802E5F38(void) {}
+void func_802E5F10(void) {}
 int gsworld_getEnableUpdate(void)       { return sEnableUpdate; }
 int gsworld_getEnableDraw(void)         { return sEnableDraw; }
