@@ -69,13 +69,25 @@ void func_8026A2E0(void) {}
 // -----------------------------------------------------------------------
 // Global variables
 // -----------------------------------------------------------------------
+
+// D_8002D500 is the N64 game heap. memory.c uses it as:
+//   extern EmptyHeapBlock D_8002D500[LAST_HEAP_BLOCK + 1];
+// EmptyHeapBlock is 0x20 bytes. We allocate a byte array large enough
+// for heap_init() to set up the linked list correctly.
 #define BK_HEAP_SIZE 0x211120
 u8 D_8002D500[BK_HEAP_SIZE] __attribute__((aligned(16)));
+
+// D_8023DA00 is used by memory.c as:
+//   extern EmptyHeapBlock D_8023DA00;
+// func_80254BD0 walks it as a linked list: var_v1 = &D_8023DA00;
+// then var_v1 = var_v1->prev_free. If this is only 4 bytes (int),
+// the dereference reads garbage and crashes. Allocate 0x20 bytes
+// to match sizeof(EmptyHeapBlock).
+uint64_t D_8023DA00[4] __attribute__((aligned(16)));
 
 int D_803FFE00 = 0;
 int D_803FBE00 = 0;
 int D_8000E800 = 0;
-int D_8023DA00 = 0;
 int D_803FFE10 = 0;
 
 // NOTE: gFramebuffers, g_active_fb_offset are now defined in lowlevel_bridge.cpp
