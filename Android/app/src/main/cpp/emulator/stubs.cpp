@@ -7,6 +7,7 @@
 #include <time.h>
 #include <pthread.h>
 #include <PR/sched.h>
+#include <PR/os_vi.h>
 #include <unordered_map>
 #include <mutex>
 #include <deque>
@@ -136,6 +137,13 @@ void __wrap___osInitialize_common(void) {
 void __osViInit(void) {
     LOGI("BKA-HLE: __osViInit executed.");
 }
+
+// VI stubs with correct N64 types from os_vi.h
+void osViSetMode(OSViMode *modep)                        { (void)modep; }
+void osViSetSpecialFeatures(u32 func)                    { (void)func; }
+void osViSwapBuffer(void *vaddr)                         { (void)vaddr; }
+void osViSetEvent(OSMesgQueue *mq, OSMesg m, u32 count)  { (void)mq; (void)m; (void)count; }
+void osCreateViManager(OSPri pri)                         { (void)pri; }
 
 /* ============================================================
    2. RESOURCE READINESS GATE API
