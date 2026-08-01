@@ -15,9 +15,9 @@ struct {
     s32 unk0;
     s32 map;
     s32 exit;
-}D_803835D0;
+}D_8037E8E0;
 s32 D_803835DC;
-u32 D_803835E0;
+u32 D_8037E8E0.game_mode;
 
 /* public */
 void func_80335110(s32);
@@ -30,7 +30,7 @@ void gsworld_draw(Gfx** gdl, Mtx **mptr, Vtx **vptr) {
     f32 sp44;
     f32 sp40;
 
-    if (D_803835E0 == 0) {
+    if (D_8037E8E0.game_mode == 0) {
         drawRectangle2D(gdl, 0, 0, gFramebufferWidth, gFramebufferHeight, 0, 0, 0);
         func_802BBD2C(&sp44, &sp40);
         viewport_setNearAndFar(sp44, sp40);
@@ -107,19 +107,19 @@ void func_803348B0(s32 arg0, s32 arg1, s32 arg2){
 }
 
 enum map_e gsworld_get_map(void){
-    return D_803835D0.map;
+    return D_8037E8E0.map;
 }
 
 s32 gsworld_get_exit(){
-    return D_803835D0.exit;
+    return D_8037E8E0.exit;
 }
 
 void func_803348D8(s32 arg0) {
-    transitionToMap(D_803835D0.map, arg0, 1);
+    transitionToMap(D_8037E8E0.map, arg0, 1);
 }
 
 s32 func_80334904(){
-    return D_803835D0.unk0;
+    return D_8037E8E0.unk0;
 }
 
 void func_80334E1C(s32);
@@ -179,7 +179,7 @@ void gsworld_free(void) {
     dialogBin_terminate();
     func_802986D0();
     if (func_80322914() == 0) {
-        func_8024F7C4(func_803226E8(D_803835D0.map));
+        func_8024F7C4(func_803226E8(D_8037E8E0.map));
     }
     core1_7090_release();
     AnimTextureListCache_free();
@@ -191,9 +191,9 @@ void gsworld_free(void) {
 
 //gsworldDll_entrypoint2
 void gsworld_set(enum map_e map, s32 arg1, s32 arg2) {
-    D_803835D0.unk0 = 3;
-    D_803835D0.map = map;
-    D_803835D0.exit = arg1;
+    D_8037E8E0.unk0 = 3;
+    D_8037E8E0.map = map;
+    D_8037E8E0.exit = arg1;
     overlay_init();
     func_80335110(1);
     func_80335128(1);
@@ -203,7 +203,7 @@ void gsworld_set(enum map_e map, s32 arg1, s32 arg2) {
         func_8038E7C4();
     }
     if (func_80322914() == 0) {
-        func_8024F764(func_803226E8(D_803835D0.map));
+        func_8024F764(func_803226E8(D_8037E8E0.map));
     }
     func_80320B84();
     AnimTextureListCache_init();
@@ -260,7 +260,7 @@ void gsworld_set(enum map_e map, s32 arg1, s32 arg2) {
     func_80350174();
     gcparade_init();
     func_80351998();
-    func_802BC2CC(D_803835D0.exit);
+    func_802BC2CC(D_8037E8E0.exit);
     func_802D63D4();
     func_80255A04();
     func_802D6948();
@@ -274,26 +274,26 @@ void gsworld_set(enum map_e map, s32 arg1, s32 arg2) {
 
 void func_80334DC0(void) {
     gsworld_free();
-    gsworld_set(D_803835D0.map, D_803835D0.exit, 1);
+    gsworld_set(D_8037E8E0.map, D_8037E8E0.exit, 1);
 }
 
 void func_80334DF8(void) {
-    func_8033520C(D_803835D0.map);
+    func_8033520C(D_8037E8E0.map);
 }
 
 void func_80334E1C(s32 arg0) {
     func_80254008();
-    func_802BC21C(D_803835D0.unk0, arg0);
-    func_8028F7F4(D_803835D0.unk0, arg0);
-    func_8030D8A8(D_803835D0.unk0, arg0);
-    func_803045CC(D_803835D0.unk0, arg0);
-    func_80323140(D_803835D0.unk0, arg0);
-    func_80351A1C(D_803835D0.unk0, arg0);
-    func_803225B0(D_803835D0.unk0, arg0);
-    func_80323098(D_803835D0.unk0, arg0);
-    func_802F0E80(D_803835D0.unk0, arg0);
-    commonParticle_setActive(D_803835D0.unk0, arg0);
-    D_803835D0.unk0 = arg0;
+    func_802BC21C(D_8037E8E0.unk0, arg0);
+    func_8028F7F4(D_8037E8E0.unk0, arg0);
+    func_8030D8A8(D_8037E8E0.unk0, arg0);
+    func_803045CC(D_8037E8E0.unk0, arg0);
+    func_80323140(D_8037E8E0.unk0, arg0);
+    func_80351A1C(D_8037E8E0.unk0, arg0);
+    func_803225B0(D_8037E8E0.unk0, arg0);
+    func_80323098(D_8037E8E0.unk0, arg0);
+    func_802F0E80(D_8037E8E0.unk0, arg0);
+    commonParticle_setActive(D_8037E8E0.unk0, arg0);
+    D_8037E8E0.unk0 = arg0;
 }
 
 s32 gsworld_update(void) {
@@ -359,7 +359,7 @@ s32 gsworld_update(void) {
         func_803306C8(1);
         func_8032AD7C(1);
         func_80322490();
-        if (map_getLevel(D_803835D0.map) == LEVEL_D_CUTSCENE) {
+        if (map_getLevel(D_8037E8E0.map) == LEVEL_D_CUTSCENE) {
             func_802C79C4();
         }
         func_8032AABC();
@@ -377,11 +377,11 @@ s32 func_8033511C(){
 }
 
 void func_80335128(s32 arg0){
-    D_803835E0 = arg0;
+    D_8037E8E0.game_mode = arg0;
 }
 
 s32 func_80335134(){
-    return D_803835E0;
+    return D_8037E8E0.game_mode;
 }
 
 //gsworldDll_entrypoint0
@@ -408,5 +408,5 @@ void gsworld_load(enum map_e map_id) {
 void func_8033520C(s32 arg0) { }
 
 enum map_e gsworld_getMap(void) {
-    return D_803835D0.map;
+    return D_8037E8E0.map;
 }
