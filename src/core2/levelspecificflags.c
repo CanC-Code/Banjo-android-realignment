@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include "bka_safe_base.h"
 #include "functions.h"
 #include "variables.h"
 
@@ -13,51 +14,22 @@ struct{
 }D_80383320;
 
 /* .code */
-u32 _levelSpecificFlags_calcCRC1(void) {
-    s32 scrambled_ptr;
-    u8 *ptr;
-    u32 var_a3;
-    u32 var_v1;
-    u32 var_v0;
 
-    var_v1 = 0x05C9EC23;
-    scrambled_ptr = (((s32) &D_80383320.unk8 & 0x55555555) * 2) + ((u32) ((s32) &D_80383320.unk8 & 0xAAAAAAAA) >> 1);
-    ptr = (((scrambled_ptr & 0x55555555) * 2) | ((u32) (scrambled_ptr & 0xAAAAAAAA) >> 1));
-    var_v0 = 8;
-    for(var_a3 = 0; var_a3 < var_v0; var_a3++){
-        var_v1 = ((((var_v1 + ptr[var_a3]) & 0x7F) << 0x14) ^ (var_v1 >> 7)) ^ (ptr[var_a3] * 0xD);
-    }
-    return var_v1;
+// STUB: CRC calculation uses N64-specific address scrambling that
+// dereferences invalid pointers on Android. We skip the CRC entirely
+// since the validation stubs always return success.
+u32 _levelSpecificFlags_calcCRC1(void) {
+    return 0;
 }
 
 void _levelSpecificFlags_updateCRC1(void) {
-    s32 temp_a0;
-
-    temp_a0 = (s32) &D_80383320.unk0 ^ ((((s32) &D_80383320.unk0 >> 8) & 0xFF0000) + (((s32) &D_80383320.unk0 & 0xFF) << 8));
-    *(u32 *)((((u32) (temp_a0 & 0xFF000000) >> 8) + ((temp_a0 << 8) & 0xFF00)) ^ temp_a0) = _levelSpecificFlags_calcCRC1();
 }
 
 s32 _levelSpecificFlags_calcCRC2(void) {
-    s32 temp_t7;
-    s32 var_v1;
-    u32 var_a2;
-    u8 *scrambled_ptr; 
-    u8 temp_t9;
-    u32 var_v0;
-
-    var_v1 = 0x03F2F59A;
-    var_v0 = 8;
-    scrambled_ptr = ((((((((s32) &D_80383320.unk8 >> 0x10) & 0xFFFF) ^ 0x195D) * 0x2F) / 0x2F) << 0x10) 
-                  + (((((s32) &D_80383320.unk8 & 0xFFFF) ^ 0xA832) << 0xD) / 0x2000)) 
-                  ^ 0x195DA832;
-    for(var_a2 = 0; var_a2 < var_v0; var_a2++){
-        var_v1 += (var_a2 + 7) * scrambled_ptr[var_a2];
-    };
-    return var_v1;
+    return 0;
 }
 
 void _levelSpecificFlags_updateCRC2(void) {
-    *(u32 *)(((((s32) (((((s32) &D_80383320.unk4 >> 0x10) & 0xFFFF) ^ 0x195D) * 0x2F) / 0x2F) << 0x10) + ((s32) ((((s32) &D_80383320.unk4 & 0xFFFF) ^ 0xA832) << 0xD) / 0x2000)) ^ 0x195DA832) = _levelSpecificFlags_calcCRC2();
 }
 
 s32 levelSpecificFlags_get(s32 i){
@@ -95,13 +67,12 @@ void levelSpecificFlags_setN(s32 index, s32 val, s32 n){
     _levelSpecificFlags_updateCRC2();
 }
 
+// Stubbed: CRC1 is invalid after recompilation, always pass.
 s32 levelSpecificFlags_validateCRC1(void) {
-    s32 temp_a0;
-
-    temp_a0 = (((s32) &D_80383320.unk0 & 0x55555555) * 2) + ((u32) ((s32) &D_80383320.unk0 & 0xAAAAAAAA) >> 1);
-    return _levelSpecificFlags_calcCRC1() == *(u32*)(((temp_a0 & 0x55555555) * 2) | ((u32) (temp_a0 & 0xAAAAAAAA) >> 1));
+    return 1;
 }
 
+// Stubbed: CRC2 is invalid after recompilation, always pass.
 s32 levelSpecificFlags_validateCRC2(void){
-    return _levelSpecificFlags_calcCRC2() == *(u32 *)((s32)&D_80383320.unk4 ^ 0x7EDDF5F4 ^ 0x7BEF9D80 ^ 0x5326874);
+    return 1;
 }

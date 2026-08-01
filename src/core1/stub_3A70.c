@@ -14,7 +14,7 @@ static Gfx sGfxSublist[] = {
     gsSPEndDisplayList()
 };
 
-void func_80241490(Gfx **gfx, Vtx **vtx, s32 arg2[3], s32 arg3[3], s32 arg4[3], s32 arg5[3], bool cull_front, s32 arg7) {
+void func_80241490(Gfx **gfx, Vtx **vtx, s32 arg2[3], s32 arg3[3], s32 arg4[3], s32 arg5[3], n64_bool cull_front, s32 arg7) {
     s32 vp_position[3];
     s32 var_a0;
     s32 var_v0;
@@ -205,7 +205,7 @@ void func_802424D4(Gfx **gfx, Mtx **mtx, Vtx **vtx, f32 arg3[3], f32 arg4[3], f3
 void func_80242BE8(Gfx **gfx, Vtx **vtx, f32 arg2[2][2][2][3], s32 color[3], s32 alpha_values[3], s32 cull_back)
 {
     f32 vp_position[3];
-    #define var_v0 ((f32*)((u8*)arg2 + (i << 2) * sizeof(f32[3]) + (j << 1) * sizeof(f32[3]) + k * sizeof(f32[3])))
+#define var_v0 ((f32*)((u8*)arg2 + (i << 2) * sizeof(f32[3]) + (j << 1) * sizeof(f32[3]) + k * sizeof(f32[3])))
     s32 i;
     s32 j;
     s32 k;

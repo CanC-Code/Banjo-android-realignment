@@ -4,69 +4,67 @@
 #include "variables.h"
 
 struct {
-    u16 *data;
-    bool unk4;
+    void *data;
+    int unk4;
 } sDepthBuffer;
 
-void depthbuffer_clear(Gfx **gfx) {
-    depthbuffer_clearRegion(gfx, 0, 0, gFramebufferWidth, gFramebufferHeight, gFramebuffers[getActiveFramebuffer()]);
+void func_80253190(Gfx **gfx) {
+    func_80253208(gfx, 0, 0, gFramebufferWidth, gFramebufferHeight, gFramebuffers[getActiveFramebuffer()]);
 }
 
-void depthbuffer_clearRegion(Gfx **gfx, s32 x, s32 y, s32 w, s32 h, void *color_buffer) {
-    if ((sDepthBuffer.data != NULL) && ((getGameMode() != GAME_MODE_4_PAUSED) || gsworld_getEnableDraw())) {
+void func_80253208(Gfx **gfx, s32 x, s32 y, s32 w, s32 h, void *color_buffer){
+    if( sDepthBuffer.data != NULL && (getGameMode() != GAME_MODE_4_PAUSED || func_80335134())){
+        //draw z_buffer
         gDPPipeSync((*gfx)++);
         gDPSetColorImage((*gfx)++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gFramebufferWidth, OS_K0_TO_PHYSICAL(sDepthBuffer.data));
         gDPSetCycleType((*gfx)++, G_CYC_FILL);
         gDPSetRenderMode((*gfx)++, G_RM_NOOP, G_RM_NOOP2);
-        gDPSetFillColor((*gfx)++, (GPACK_ZDZ(G_MAXFBZ, 0) << 16) | GPACK_ZDZ(G_MAXFBZ, 0));
+        gDPSetFillColor((*gfx)++, 0xFFFCFFFC);
         gDPScisFillRectangle((*gfx)++, x, y, x + w - 1, y + h - 1);
-
+        
+        //draw color_buffer
         gDPPipeSync((*gfx)++);
         gDPSetColorImage((*gfx)++, G_IM_FMT_RGBA, G_IM_SIZ_16b, gFramebufferWidth, OS_K0_TO_PHYSICAL(color_buffer));
     }
 }
 
-bool depthbuffer_getUnk4(void) {
+int func_80253400(void){
     return sDepthBuffer.unk4;
 }
 
-bool depthbuffer_isDataPtrSet(void) {
+n64_bool depthBuffer_isPointerSet(void) {
     return sDepthBuffer.data != NULL;
 }
 
-void depthbuffer_stub(void) {}
+void depthBuffer_stub(void) {}
 
-void depthbuffer_enable(bool enable) {
+void func_80253428(int arg0) {
     u16 *var_v0;
-
-    if (enable) {
-        sDepthBuffer.data = (u16 *) D_8000E800;
-
-        var_v0 = sDepthBuffer.data;
-        while (((s32) sDepthBuffer.data) % 64) {
-            sDepthBuffer.data = var_v0 + 1;
-            var_v0 = sDepthBuffer.data;
+    int new_var;
+    if (arg0) {
+        var_v0 = (sDepthBuffer.data = &D_8000E800);
+        while (((s32) sDepthBuffer.data) % 0x40) {
+          var_v0 = (sDepthBuffer.data = var_v0 + 1);
         }
         
-        do { } while ((D_8000E800 && 1) * 0); //remove this
-    } else {
+        do { } while ((&D_8000E800 && 1) * 0); //remove this
+    }else{
         sDepthBuffer.data = NULL;
     }
-
     sDepthBuffer.unk4 = FALSE;
 }
 
-void depthbuffer_setUnk4(bool value) {
-    sDepthBuffer.unk4 = sDepthBuffer.data && value;
+void func_802534A8(int arg0) {
+    sDepthBuffer.unk4 = (sDepthBuffer.data != NULL && arg0);
 }
 
-void depthbuffer_set(Gfx **gfx) {
+void zBuffer_set(Gfx **gfx) {
     if (sDepthBuffer.data && getGameMode() != GAME_MODE_4_PAUSED) {
         gDPPipeSync((*gfx)++);
         gDPSetDepthImage((*gfx)++, sDepthBuffer.data);
     }
 }
 
-void *depthbuffer_getDataPtr(void) {
+void *zBuffer_get(void) {
     return sDepthBuffer.data;
 }

@@ -3,8 +3,8 @@
 #include "variables.h"
 #include "core2/particle.h"
 
-Actor *chgravestone_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
-void chgravestone_update(Actor *this);
+Actor *func_8035ECA0(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
+void func_8035F138(Actor *this);
 BKModelBin *func_803257B4(ActorMarker *marker);
 extern void actor_postdrawMethod(ActorMarker *);
 
@@ -13,45 +13,33 @@ typedef struct {
 }ActorLocal_core2_D7D10;
 
 /* .data */
-
-enum gravestone_states
-{
-    GRAVESTONE_STATE_1_IDLE_UNK = 1,
-    GRAVESTONE_STATE_2_IDLE_UNK,
-    GRAVESTONE_STATE_3_WALK_UNK,
-    GRAVESTONE_STATE_4_WALK_UNK,
-    GRAVESTONE_STATE_5_IDLE_UNK,
-    GRAVESTONE_STATE_6_OW,
-    GRAVESTONE_STATE_7_DIE
-};
-
-ActorAnimationInfo chGravestoneAnimations[] = {
+ActorAnimationInfo D_80372F80[] = {
     {0, 0.0f},
     {ASSET_9A_ANIM_GRAVESTONE_IDLE, 8000000.0f},
     {ASSET_9A_ANIM_GRAVESTONE_IDLE,       1.3f},
     {ASSET_9B_ANIM_GRAVESTONE_WALK,       0.6f},
     {ASSET_9B_ANIM_GRAVESTONE_WALK,       0.75f},
     {ASSET_9A_ANIM_GRAVESTONE_IDLE,       1.5f},
-    {ASSET_1ED_ANIM_GRAVESTONE_OW,        1.0f},
-    {ASSET_1EE_ANIM_GRAVESTONE_DIE,       2.4f}
+    {ASSET_1ED_ANIM_GRAVESTONE_OW,      1.0f},
+    {ASSET_1EE_ANIM_GRAVESTONE_DIE,      2.4f}
 };
 
 ActorInfo D_80372FC0 = { 
     MARKER_96_GRAVESTONE, ACTOR_C7_GRAVESTONE, ASSET_3C9_MODEL_GRAVESTONE, 
-    0x1, chGravestoneAnimations, 
-    chgravestone_update, actor_update_func_80326224, chgravestone_draw, 
+    0x1, D_80372F80, 
+    func_8035F138, actor_update_func_80326224, func_8035ECA0, 
     3500, 0, 1.2f, 0
 };
 
 ActorInfo D_80372FE4 = { 
     MARKER_297_GIANT_GRAVESTONE, ACTOR_3C2_GIANT_GRAVESTONE, ASSET_3C9_MODEL_GRAVESTONE, 
-    0x1, chGravestoneAnimations, 
-    chgravestone_update, actor_update_func_80326224, chgravestone_draw, 
+    0x1, D_80372F80, 
+    func_8035F138, actor_update_func_80326224, func_8035ECA0, 
     14000, 0, 3.2f, 0
 };
 
 /* .code */
-Actor *chgravestone_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx) {
+Actor *func_8035ECA0(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx) {
     static f32 D_80373008[3] = {0.0f, 0.0f, 0.0f};
     f32 rotation[3];
     Actor *this;
@@ -59,15 +47,15 @@ Actor *chgravestone_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx) {
 
     this = marker_getActorAndRotation(marker, rotation);
     local = (ActorLocal_core2_D7D10 *)&this->local;
-    modelRender_setAppendageVisibility(3, (s32) this->velocity[1]);
-    modelRender_setAppendageVisibility(4, local->unk0);
-    modelRender_setPreDrawCallback( (GenFunction_1)actor_predrawMethod, (s32)this);
-    modelRender_setPostDrawCallback((GenFunction_1)actor_postdrawMethod, (s32)marker);
+    func_8033A45C(3, (s32) this->velocity[1]);
+    func_8033A45C(4, local->unk0);
+    modelRender_preDraw( (GenFunction_1)actor_predrawMethod, (s32)this);
+    modelRender_postDraw((GenFunction_1)actor_postdrawMethod, (s32)marker);
     modelRender_draw(gfx, mtx, this->position, rotation, this->scale, D_80373008, func_803257B4(marker));
     return this;
 }
 
-bool func_8035ED60(Actor *this) {
+n64_bool func_8035ED60(Actor *this) {
     f32 temp_f0;
     f32 temp_f2;
 
@@ -108,14 +96,14 @@ void func_8035EE48(Actor *this){
 }
 
 void func_8035EE80(Actor *this){
-    subaddie_set_state(this, GRAVESTONE_STATE_3_WALK_UNK);
+    subaddie_set_state(this, 3);
     actor_loopAnimation(this);
     this->actor_specific_1_f = 10.5f;
     func_8035EE48(this);
 }
 
 void func_8035EEC0(Actor *this){
-    subaddie_set_state(this, GRAVESTONE_STATE_4_WALK_UNK);
+    subaddie_set_state(this, 4);
     actor_loopAnimation(this);
     this->actor_specific_1_f = 9.0f;
     func_8035EE48(this);
@@ -134,14 +122,14 @@ void func_8035EF3C(Actor *this) {
     }
 }
 
-void chgravestone_die(ActorMarker *marker, ActorMarker *other_marker) {
+void func_8035EF9C(ActorMarker *marker, ActorMarker *other_marker) {
     Actor *this;
     ActorLocal_core2_D7D10 *local;
 
     this = marker_getActor(marker);
     local = (ActorLocal_core2_D7D10 *)&this->local;
     this->velocity[2] = 0.0f;
-    subaddie_set_state_with_direction(this, GRAVESTONE_STATE_7_DIE, 0.02f, 1);
+    subaddie_set_state_with_direction(this, 7, 0.02f, 1);
     actor_playAnimationOnce(this);
     local->unk0 = 2;
     actor_collisionOff(this);
@@ -150,7 +138,7 @@ void chgravestone_die(ActorMarker *marker, ActorMarker *other_marker) {
     func_8035EE48(this);
 }
 
-void chgravestone_owFlinch(ActorMarker *marker, ActorMarker *other_marker) {
+void func_8035F048(ActorMarker *marker, ActorMarker *other_marker) {
     Actor *this;
     ActorLocal_core2_D7D10 *local;
 
@@ -160,13 +148,13 @@ void chgravestone_owFlinch(ActorMarker *marker, ActorMarker *other_marker) {
     sfx_playFadeShorthandDefault(SFX_F9_GRUNTLING_NOISE_1,  1.2f, 22000, this->position, 1750, 3500);
     sfx_playFadeShorthandDefault(SFX_1D_HITTING_AN_ENEMY_1, 0.9f, 22000, this->position, 1750, 3500);
     this->velocity[2] = 0.0f;
-    subaddie_set_state_with_direction(this, GRAVESTONE_STATE_6_OW, 0.02f, 1);
+    subaddie_set_state_with_direction(this, 6, 0.02f, 1);
     actor_playAnimationOnce(this);
     local->unk0 = 2;
     func_8035EE48(this);
 }
 
-void chgravestone_owNoFlinch(ActorMarker *marker, ActorMarker *other_marker) {
+void func_8035F0E8(ActorMarker *marker, ActorMarker *other_marker) {
     Actor *this;
     ActorLocal_core2_D7D10 *local;
 
@@ -177,14 +165,14 @@ void chgravestone_owNoFlinch(ActorMarker *marker, ActorMarker *other_marker) {
     func_8035EE80(this);
 }
 
-void chgravestone_update(Actor *this) {
+void func_8035F138(Actor *this) {
     f32 sp2C;
     ActorLocal_core2_D7D10 *local;
 
 
     local = (ActorLocal_core2_D7D10 *)&this->local;
     sp2C = time_getDelta();
-    if ((this->state == GRAVESTONE_STATE_1_IDLE_UNK) && (anctrl_getAnimTimer(this->anctrl) < 0.04)) {
+    if ((this->state == 1) && (anctrl_getAnimTimer(this->anctrl) < 0.04)) {
         this->velocity[1] = 2.0f;
     } else {
         this->velocity[1] = 1.0f;
@@ -197,10 +185,10 @@ void chgravestone_update(Actor *this) {
         return;
     }
     switch(this->state){
-        case GRAVESTONE_STATE_1_IDLE_UNK: //L8035F20C
+        case 1: //L8035F20C
             if (!this->volatile_initialized) {
                 this->volatile_initialized = TRUE;
-                marker_setCollisionScripts(this->marker, chgravestone_owNoFlinch, chgravestone_owFlinch, chgravestone_die);
+                marker_setCollisionScripts(this->marker, func_8035F0E8, func_8035F048, func_8035EF9C);
                 local->unk0 = 1;
                 this->unk1C[0] = this->position[0];
                 this->actor_specific_1_f = 0.0f;
@@ -210,7 +198,7 @@ void chgravestone_update(Actor *this) {
             }
             anctrl_setAnimTimer(this->anctrl, 0.0f);
             if (subaddie_playerIsWithinSphereAndActive(this, (s32) (this->scale * 650.0f)) && func_803292E0(this)) {
-                subaddie_set_state(this, GRAVESTONE_STATE_2_IDLE_UNK);
+                subaddie_set_state(this, 2U);
                 actor_playAnimationOnce(this);
                 this->unk1C[1] = 1.0f;
                 this->unk44_31 = func_8030ED2C(SFX_2C_PULLING_NOISE, 3);
@@ -218,7 +206,7 @@ void chgravestone_update(Actor *this) {
             }
             break;
 
-        case GRAVESTONE_STATE_2_IDLE_UNK: //L8035F2F4
+        case 2: //L8035F2F4
             if (this->unk1C[1] < 1.9) {
                 this->unk1C[1] += 0.1;
             }
@@ -234,7 +222,7 @@ void chgravestone_update(Actor *this) {
             func_8035EF00(this, 7.0f);
             break;
 
-        case GRAVESTONE_STATE_3_WALK_UNK: //L8035F3AC
+        case 3: //L8035F3AC
             func_8035EF3C(this);
             if (!subaddie_playerIsWithinSphereAndActive(this, (s32) (this->scale * 1050.0f)) || !func_803292E0(this)) {
                 func_8035EEC0(this);
@@ -254,7 +242,7 @@ void chgravestone_update(Actor *this) {
             }
             break;
 
-        case GRAVESTONE_STATE_4_WALK_UNK: //L8035F4FC
+        case 4: //L8035F4FC
             func_8035EF3C(this);
             if (((f64)this->unk38_31 <= 0.0) && subaddie_playerIsWithinSphereAndActive(this, (s32) (this->scale * 1050.0f)) && func_803292E0(this)) {
                 func_8035EE80(this);
@@ -262,7 +250,7 @@ void chgravestone_update(Actor *this) {
             }
             this->unk38_31 -= sp2C;
             if (func_8035ED60(this)) {
-                subaddie_set_state_with_direction(this, GRAVESTONE_STATE_5_IDLE_UNK, 0.99f, 0);
+                subaddie_set_state_with_direction(this, 5, 0.99f, 0);
                 actor_playAnimationOnce(this);
                 this->actor_specific_1_f = 0.0f;
                 this->unk1C[1] = 1.9f;
@@ -275,7 +263,7 @@ void chgravestone_update(Actor *this) {
             func_80329030(this, 2);
             break;
 
-        case GRAVESTONE_STATE_5_IDLE_UNK: //L8035F6F4
+        case 5: //L8035F6F4
             if (actor_animationIsAt(this, 0.36f) != 0) {
                 sfxSource_func_8030E2C4(this->unk44_31);
             }
@@ -286,7 +274,7 @@ void chgravestone_update(Actor *this) {
                 sfxsource_playSfxAtVolume(this->unk44_31, this->unk1C[1]);
             }
             if (anctrl_getAnimTimer(this->anctrl) <= 0.02) {
-                subaddie_set_state_with_direction(this, GRAVESTONE_STATE_1_IDLE_UNK, 0.02f, 1);
+                subaddie_set_state_with_direction(this, 1, 0.02f, 1);
                 actor_playAnimationOnce(this);
                 this->actor_specific_1_f = 0.0f;
                 func_8035EE48(this);
@@ -297,7 +285,7 @@ void chgravestone_update(Actor *this) {
             func_80329030(this, 2);
             break;
 
-        case GRAVESTONE_STATE_6_OW: //L8035F7F0
+        case 6: //L8035F7F0
             if (actor_animationIsAt(this, 0.64f)) {
                 local->unk0 = 1;
             }
@@ -306,7 +294,7 @@ void chgravestone_update(Actor *this) {
             }
             break;
 
-        case GRAVESTONE_STATE_7_DIE: //L8035F840
+        case 7: //L8035F840
             if (actor_animationIsAt(this, 0.3f)) {
                 sfx_playFadeShorthandDefault(SFX_1E_HITTING_AN_ENEMY_2, 0.6f, 32000, this->position, 1750, 3500);
                 sfx_playFadeShorthandDefault(SFX_1D_HITTING_AN_ENEMY_1, 0.9f, 26000, this->position, 1750, 3500);

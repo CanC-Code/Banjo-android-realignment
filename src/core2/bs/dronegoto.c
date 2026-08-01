@@ -3,7 +3,7 @@
 #include "variables.h"
 
 #include "core2/ba/physics.h"
-#include "core2/yaw.h"
+
 
 /* .bss */
 u8 bsdronetogo_substate;
@@ -13,6 +13,10 @@ void func_802AEC08(void);
 void func_802AEC70(void);
 void func_802AEC78(void);
 void func_802AEDC8(void);
+
+
+/* Automated Forward Decls */
+static void __bsDroneGoTo_set_substate(s32 arg0);
 
 static void __bsDroneGoTo_set_substate(s32 arg0){
     switch(bsdronetogo_substate){
@@ -55,7 +59,7 @@ void func_802AEC78(void){
     badrone_get_position_and_duration(target_position, &duration_s);
     baphysics_set_goto_position(target_position);
     baphysics_set_goto_duration(duration_s);
-    code_14420_setUpdateTypes(1, YAW_STATE_1_DEFAULT, 3, BA_PHYSICS_GOTO);
+    func_8029C7F4(1,1,3,BA_PHYSICS_GOTO);
     func_8029436C(1);
     D_8037D441 = 0;
 }
@@ -70,7 +74,7 @@ void func_802AECE4(void){
         yaw_setIdeal(sp2C);
     }
 
-    if( 250.0f <= sqrtf(sp20[0]*sp20[0] + sp20[2]*sp20[2])
+    if( 250.0f <= gu_sqrtf(sp20[0]*sp20[0] + sp20[2]*sp20[2])
         && anctrl_getIndex(aCtrl) == ASSET_3_ANIM_BSWALK
     ){
         anctrl_reset(aCtrl);

@@ -50,7 +50,7 @@ void ncDynamicCamC_update(void) {
     sp3C[1] += sp30[1];
     sp3C[2] += sp30[2];
     func_802BE190(sp3C);
-    switch(gsworld_getMap()){
+    switch(gsworld_get_map()){
         case MAP_B_CC_CLANKERS_CAVERN:
         case MAP_14_GV_SANDYBUTTS_MAZE:
         case MAP_27_FP_FREEZEEZY_PEAK:
@@ -69,7 +69,7 @@ void ncDynamicCamC_update(void) {
     ncDynamicCamera_getPosition(sp54);
     player_getPosition(sp3C);
     sp3C[1] += 100.0f;
-    ml_horizontal_and_vertical_angles(sp3C[0], sp3C[1], sp3C[2], sp54[0], sp54[1], sp54[2], &sp48[0], &sp48[1]);
+    func_8025727C(sp3C[0], sp3C[1], sp3C[2], sp54[0], sp54[1], sp54[2], &sp48[0], &sp48[1]);
     sp48[0] = mlNormalizeAngle(-sp48[0]);
     func_802BD904(sp48);
 }

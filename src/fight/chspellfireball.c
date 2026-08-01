@@ -6,7 +6,7 @@
 
 extern void func_80324CFC(f32, s32, s32);
 extern Actor *func_80325CAC(ActorMarker*, Gfx**, Mtx**, Vtx **);
-bool func_80320C94(f32 [3], f32[3], f32, f32[3], s32, u32);
+n64_bool func_80320C94(f32 [3], f32[3], f32, f32[3], s32, u32);
 f32 func_8033229C(ActorMarker *);
 
 typedef struct chspellfireball_s {
@@ -224,7 +224,7 @@ void chSpellFireball_collisionDie(ActorMarker *marker, ActorMarker *other) {
     }
 }
 
-bool chSpellFireball_isPositionOverThreshold(f32 *position, f32 distance) {
+n64_bool chSpellFireball_isPositionOverThreshold(f32 *position, f32 distance) {
     if (((position[0] * position[0]) + (position[2] * position[2])) < distance) {
         return TRUE;
     }
@@ -360,6 +360,6 @@ void chSpellFireball_resetSpellHits(void) {
     sFightPlayerHitBySpellInPhase5 = FALSE;
 }
 
-void chSpellFireball_setLastSpellFired(bool value) {
+void chSpellFireball_setLastSpellFired(n64_bool value) {
     sFightLastSpellFired = value;
 }

@@ -41,7 +41,6 @@ enum bs_14420_e{
 
 /* .data */ 
 s32 D_80364620 = 0;
-
 s16 D_80364624[14] = {
     BS_35_ANT_IDLE,
     BS_48_PUMPKIN_IDLE,
@@ -59,139 +58,123 @@ s16 D_80364624[14] = {
     BS_1B_WONDERWING_IDLE
 };
 
-u8 D_80364640[14] = {
-    TRUE,
-    TRUE,
-    TRUE,
-    TRUE,
-    FALSE,
-    FALSE,
-    TRUE,
-    FALSE,
-    TRUE,
-    TRUE,
-    TRUE,
-    TRUE,
-    FALSE,
-    TRUE
-};
-
+u8 D_80364640[14] = {1, 1, 1, 1, 0, 0, 1, 0 , 1, 1, 1, 1, 0, 1};
 Struct_core2_13FC0 D_80364650[14] = {
-    {BS_92_ANT_DRONE,             ASSET_5F_ANIM_BSANT_WALK,       0.4f},
-    {BS_93_PUMPKIN_DRONE,         ASSET_A0_ANIM_BSPUMPKIN_WALK,   0.4f},
-    {BS_94_CROC_DRONE,            ASSET_E0_ANIM_BSCROC_WALK,      0.6f},
-    {BS_95_WALRUS_DRONE,          ASSET_120_ANIM_BSWALRUS_WALK,   0.7f},
-    {BS_96_SWIM_DRONE,            ASSET_39_ANIM_BSSWIM_MOVE,      0.8f},
-    {BS_97_DIVE_DRONE,            ASSET_71_ANIM_BSSWIM_DIVE_SLOW, 0.75f},
-    {BS_98_WALK_DRONE,            ASSET_3_ANIM_BSWALK,            0.43f},
-    {BS_99_BFLY_DRONE,            ASSET_38_ANIM_BSBFLY,           0.62f},
-    {BS_9A_BTROT_DRONE,           ASSET_15_ANIM_BSBTROT_WALK,     0.53f},
-    {BS_9B_LONGLEG_DRONE,         ASSET_42_ANIM_BSLONGLEG_WALK,   0.8f},
-    {BS_9C_WALRUS_SLED_DRONE,     ASSET_19E_ANIM_BSWALRUS_SLED,   0.8f},
-    {BS_9D_BEE_DRONE,             ASSET_1DC_ANIM_BEE_FLY,         0.38f},
-    {BS_98_WALK_DRONE,            ASSET_3_ANIM_BSWALK,            0.43f},
-    {BS_A4_WONDERWING_DRONE,      ASSET_11_ANIM_BSWHIRL_WALK,     0.53f}
+    {BS_92_ANT_DRONE,         ASSET_5F_ANIM_BSANT_WALK,     0.4f},
+    {BS_93_PUMPKIN_DRONE,     ASSET_A0_ANIM_BSPUMPKIN_WALK, 0.4f},
+    {BS_94_CROC_DRONE,        ASSET_E0_ANIM_BSCROC_WALK,    0.6f},
+    {BS_95_WALRUS_DRONE,      ASSET_120_ANIM_BSWALRUS_WALK, 0.7f},
+    {BS_96_SWIM_DRONE,       ASSET_39_ANIM_BSSWIM_MOVE,    0.8f},
+    {BS_97_DIVE_DRONE,       ASSET_71_ANIM_BSSWIM_DIVE_SLOW, 0.75f},
+    {BS_98_WALK_DRONE,        ASSET_3_ANIM_BSWALK,          0.43f},
+    {BS_99_BFLY_DRONE,        ASSET_38_ANIM_BSBFLY,           0.62f},
+    {BS_9A_BTROT_DRONE,       ASSET_15_ANIM_BSBTROT_WALK,      0.53f},
+    {BS_9B_LONGLEG_DRONE,     ASSET_42_ANIM_BSLONGLEG_WALK, 0.8f},
+    {BS_9C_WALRUS_SLED_DRONE, ASSET_19E_ANIM_BSWALRUS_SLED, 0.8f},
+    {BS_9D_BEE_DRONE,         ASSET_1DC_ANIM_BEE_FLY,       0.38f},
+    {BS_98_WALK_DRONE,        ASSET_3_ANIM_BSWALK,          0.43f},
+    {BS_A4_WONDERWING_DRONE,  ASSET_11_ANIM_BSWHIRL_WALK, 0.53f}
 };
 
 Struct_core2_13FC0 D_803646C0[14] = {
-    {BS_92_ANT_DRONE,             ASSET_5E_ANIM_BSANT_IDLE,        1.2f},
-    {BS_93_PUMPKIN_DRONE,         ASSET_A0_ANIM_BSPUMPKIN_WALK,    0.8f},
-    {BS_94_CROC_DRONE,            ASSET_E1_ANIM_BSCROC_IDLE,       1.0f},
-    {BS_95_WALRUS_DRONE,          ASSET_11F_ANIM_BSWALRUS_IDLE,    4.0f},
-    {BS_96_SWIM_DRONE,            ASSET_57_ANIM_BSSWIM_IDLE,       1.2f},
-    {BS_97_DIVE_DRONE,            ASSET_70_ANIM_BSSWIM_DIVE_IDLE,  2.0f},
-    {BS_98_WALK_DRONE,            ASSET_19B_ANIM_UNKNOWN,          4.5f},
-    {BS_99_BFLY_DRONE,            ASSET_38_ANIM_BSBFLY,            0.62f},
-    {BS_9A_BTROT_DRONE,           ASSET_26_ANIM_BSBTROT_IDLE,      1.2f},
-    {BS_9B_LONGLEG_DRONE,         ASSET_41_ANIM_BSLONGLEG_IDLE,    1.0f},
-    {BS_9C_WALRUS_SLED_DRONE,     ASSET_19E_ANIM_BSWALRUS_SLED,    0.8f},
-    {BS_9D_BEE_DRONE,             ASSET_1DE_ANIM_BEE_IDLE,         3.0f},
-    {BS_98_WALK_DRONE,            ASSET_B2_ANIM_BSCLIMB_IDLE_2,    2.64f},
-    {BS_A4_WONDERWING_DRONE,      ASSET_23_ANIM_BSWONDERWING_IDLE, 1.0f}
+    {BS_92_ANT_DRONE,         ASSET_5E_ANIM_BSANT_IDLE,        1.2f},
+    {BS_93_PUMPKIN_DRONE,     ASSET_A0_ANIM_BSPUMPKIN_WALK,    0.8f},
+    {BS_94_CROC_DRONE,        ASSET_E1_ANIM_BSCROC_IDLE,       1.0f},
+    {BS_95_WALRUS_DRONE,      ASSET_11F_ANIM_BSWALRUS_IDLE,    4.0f},
+    {BS_96_SWIM_DRONE,       ASSET_57_ANIM_BSSWIM_IDLE,       1.2f},
+    {BS_97_DIVE_DRONE,       ASSET_70_ANIM_BSSWIM_DIVE_IDLE,   2.0f},
+    {BS_98_WALK_DRONE,        ASSET_19B_ANIM_UNKNOWN,          4.5f},
+    {BS_99_BFLY_DRONE,        ASSET_38_ANIM_BSBFLY,              0.62f},
+    {BS_9A_BTROT_DRONE,       ASSET_26_ANIM_BSBTROT_IDLE,        1.2f},
+    {BS_9B_LONGLEG_DRONE,     ASSET_41_ANIM_BSLONGLEG_IDLE,    1.0f},
+    {BS_9C_WALRUS_SLED_DRONE, ASSET_19E_ANIM_BSWALRUS_SLED,    0.8f},
+    {BS_9D_BEE_DRONE,         ASSET_1DE_ANIM_BEE_IDLE,         3.0f},
+    {BS_98_WALK_DRONE,        ASSET_B2_ANIM_BSCLIMB_IDLE_2,    2.64f},
+    {BS_A4_WONDERWING_DRONE,  ASSET_23_ANIM_BSWONDERWING_IDLE, 1.0f},
 };
 
 Struct_core2_13FC0 D_80364730[14] = {
-    {BS_92_ANT_DRONE,             ASSET_5E_ANIM_BSANT_IDLE,        1.2f},
-    {BS_93_PUMPKIN_DRONE,         ASSET_A0_ANIM_BSPUMPKIN_WALK,    0.8f},
-    {BS_94_CROC_DRONE,            ASSET_E1_ANIM_BSCROC_IDLE,       1.0f},
-    {BS_95_WALRUS_DRONE,          ASSET_11F_ANIM_BSWALRUS_IDLE,    4.0f},
-    {BS_96_SWIM_DRONE,            ASSET_57_ANIM_BSSWIM_IDLE,       1.2f},
-    {BS_97_DIVE_DRONE,            ASSET_70_ANIM_BSSWIM_DIVE_IDLE,  2.0f},
-    {BS_98_WALK_DRONE,            ASSET_19B_ANIM_UNKNOWN,          4.5f},
-    {BS_99_BFLY_DRONE,            ASSET_38_ANIM_BSBFLY,            0.62f},
-    {BS_9A_BTROT_DRONE,           ASSET_26_ANIM_BSBTROT_IDLE,      1.2f},
-    {BS_9B_LONGLEG_DRONE,         ASSET_41_ANIM_BSLONGLEG_IDLE,    1.0f},
-    {BS_9C_WALRUS_SLED_DRONE,     ASSET_19E_ANIM_BSWALRUS_SLED,    0.8f},
-    {BS_9D_BEE_DRONE,             ASSET_1DE_ANIM_BEE_IDLE,         3.0f},
-    {BS_98_WALK_DRONE,            ASSET_B2_ANIM_BSCLIMB_IDLE_2,    2.64f},
-    {BS_A4_WONDERWING_DRONE,      ASSET_23_ANIM_BSWONDERWING_IDLE, 1.0f}
+    {BS_92_ANT_DRONE,         ASSET_5E_ANIM_BSANT_IDLE,        1.2f},
+    {BS_93_PUMPKIN_DRONE,     ASSET_A0_ANIM_BSPUMPKIN_WALK,    0.8f},
+    {BS_94_CROC_DRONE,        ASSET_E1_ANIM_BSCROC_IDLE,       1.0f},
+    {BS_95_WALRUS_DRONE,      ASSET_11F_ANIM_BSWALRUS_IDLE,    4.0f},
+    {BS_96_SWIM_DRONE,       ASSET_57_ANIM_BSSWIM_IDLE,       1.2f},
+    {BS_97_DIVE_DRONE,       ASSET_70_ANIM_BSSWIM_DIVE_IDLE,   2.0f},
+    {BS_98_WALK_DRONE,        ASSET_19B_ANIM_UNKNOWN,          4.5f},
+    {BS_99_BFLY_DRONE,        ASSET_38_ANIM_BSBFLY,              0.62f},
+    {BS_9A_BTROT_DRONE,       ASSET_26_ANIM_BSBTROT_IDLE,        1.2f},
+    {BS_9B_LONGLEG_DRONE,     ASSET_41_ANIM_BSLONGLEG_IDLE,    1.0f},
+    {BS_9C_WALRUS_SLED_DRONE, ASSET_19E_ANIM_BSWALRUS_SLED,    0.8f},
+    {BS_9D_BEE_DRONE,         ASSET_1DE_ANIM_BEE_IDLE,         3.0f},
+    {BS_98_WALK_DRONE,        ASSET_B2_ANIM_BSCLIMB_IDLE_2,    2.64f},
+    {BS_A4_WONDERWING_DRONE,  ASSET_23_ANIM_BSWONDERWING_IDLE, 1.0f},
 };
 
 Struct_core2_13FC0 D_803647A0[14] = {
-    {BS_92_ANT_DRONE,              ASSET_5E_ANIM_BSANT_IDLE,        1.2f},
-    {BS_93_PUMPKIN_DRONE,          ASSET_A0_ANIM_BSPUMPKIN_WALK,    0.8f},
-    {BS_94_CROC_DRONE,             ASSET_E1_ANIM_BSCROC_IDLE,       1.0f},
-    {BS_95_WALRUS_DRONE,           ASSET_11F_ANIM_BSWALRUS_IDLE,    4.0f},
-    {BS_96_SWIM_DRONE,             ASSET_57_ANIM_BSSWIM_IDLE,       1.2f},
-    {BS_97_DIVE_DRONE,             ASSET_70_ANIM_BSSWIM_DIVE_IDLE,  2.0f},
-    {BS_98_WALK_DRONE,             ASSET_6F_ANIM_BSSTAND_IDLE,      5.5f},
-    {BS_99_BFLY_DRONE,             ASSET_38_ANIM_BSBFLY,            0.62f},
-    {BS_9A_BTROT_DRONE,            ASSET_26_ANIM_BSBTROT_IDLE,      1.2f},
-    {BS_9B_LONGLEG_DRONE,          ASSET_41_ANIM_BSLONGLEG_IDLE,    1.0f},
-    {BS_9C_WALRUS_SLED_DRONE,      ASSET_19E_ANIM_BSWALRUS_SLED,    0.8f},
-    {BS_9D_BEE_DRONE,              ASSET_1DE_ANIM_BEE_IDLE,         3.0f},
-    {BS_98_WALK_DRONE,             ASSET_B2_ANIM_BSCLIMB_IDLE_2,    2.64f},
-    {BS_A4_WONDERWING_DRONE,       ASSET_23_ANIM_BSWONDERWING_IDLE, 1.0f}
+    {BS_92_ANT_DRONE,         ASSET_5E_ANIM_BSANT_IDLE, 1.2f},
+    {BS_93_PUMPKIN_DRONE,     ASSET_A0_ANIM_BSPUMPKIN_WALK, 0.8f},
+    {BS_94_CROC_DRONE,        ASSET_E1_ANIM_BSCROC_IDLE, 1.0f},
+    {BS_95_WALRUS_DRONE,      ASSET_11F_ANIM_BSWALRUS_IDLE, 4.0f},
+    {BS_96_SWIM_DRONE,       ASSET_57_ANIM_BSSWIM_IDLE, 1.2f},
+    {BS_97_DIVE_DRONE,       ASSET_70_ANIM_BSSWIM_DIVE_IDLE, 2.0f},
+    {BS_98_WALK_DRONE,        ASSET_6F_ANIM_BSSTAND_IDLE, 5.5f},
+    {BS_99_BFLY_DRONE,        ASSET_38_ANIM_BSBFLY, 0.62f},
+    {BS_9A_BTROT_DRONE,       ASSET_26_ANIM_BSBTROT_IDLE, 1.2f},
+    {BS_9B_LONGLEG_DRONE,     ASSET_41_ANIM_BSLONGLEG_IDLE, 1.0f},
+    {BS_9C_WALRUS_SLED_DRONE, ASSET_19E_ANIM_BSWALRUS_SLED, 0.8f},
+    {BS_9D_BEE_DRONE,         ASSET_1DE_ANIM_BEE_IDLE, 3.0f},
+    {BS_98_WALK_DRONE,        ASSET_B2_ANIM_BSCLIMB_IDLE_2, 2.64f},
+    {BS_A4_WONDERWING_DRONE,  ASSET_23_ANIM_BSWONDERWING_IDLE, 1.0f}
 };
 
 Struct_core2_13FC0 D_80364810[14] = {
-    {BS_8E_ANT_LOCKED,                          0,  0.0f},
-    {BS_8F_PUMPKIN_LOCKED,                      0,  0.0f},
-    {BS_8D_CROC_LOCKED,                         0,  0.0f},
-    {BS_73_UNKNOWN,  ASSET_11F_ANIM_BSWALRUS_IDLE,  4.0f},
-    {BS_77_SWIM_LOOKAT_DRONE,                   0,  0.0f},
-    {BS_78_DIVE_LOOKAT_DRONE,                   0,  0.0f},
-    {BS_73_UNKNOWN,  ASSET_14A_ANIM_BSREST_LISTEN, 11.4f},
-    {BS_76_BFLY_LOCKED,                         0,  0.0f},
-    {BS_79_BTROT_LOCKED,                        0,  0.0f},
-    {BS_62_LONGLEG_LOCKED,                      0,  0.0f},
-    {BS_81_WALRUS_SLED_LOCKED,                  0,  0.0f},
-    {BS_6B_BEE_LOCKED,                          0,  0.0f},
-    {BS_9E_CLIMB_LOCKED,                        0,  0.0f},
-    {BS_A5_WONDERWING_UNKA5,                    0,  0.0f}
+    {BS_8E_ANT_LOCKED,         0, 0.0f},
+    {BS_8F_PUMPKIN_LOCKED,     0, 0.0f},
+    {BS_8D_CROC_LOCKED,        0, 0.0f},
+    {BS_73_UNKNOWN,      ASSET_11F_ANIM_BSWALRUS_IDLE, 4.0f},
+    {BS_77_SWIM_LOOKAT_DRONE,        0, 0.0f},
+    {BS_78_DIVE_LOOKAT_DRONE,        0, 0.0f},
+    {BS_73_UNKNOWN,      ASSET_14A_ANIM_BSREST_LISTEN, 11.4f},
+    {BS_76_BFLY_LOCKED,        0, 0.0f},
+    {BS_79_BTROT_LOCKED,       0, 0.0f},
+    {BS_62_LONGLEG_LOCKED,     0, 0.0f},
+    {BS_81_WALRUS_SLED_LOCKED, 0, 0.0f},
+    {BS_6B_BEE_LOCKED,         0, 0.0f},
+    {BS_9E_CLIMB_LOCKED,       0, 0.0f},
+    {BS_A5_WONDERWING_UNKA5,   0, 0.0f},
 };
 
 Struct_core2_13FC0 D_80364880[14] = {
-    {BS_8E_ANT_LOCKED,                         0, 0.0f},
-    {BS_8F_PUMPKIN_LOCKED,                     0, 0.0f},
-    {BS_8D_CROC_LOCKED,                        0, 0.0f},
-    {BS_74_UNKNOWN, ASSET_11F_ANIM_BSWALRUS_IDLE, 4.0f},
-    {BS_77_SWIM_LOOKAT_DRONE,                  0, 0.0f},
-    {BS_78_DIVE_LOOKAT_DRONE,                  0, 0.0f},
-    {BS_74_UNKNOWN,   ASSET_6F_ANIM_BSSTAND_IDLE, 5.5f},
-    {BS_76_BFLY_LOCKED,                        0, 0.0f},
-    {BS_79_BTROT_LOCKED,                       0, 0.0f},
-    {BS_62_LONGLEG_LOCKED,                     0, 0.0f},
-    {BS_81_WALRUS_SLED_LOCKED,                 0, 0.0f},
-    {BS_6B_BEE_LOCKED,                         0, 0.0f},
-    {BS_9E_CLIMB_LOCKED,                       0, 0.0f},
-    {BS_A5_WONDERWING_UNKA5,                   0, 0.0f}
+    {BS_8E_ANT_LOCKED,         0, 0.0f},
+    {BS_8F_PUMPKIN_LOCKED,     0, 0.0f},
+    {BS_8D_CROC_LOCKED,        0, 0.0f},
+    {BS_74_UNKNOWN,      ASSET_11F_ANIM_BSWALRUS_IDLE, 4.0f},
+    {BS_77_SWIM_LOOKAT_DRONE,        0, 0.0f},
+    {BS_78_DIVE_LOOKAT_DRONE,        0, 0.0f},
+    {BS_74_UNKNOWN,      ASSET_6F_ANIM_BSSTAND_IDLE, 5.5f},
+    {BS_76_BFLY_LOCKED,        0, 0.0f},
+    {BS_79_BTROT_LOCKED,       0, 0.0f},
+    {BS_62_LONGLEG_LOCKED,     0, 0.0f},
+    {BS_81_WALRUS_SLED_LOCKED, 0, 0.0f},
+    {BS_6B_BEE_LOCKED,         0, 0.0f},
+    {BS_9E_CLIMB_LOCKED,       0, 0.0f},
+    {BS_A5_WONDERWING_UNKA5,   0, 0.0f}
 };
 Struct_core2_13FC0 D_803648F0[14] = {
-    {BS_8E_ANT_LOCKED,                         0,  0.0f},
-    {BS_8F_PUMPKIN_LOCKED,                     0,  0.0f},
-    {BS_8D_CROC_LOCKED,                        0,  0.0f},
-    {BS_75_UNKNOWN, ASSET_11F_ANIM_BSWALRUS_IDLE,  4.0f},
-    {BS_77_SWIM_LOOKAT_DRONE,                  0,  0.0f},
-    {BS_78_DIVE_LOOKAT_DRONE,                  0,  0.0f},
-    {BS_75_UNKNOWN, ASSET_14A_ANIM_BSREST_LISTEN, 11.4f},
-    {BS_76_BFLY_LOCKED,                        0,  0.0f},
-    {BS_79_BTROT_LOCKED,                       0,  0.0f},
-    {BS_62_LONGLEG_LOCKED,                     0,  0.0f},
-    {BS_81_WALRUS_SLED_LOCKED,                 0,  0.0f},
-    {BS_6B_BEE_LOCKED,                         0,  0.0f},
-    {BS_9E_CLIMB_LOCKED,                       0,  0.0f},
-    {BS_A5_WONDERWING_UNKA5,                   0,  0.0f}
+    {BS_8E_ANT_LOCKED,         0, 0.0f},
+    {BS_8F_PUMPKIN_LOCKED,     0, 0.0f},
+    {BS_8D_CROC_LOCKED,        0, 0.0f},
+    {BS_75_UNKNOWN,      ASSET_11F_ANIM_BSWALRUS_IDLE, 4.0f},
+    {BS_77_SWIM_LOOKAT_DRONE,        0, 0.0f},
+    {BS_78_DIVE_LOOKAT_DRONE,        0, 0.0f},
+    {BS_75_UNKNOWN,      ASSET_14A_ANIM_BSREST_LISTEN, 11.4f},
+    {BS_76_BFLY_LOCKED,        0, 0.0f},
+    {BS_79_BTROT_LOCKED,       0, 0.0f},
+    {BS_62_LONGLEG_LOCKED,     0, 0.0f},
+    {BS_81_WALRUS_SLED_LOCKED, 0, 0.0f},
+    {BS_6B_BEE_LOCKED,         0, 0.0f},
+    {BS_9E_CLIMB_LOCKED,       0, 0.0f},
+    {BS_A5_WONDERWING_UNKA5,   0, 0.0f}
 };
 
 /* .bss */
@@ -278,9 +261,9 @@ f32 func_8029B56C(f32 arg0, f32 arg1, f32 arg2, f32 arg3) {
     phi_f0 = arg2;
     phi_f2 = 0.0f;
     while ((phi_f0 > 0.0f) || (arg1 < arg0)) {
-            phi_f2 += (1.0f / FRAMERATE);
-            arg0 += phi_f0 * (1.0f / FRAMERATE);
-            phi_f0 += arg3 * (1.0f / FRAMERATE);
+            phi_f2 += (1.0f/FRAMERATE);
+            arg0 += phi_f0 * (1.0f/FRAMERATE);
+            phi_f0 += arg3 * (1.0f/FRAMERATE);
     }
     return phi_f2;
 }
@@ -338,7 +321,7 @@ void func_8029B73C(f32 arg0[3], f32 arg1, f32 arg2, f32 arg3, f32 arg4) {
     temp_f20 = (sp30[0]*sp30[0] + sp30[1]*sp30[1] + sp30[2]*sp30[2]);
 
     if (!((arg3 * arg3) < temp_f20)) {
-        temp_f20 = sqrtf(temp_f20);
+        temp_f20 = gu_sqrtf(temp_f20);
         ml_vec3f_set_length_copy(sp30, sp30, ml_min_f(time_getDelta() * arg4, arg3 - temp_f20));
         ml_vec3f_add(sp3C, sp3C, sp30);
         func_8028FAB0(sp3C);
@@ -394,14 +377,14 @@ f32 func_8029B9FC(void){
     f32 sp1C[3];
 
     func_8029B984(sp1C);
-    return sqrtf(sp1C[0]*sp1C[0] + sp1C[1]*sp1C[1] + sp1C[2]*sp1C[2]);
+    return gu_sqrtf(sp1C[0]*sp1C[0] + sp1C[1]*sp1C[1] + sp1C[2]*sp1C[2]);
 }
 
 f32 func_8029BA44(void){
     f32 sp1C[3];
 
     func_8029B984(sp1C);
-    return sqrtf(sp1C[0]*sp1C[0] + sp1C[2]*sp1C[2]);
+    return gu_sqrtf(sp1C[0]*sp1C[0] + sp1C[2]*sp1C[2]);
 }
 
 enum bs_e func_8029BA80(void){
@@ -526,7 +509,7 @@ enum bs_e func_8029BDBC(void) {
     return D_80364624[func_8029BAF0()];
 }
 
-bool func_8029BDE8(void) {
+n64_bool func_8029BDE8(void) {
     return D_80364640[func_8029BAF0()];
 }
 
@@ -691,7 +674,7 @@ void func_8029C3E8(f32 arg0, f32 arg1) {
     func_80354380(sp30, 0.45f);
 }
 
-void func_8029C4E4(bool arg0) {
+void func_8029C4E4(n64_bool arg0) {
     f32 sp3C[3];
     f32 sp38;
     ParticleEmitter *sp34;
@@ -723,8 +706,8 @@ void update_void_return_Location(void) {
 
     level_id = level_get();
     if ((level_id == 0) || (level_id == LEVEL_6_LAIR)) {
-        map_id = gsworld_getMap();
-        exit_id = gsworld_getExit();
+        map_id = gsworld_get_map();
+        exit_id = gsworld_get_exit();
     } else {
         map_id = level_get_main_map(level_id);
         exit_id = level_get_main_exit(level_id);
@@ -782,14 +765,14 @@ enum bs_e bs_getTypeOfJump(void){
     return BS_5_JUMP;
 }
 
-void code_14420_setUpdateTypes(enum baanim_update_type_e arg0, enum yaw_state_e yaw_state, s32 arg2, BaPhysicsType arg3){
+void func_8029C7F4(enum baanim_update_type_e arg0, enum yaw_state_e yaw_state, s32 arg2, BaPhysicsType arg3){
     baanim_setUpdateType(arg0);
     yaw_setUpdateState(yaw_state);
     func_8029957C(arg2);
     baphysics_set_type(arg3);
 }
 
-void code_14420_setVoidOutLocation(enum map_e map_id, s32 exit_id){
+void func_8029C834(enum map_e map_id, s32 exit_id){
     gVoidOutReturnLocation[0] = map_id;
     gVoidOutReturnLocation[1] = exit_id;
 }
@@ -850,16 +833,16 @@ s32 func_8029C9C0(s32 arg0){
         arg0 = bs_getTypeOfJump();
 
     if(bakey_pressed(BUTTON_B) && can_claw())
-        arg0 = BS_6_CLAW;
+        arg0 = BS_CLAW;
 
     if(bakey_held(BUTTON_Z) && bainput_should_beak_barge())
-        arg0 = BS_13_BBARGE;
+        arg0 = BS_BBARGE;
 
     if(bainput_should_look_first_person_camera())
         arg0 = badrone_look();
     
     if(player_isSliding())
-        arg0  = BS_32_SLIDE;
+        arg0  = BS_SLIDE;
 
     return arg0;
 }
@@ -878,13 +861,13 @@ s32 func_8029CA94(s32 arg0){
         arg0 = BS_14_BTROT_ENTER;
 
     if(baflag_isTrue(BA_FLAG_6))
-        arg0 = BS_53_TIMEOUT_BANJO;
+        arg0 = BS_53_TIMEOUT;
 
     if(baflag_isTrue(BA_FLAG_7_TOUCHING_JIGGY))
         arg0 = BS_44_JIG_JIGGY;
 
     if(baflag_isTrue(BA_FLAG_14_LOSE_BOGGY_RACE))
-        arg0 = (player_getTransformation() == TRANSFORM_4_WALRUS) ? BS_80_WALRUS_SLED_LOSE : BS_53_TIMEOUT_BANJO;
+        arg0 = (player_getTransformation() == TRANSFORM_4_WALRUS) ? BS_80_WALRUS_SLED_LOSE : BS_53_TIMEOUT;
     
     baflag_clear(BA_FLAG_F);
 

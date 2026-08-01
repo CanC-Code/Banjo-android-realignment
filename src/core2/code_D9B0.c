@@ -121,7 +121,7 @@ void func_80294B0C(void){
 }
 
 void func_80294BDC(void) {
-    BKCollisionTriangle *temp_v0;
+    BKCollisionTri *temp_v0;
     f32 sp30;
     f32 sp2C;
     f32 sp28;
@@ -130,7 +130,7 @@ void func_80294BDC(void) {
     sp28 = time_getDelta();
     sp2C = func_802944A8();
     sp24 = func_80294660();
-    if ((gsworld_getMap() == MAP_34_RBB_ENGINE_ROOM) && ((sp24 * 0x10) < 0)) {
+    if ((gsworld_get_map() == MAP_34_RBB_ENGINE_ROOM) && ((sp24 * 0x10) < 0)) {
         D_8037C2ED = 1;
     }
     if (D_8037C2ED != 0) {
@@ -145,7 +145,7 @@ void func_80294BDC(void) {
                 }
             }
         }
-        if (gsworld_getMap() == MAP_C_MM_TICKERS_TOWER) {
+        if (gsworld_get_map() == MAP_C_MM_TICKERS_TOWER) {
             sp28 *= 2.0;
         }
         if ((sp24 & 0x50) && !player_inWater()) {

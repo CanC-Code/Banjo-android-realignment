@@ -18,28 +18,14 @@ typedef struct {
 }ActorLocal_Core2_D50F0;
 
 
-void    chflotsam_update(Actor *this);
-Actor*  chflotsam_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
+void    func_8035C8F4(Actor *this);
+Actor*  func_8035C71C(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
 
 /* .data */
-
-enum flotsam_states
-{
-    FLOTSAM_STATE_0_UNK = 0,
-    FLOTSAM_STATE_1_IDLE,
-    FLOTSAM_STATE_2_UNK,
-    FLOTSAM_STATE_3_UNK,
-    FLOTSAM_STATE_4_UNK,
-    FLOTSAM_STATE_5_UNK,
-    FLOTSAM_STATE_6_OW,
-    FLOTSAM_STATE_7_UNK,
-    FLOTSAM_STATE_8_DIE
-};
-
-ActorInfo chFlotsam = {
+ActorInfo D_80372C80 = { 
     MARKER_C9_FLOTSAM, ACTOR_13B_FLOTSAM, ASSET_401_MODEL_FLOTSAM, 
     0, NULL, 
-    chflotsam_update, NULL, chflotsam_draw, 
+    func_8035C8F4, NULL, func_8035C71C, 
     0, 0, 1.0f, 0
 };
 
@@ -58,74 +44,74 @@ ParticleSettingsVelocityAccelerationPosition D_80372CCC = {
 };
 
 /* .code */
-void chflotsam_setNextState(Actor *this, s32 next_state){
+void func_8035C080(Actor *this, s32 next_state){
     f32 i;
     ActorLocal_Core2_D50F0 *local = (ActorLocal_Core2_D50F0 *)&this->local; //sp60
     f32 sp64[3];
     f32 sp60;
-    f32 player_pos_1[3];
-    f32 player_pos_2[3];
+    f32 sp54[3];
+    f32 sp48[3];
     f32 sp3C[3];
     s32 sp38;
 
     local->unk0 = 0.0f;
     local->unkD = next_state;
     
-    if(next_state == FLOTSAM_STATE_1_IDLE){
+    if(next_state == 1){
         skeletalAnim_set(this->unk148, 0, 0.0f, 0.0f);
         this->yaw = local->unk34[0];
     }
-    if( next_state == FLOTSAM_STATE_3_UNK
-        || next_state == FLOTSAM_STATE_4_UNK
-        || next_state == FLOTSAM_STATE_7_UNK
-        || next_state == FLOTSAM_STATE_6_OW
+    if( next_state == 3
+        || next_state == 4
+        || next_state == 7
+        || next_state == 6
     ){
         skeletalAnim_set(this->unk148, ASSET_132_ANIM_FLOTSAM_MOVE, 0.1f, 0.7f);
         local->unk10[0] = this->position_x;
         local->unk10[1] = this->position_y;
         local->unk10[2] = this->position_z;
         actor_collisionOn(this);
-        if(next_state == FLOTSAM_STATE_3_UNK){
-            player_getPosition(player_pos_1);
+        if(next_state == 3){
+            player_getPosition(sp54);
         }
-        else if(next_state == FLOTSAM_STATE_4_UNK){//L8035C15C
-            player_pos_1[0] = local->unk28[0];\
-            player_pos_1[1] = local->unk28[1];\
-            player_pos_1[2] = local->unk28[2];
+        else if(next_state == 4){//L8035C15C
+            sp54[0] = local->unk28[0];\
+            sp54[1] = local->unk28[1];\
+            sp54[2] = local->unk28[2];
         }
-        else if(next_state == FLOTSAM_STATE_6_OW){//L8035C180
+        else if(next_state == 6){//L8035C180
             func_8030E6D4(SFX_1D_HITTING_AN_ENEMY_1);
             actor_collisionOff(this);
-            player_getPosition(player_pos_2);
-            sp3C[0] = this->position_x - player_pos_2[0];
-            sp3C[1] = this->position_y - player_pos_2[1];\
-            sp3C[2] = this->position_z - player_pos_2[2];\
+            player_getPosition(sp48);
+            sp3C[0] = this->position_x - sp48[0];
+            sp3C[1] = this->position_y - sp48[1];\
+            sp3C[2] = this->position_z - sp48[2];\
             sp3C[1] = 0.0f;
             ml_vec3f_set_length(sp3C, 150.0f);
-            player_pos_1[0] = sp3C[0] + this->position_x;\
-            player_pos_1[1] = sp3C[1] + this->position_y;\
-            player_pos_1[2] = sp3C[2] + this->position_z;
-            player_pos_1[1] = local->unk4;
+            sp54[0] = sp3C[0] + this->position_x;\
+            sp54[1] = sp3C[1] + this->position_y;\
+            sp54[2] = sp3C[2] + this->position_z;
+            sp54[1] = local->unk4;
         }
         else{//L8035C228
-            player_pos_1[0] = this->position_x;\
-            player_pos_1[1] = this->position_y;\
-            player_pos_1[2] = this->position_z;
+            sp54[0] = this->position_x;\
+            sp54[1] = this->position_y;\
+            sp54[2] = this->position_z;
         } //L8035C240
-        sp64[0] = player_pos_1[0] - this->position_x;\
-        sp64[1] = player_pos_1[1] - this->position_y;\
-        sp64[2] = player_pos_1[2] - this->position_z;
+        sp64[0] = sp54[0] - this->position_x;\
+        sp64[1] = sp54[1] - this->position_y;\
+        sp64[2] = sp54[2] - this->position_z;
         sp64[1] = 0.0f;
-        sp60 = sqrtf(sp64[0]*sp64[0] + sp64[1]*sp64[1] + sp64[2]*sp64[2]);
+        sp60 = gu_sqrtf(sp64[0]*sp64[0] + sp64[1]*sp64[1] + sp64[2]*sp64[2]);
 
-        if(next_state == FLOTSAM_STATE_4_UNK && sp60 <= 250.0f){
-            local->unk1C[0] = player_pos_1[0];\
-            local->unk1C[1] = player_pos_1[1];\
-            local->unk1C[2] = player_pos_1[2];
-            next_state = FLOTSAM_STATE_5_UNK;
+        if(next_state == 4 && sp60 <= 250.0f){
+            local->unk1C[0] = sp54[0];\
+            local->unk1C[1] = sp54[1];\
+            local->unk1C[2] = sp54[2];
+            next_state = 5;
         }
         else{//L8035C2DC
-            if(this->state == FLOTSAM_STATE_2_UNK){
+            if(this->state == 2){
                 if(300.0f < sp60){
                     ml_vec3f_set_length(sp64, 300.0f);
                 }
@@ -140,14 +126,14 @@ void chflotsam_setNextState(Actor *this, s32 next_state){
                 local->unk1C[1] = local->unk4;
                 local->unk1C[2] = sp64[2] *i + this->position_z; 
                 if(func_80329210(this, local->unk1C)){
-                    next_state = FLOTSAM_STATE_5_UNK;
+                    next_state = 5;
                     break;
                 }
             }
         }//L8035C3F8
 
-        if(next_state == FLOTSAM_STATE_5_UNK){
-            func_8030E878(SFX_3F2_BOING, randf2(1, 1.2f), 0x7530, this->position, 100.0f, 10000.0f);
+        if(next_state == 5){
+            func_8030E878(0x3f2, randf2(1, 1.2f), 0x7530, this->position, 100.0f, 10000.0f);
             local->unk34[1] = this->yaw;
             if(sp60 <= 250.0f){
                 local->unk34[2] = local->unk34[0];
@@ -159,29 +145,29 @@ void chflotsam_setNextState(Actor *this, s32 next_state){
                 local->unk34[2] = local->unk34[0] + 20.0f;
             }
         }
-        else if(next_state == FLOTSAM_STATE_3_UNK){//L8035C4C0
+        else if(next_state == 3){//L8035C4C0
             if(ml_vec3f_distance(local->unk28, this->position) < 10.0f){
-                chflotsam_setNextState(this, FLOTSAM_STATE_1_IDLE);
+                func_8035C080(this, 1);
                 return;
             }
             else{
-                chflotsam_setNextState(this, FLOTSAM_STATE_4_UNK);
+                func_8035C080(this, 4);
                 return;
             }
         }
-        else if(next_state == FLOTSAM_STATE_4_UNK){//L8035C514
-            local->unk1C[0] = player_pos_1[0];
-            local->unk1C[1] = player_pos_1[1];
-            local->unk1C[2] = player_pos_1[2];
-            next_state = FLOTSAM_STATE_5_UNK;
+        else if(next_state == 4){//L8035C514
+            local->unk1C[0] = sp54[0];
+            local->unk1C[1] = sp54[1];
+            local->unk1C[2] = sp54[2];
+            next_state = 5;
         }
-        else if(next_state == FLOTSAM_STATE_7_UNK){//L8035C540
-            chflotsam_setNextState(this, FLOTSAM_STATE_4_UNK);
+        else if(next_state == 7){//L8035C540
+            func_8035C080(this, 4);
             return;
         }
     }//L8035C560
 
-    if(next_state == FLOTSAM_STATE_8_DIE){
+    if(next_state == 8){
         actor_collisionOff(this);
         FUNC_8030E624(SFX_1D_HITTING_AN_ENEMY_1, 1.0f, 25000);
         timed_playSfx(0.2f, SFX_103_FLOTSAM_DEATH, 1.0f, 32000);
@@ -202,19 +188,20 @@ void chflotsam_setNextState(Actor *this, s32 next_state){
     }//L8035C698
 
     this->state = next_state;
+
 }
 
-void chflotsam_ow(ActorMarker *this_marker, ActorMarker *other_marker){
+void func_8035C6C4(ActorMarker *this_marker, ActorMarker *other_marker){
     Actor *this = marker_getActor(this_marker);
-    chflotsam_setNextState(this, FLOTSAM_STATE_6_OW);
+    func_8035C080(this, 6);
 }
 
-void chflotsam_die(ActorMarker *this_marker, ActorMarker *other_marker){
+void func_8035C6F0(ActorMarker *this_marker, ActorMarker *other_marker){
     Actor *this = marker_getActor(this_marker);
-    chflotsam_setNextState(this, FLOTSAM_STATE_8_DIE);
+    func_8035C080(this, 8);
 }
 
-Actor*  chflotsam_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx){
+Actor*  func_8035C71C(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx){
     Actor *this = marker_getActor(marker); //sp64
     ActorLocal_Core2_D50F0 *local = (ActorLocal_Core2_D50F0 *)&this->local; //sp60
     BoneTransformList *sp5C;
@@ -224,9 +211,9 @@ Actor*  chflotsam_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx){
     f32 sp34[3];
     f32 sp28[3];
 
-    if(this->state == FLOTSAM_STATE_0_UNK) return this;
+    if(this->state == 0) return this;
 
-    if(this->state == FLOTSAM_STATE_8_DIE){
+    if(this->state == 8){
         sp5C = skeletalAnim_getBoneTransformList(this->unk148);
         if(sp5C != NULL){
             sp40[0] = 0.0f;
@@ -242,13 +229,13 @@ Actor*  chflotsam_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx){
     }
 
     if(local->pCtrl_8){
-        modelRender_setRefPoints(func_80329934());
+        func_8033A450(func_80329934());
     }
     
     actor_draw(marker, gfx, mtx, vtx);
 
     if(local->pCtrl_8 && this->marker->unk14_21){
-        vec3fArray_get_vec3f(func_80329934(), 5, sp28);
+        func_8034A174(func_80329934(), 5, sp28);
         particleEmitter_setPosition(local->pCtrl_8, sp28);
         particleEmitter_draw(local->pCtrl_8, gfx, mtx, vtx);
     }
@@ -262,7 +249,7 @@ void func_8035C8C8(Actor *this){
         particleEmitter_free(local->pCtrl_8);
 }
 
-void chflotsam_update(Actor *this){
+void func_8035C8F4(Actor *this){
     f32 plyr_pos[3];
     f32 sp40[3];
     f32 sp3C;
@@ -270,10 +257,10 @@ void chflotsam_update(Actor *this){
     f32 sp34;
 
     sp34 = time_getDelta();
-    if(this->state == FLOTSAM_STATE_0_UNK){
+    if(this->state == 0){
         this->marker->unk14_21 = FALSE;
         this->marker->actorFreeFunc = func_8035C8C8;
-        marker_setCollisionScripts(this->marker, chflotsam_ow, chflotsam_ow, chflotsam_die);
+        marker_setCollisionScripts(this->marker, func_8035C6C4, func_8035C6C4, func_8035C6F0);
         local->unk4 = mapModel_getFloorY(this->position);
         local->pCtrl_8 = NULL;
         local->unk34[0] = this->yaw;
@@ -281,28 +268,28 @@ void chflotsam_update(Actor *this){
         local->unk28[0] = this->position_x;
         local->unk28[1] = this->position_y;
         local->unk28[2] = this->position_z;
-        chflotsam_setNextState(this, FLOTSAM_STATE_1_IDLE);
+        func_8035C080(this, 1);
     }//L8035C9AC
 
     player_getPosition(plyr_pos);
     sp40[0] = plyr_pos[0] - this->position_x;
     sp40[1] = plyr_pos[1] - this->position_y;
     sp40[2] = plyr_pos[2] - this->position_z;
-    sp3C = sqrtf(sp40[0]*sp40[0] + sp40[1]*sp40[1] + sp40[2]*sp40[2]);
+    sp3C = gu_sqrtf(sp40[0]*sp40[0] + sp40[1]*sp40[1] + sp40[2]*sp40[2]);
     if(local->pCtrl_8){
         particleEmitter_update(local->pCtrl_8);
     }
 
-    if(this->state == FLOTSAM_STATE_1_IDLE){
+    if(this->state == 1){
         if( sp3C < 800.0f 
             && func_80329210(this, plyr_pos)
             && plyr_pos[1] < this->position_y + 100.0f
         ){
-            chflotsam_setNextState(this, FLOTSAM_STATE_3_UNK);
+            func_8035C080(this, 3);
         }
     }//L8035CA80
 
-    if(this->state == FLOTSAM_STATE_5_UNK){
+    if(this->state == 5){
         local->unk0 += 1.9047619047619049*sp34;
         if(1.0f <= local->unk0)
             local->unk0 = 1.0f;
@@ -311,33 +298,33 @@ void chflotsam_update(Actor *this){
         this->yaw = local->unk0*(local->unk34[2] - local->unk34[1]) + local->unk34[1];
         if(skeletalAnim_getLoopCount(this->unk148) > 0){
             if(ml_vec3f_distance(this->position, local->unk28) < 10.0f){
-                chflotsam_setNextState(this, FLOTSAM_STATE_1_IDLE);
+                func_8035C080(this, 1);
             }
             else if(local->unkC > 0){//L8035CB8C
                 local->unkC--;
                 if(local->unkC > 0){
-                    chflotsam_setNextState(this, FLOTSAM_STATE_7_UNK);
+                    func_8035C080(this, 7);
                 }
                 else{
-                    chflotsam_setNextState(this, FLOTSAM_STATE_2_UNK);
+                    func_8035C080(this, 2);
                 }
             }
             else{
-                chflotsam_setNextState(this, FLOTSAM_STATE_2_UNK);
+                func_8035C080(this, 2);
             }
         }
     }//L8035CBD4
 
-    if(this->state == FLOTSAM_STATE_2_UNK){
+    if(this->state == 2){
         if(sp3C < 800.0f){
-            chflotsam_setNextState(this, FLOTSAM_STATE_3_UNK);
+            func_8035C080(this, 3);
         }
         else{
-            chflotsam_setNextState(this, FLOTSAM_STATE_4_UNK);
+            func_8035C080(this, 4);
         }
     }//L8035CC38
 
-    if(this->state == FLOTSAM_STATE_8_DIE){
+    if(this->state == 8){
         local->unk0 += 0.25*sp34;
         if(skeletalAnim_getLoopCount(this->unk148) > 0)
             marker_despawn(this->marker);

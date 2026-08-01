@@ -6,7 +6,7 @@
 extern f32 func_80309B24(f32[3]);
 extern void sfxsource_playSfxAtVolume(u8, f32);
 extern void func_802CC340(Actor *, f32[3]);
-extern bool func_80320DB0(f32[3], f32, f32[3], u32);
+extern n64_bool func_80320DB0(f32[3], f32, f32[3], u32);
 
 typedef struct {
     u8 unk0;
@@ -28,7 +28,7 @@ Actor *func_802CCA7C(ActorMarker *, Gfx **, Mtx **, Vtx **);
 void func_802CCC5C(Actor *this);
 
 /* .data */
-ActorInfo chBuzzbomb = {
+ActorInfo D_80367130 = { 
     MARKER_C2_BUZZBOMB, ACTOR_134_BUZZBOMB, ASSET_3ED_MODEL_BUZZBOMB, 
     0, NULL, 
     func_802CCC5C, NULL, func_802CCA7C, 
@@ -37,7 +37,7 @@ ActorInfo chBuzzbomb = {
 
 
 /* .code */
-bool func_802CC2A0(Actor *this) {
+n64_bool func_802CC2A0(Actor *this) {
     ActorLocal_Core2_45310 * local;
     s32 pad30;
     f32 sp2C[3];
@@ -110,7 +110,7 @@ void func_802CC4A4(Actor *this, f32 arg1[3]) {
 }
 
 
-bool func_802CC57C(Actor *this, f32 arg1[3]) {
+n64_bool func_802CC57C(Actor *this, f32 arg1[3]) {
     ActorLocal_Core2_45310 * local;
     f32 sp40[3];
     f32 sp34[3];

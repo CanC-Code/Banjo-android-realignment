@@ -21,7 +21,7 @@ u8 *honeycombscore_get_ptr(void){
     return sHoneycombScore;
 }
 
-bool honeycombscore_get(enum honeycomb_e indx){
+n64_bool honeycombscore_get(enum honeycomb_e indx){
     if( indx <= 0 || indx >= HONEYCOMB_COUNT)
         return 0;
     return (sHoneycombScore[(indx - 1) / 8] & (1 << (indx & 7))) != 0;
@@ -36,7 +36,7 @@ void honeycombscore_clear(void){
     }
 }
 
-void honeycombscore_set(enum honeycomb_e indx,  bool val){
+void honeycombscore_set(enum honeycomb_e indx,  n64_bool val){
     if( 0 < indx && indx < HONEYCOMB_COUNT){
         if(val)
             sHoneycombScore[(indx - 1) / 8] |= (1 << (indx & 7));

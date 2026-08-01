@@ -1,3 +1,14 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#ifdef __cplusplus
+}
+#endif
+#include <n64_types.h>
+#ifdef __cplusplus
+extern "C" {
+#endif
 typedef enum {
     JIGSAW_PICTURE_LEAVE_PODIUM = 1,
     JIGSAW_PICTURE_ENTER_PODIUM = 2,
@@ -8,3 +19,8 @@ typedef enum {
     JIGSAW_PICTURE_COMPLETE = 7,
     JIGSAW_PICTURE_REMOVE_PIECE = 8
 } JigsawPictureState;
+
+
+#ifdef __cplusplus
+}
+#endif

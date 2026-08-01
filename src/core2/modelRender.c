@@ -1,30 +1,159 @@
 #include <ultra64.h>
+#include "bka_safe_base.h"
+#include "core1/core1.h"
 #include "functions.h"
 #include "variables.h"
-#include "core1/core1.h"
-#include "core2/core2.h"
+
+#include "core2/modelRender.h"
+
 #include "animation.h"
 
 #define ARRAYLEN(x) (sizeof(x) / sizeof((x)[0]))
 
+extern bool func_802ED420(BKModelUnk20List *arg0, u8 *arg1, u32 arg2);
+extern void func_802ED52C(BKModelUnk20List *, f32[3], f32);
+extern void mlMtxRotatePYR(f32, f32, f32);
 extern void assetCache_free(BKModelBin *);
+extern s32 func_8024DB50(f32[3], f32);
+extern AnimMtxList *animMtxList_new();
+extern AnimMtxList *animMtxList_defrag(AnimMtxList *);
+extern MtxF *animMtxList_get(AnimMtxList *this, s32 arg1);
 
-void modelRender_geoCmd_Unk0(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_SORT(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_BONE(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_LOADDL(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_NOP(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_SKINNING(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_CALL(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_LOADDL2(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_TEXWRAP(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_LOD(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_REFPOINT(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_SELECTOR(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_DRAWDIST(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_UnkE(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_geoCmd_CAMERA(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
-void modelRender_executeGeoCmds(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data);
+
+typedef struct{
+    void (* unk0)(Actor *);
+    Actor *unk4;
+} Struct_Core2_B1400_1;
+
+typedef void (*GeoListFunc)(Gfx **, Mtx **, void *);
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    s16 unk8;
+    s16 unkA;
+    f32 unkC[3];
+}GeoCmd0;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    f32 unk8[3];
+    f32 unk14[3];
+    s16 unk20;
+    s16 unk22;
+    s32 unk24;
+}GeoCmd1;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    u8  unk8;
+    s8  unk9;
+}GeoCmd2;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    s16 unk8;
+}GeoCmd3;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    s16 unk8[];
+}GeoCmd5;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    s32 unk8;
+}GeoCmd6;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    u8  pad8;
+    s16 unkA;
+}GeoCmd7;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    f32 max_8;
+    f32 min_C;
+    f32 unk10[3];
+    s32 subgeo_offset_1C;
+}GeoCmd8;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    s16 unk8;
+    s16 unkA;
+    f32 unkC[3];
+}GeoCmdA;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    s16 unk8;
+    s16 unkA;
+    s32 unkC[];
+}GeoCmdC;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    s16 unk8[3];
+    s16 unkE[3];
+    s16 unk14;
+}GeoCmdD;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    s16 unk8[3];
+    s16 unkE;
+    s16 unk10;
+    s16 unk12;
+}GeoCmdE;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    s16 unk8;
+    u8  unkA;
+    u8  unkB;
+    u8  unkC[12];
+}GeoCmdF;
+
+typedef struct {
+    s32 cmd_0;
+    s32 size_4;
+    s32 unk8;
+}GeoCmd10;
+
+
+
+void func_803384A8(Gfx **, Mtx **, void *);
+void func_803385BC(Gfx **, Mtx **, void *);
+void func_803387F8(Gfx **, Mtx **, void *);
+void func_80338904(Gfx **, Mtx **, void *);
+void func_80338498(Gfx **, Mtx **, void *);
+void func_80338970(Gfx **, Mtx **, void *);
+void func_80338AC4(Gfx **, Mtx **, void *);
+void func_80338AE8(Gfx **, Mtx **, void *);
+void func_80338498(Gfx **, Mtx **, void *);
+void func_8033878C(Gfx **, Mtx **, void *);
+void func_80338B50(Gfx **, Mtx **, void *);
+void func_80338BFC(Gfx **, Mtx **, void *);
+void func_80338CD0(Gfx **, Mtx **, void *);
+void func_80338DCC(Gfx **, Mtx **, void *);
+void func_80338EB8(Gfx **, Mtx **, void *);
+void func_8033909C(Gfx **, Mtx **, void *);
+void func_80339124(Gfx **, Mtx **, BKGeoList *);
+void func_8033A45C(s32 arg0, s32 arg1);
 
 // Sets up 2 cycle mode
 Gfx setup2CycleDL[] =
@@ -438,26 +567,26 @@ Gfx mipMapWrapDL[] =
     gsSPEndDisplayList()
 };
 
-bool D_80370990 = FALSE;
+s32 D_80370990 = 0;
 
-BKGeoCmdFunc sGeoCmdList[] = {
-    modelRender_geoCmd_Unk0,
-    modelRender_geoCmd_SORT,
-    modelRender_geoCmd_BONE,
-    modelRender_geoCmd_LOADDL,
-    modelRender_geoCmd_NOP,
-    modelRender_geoCmd_SKINNING,
-    modelRender_geoCmd_CALL,
-    modelRender_geoCmd_LOADDL2,
-    modelRender_geoCmd_LOD,
-    modelRender_geoCmd_NOP,
-    modelRender_geoCmd_REFPOINT,
-    modelRender_geoCmd_NOP,
-    modelRender_geoCmd_SELECTOR,
-    modelRender_geoCmd_DRAWDIST,
-    modelRender_geoCmd_UnkE,
-    modelRender_geoCmd_CAMERA,
-    modelRender_geoCmd_TEXWRAP
+GeoListFunc D_80370994[] = {
+    func_803384A8,
+    func_803385BC,
+    func_803387F8,
+    func_80338904,
+    func_80338498, //empty_4
+    func_80338970,
+    func_80338AC4,
+    func_80338AE8,
+    func_80338B50,
+    func_80338498, //empty_9
+    func_80338BFC,
+    func_80338498, //empty_B
+    func_80338CD0,
+    func_80338DCC,
+    func_80338EB8,
+    func_8033909C,
+    func_8033878C
 };
 
 enum model_render_color_mode_e{
@@ -468,20 +597,20 @@ enum model_render_color_mode_e{
 };
 
 /* .bss */
-Vec3fArray *modelRenderRefPoints;
+struct5Bs *D_80383650;
 s32  D_80383658[0x2A];
 BoneTransformList *modelRenderBoneTransformList;
-bool D_80383704;
+n64_bool D_80383704;
 f32  D_80383708;
 f32  D_8038370C;
-bool D_80383710;
+s32  D_80383710;
 enum model_render_color_mode_e  modelRenderColorMode;
 BKGfxList *            modelRenderDisplayList;
 AnimMtxList *            D_8038371C;
 static BKTextureList * modelRenderTextureList;
 s32                    modelRenderAnimatedTexturesCacheId;
 static BKVertexList *  modelRendervertexList;
-BKCameraAreaList *     modelRenderCameraAreaList;
+BKModelUnk20List *     D_8038372C;
 AnimMtxList *            modelRenderAnimMtxList;
 f32                    modelRenderScale;
 
@@ -499,10 +628,10 @@ struct{
 } D_80383758;
 
 struct{
-    model_render_pre_draw_callback_f pre_draw;
-    void *pre_draw_arg;
-    model_render_post_draw_callback_f post_draw;
-    void *post_draw_arg;
+    GenFunction_1 pre_method;
+    s32 pre_arg;
+    GenFunction_1 post_method;
+    s32 post_arg;
 } modelRenderCallback;
 
 s32 modelRenderDynEnvColor[4];
@@ -515,11 +644,11 @@ struct {
 u8 modelRenderDynAlpha;
 
 struct {
-    enum asset_e model_id;
-    f32 distance_from_center;
-    f32 distance_from_origin;
-    s32 padC;
-} sSecondaryModelData; 
+    s32 model_id; //model_asset_index
+    f32 unk4;
+    f32 unk8;
+    u8 padC[0x4];
+} D_803837C8; 
 
 static enum model_render_depth_mode_e modelRenderDepthMode;
 
@@ -530,33 +659,38 @@ struct {
     f32 eye_pos[3];
 } D_803837E0;
 MtxF D_80383BF8;
-
 f32 modelRenderCameraPosition[3];
 f32 modelRenderCameraRotation[3];
 BKModelBin *modelRenderModelBin;
 f32 modelRenderRotation[3];
+f32 D_80383C64;
+f32 D_80383C68[3];
+f32 D_80383C78[3];
+f32 D_80383C88[3];
+f32 D_80383C98[3];
 
+/* .code */
 void modelRender_reset(void){
-    modelRenderBoneTransformList = NULL;
+    modelRenderBoneTransformList = 0;
     D_80383708 = 30000.0f;
     D_80383704 = TRUE;
     D_8038370C = 1.0f;
     D_80383710 = FALSE;
     modelRenderColorMode = COLOR_MODE_STATIC_OPAQUE;
-    modelRenderRefPoints = NULL;
+    D_80383650 = 0;
     modelRenderDisplayList = NULL;
     D_8038371C = NULL;
     modelRenderTextureList = NULL;
     modelRenderAnimatedTexturesCacheId = 0;
     modelRendervertexList = NULL;
-    modelRenderCameraAreaList = NULL;
-    modelRenderCallback.pre_draw = NULL;
-    modelRenderCallback.post_draw = NULL;
+    D_8038372C = 0;
+    modelRenderCallback.pre_method = NULL;
+    modelRenderCallback.post_method = NULL;
     D_803837B0.unk0 = 0;
-    sSecondaryModelData.model_id = NULL;
+    D_803837C8.model_id = 0;
     modelRenderDepthMode = MODEL_RENDER_DEPTH_NONE;
-    modelRender_setAppendageVisibility(1,1);
-    modelRender_setAppendageVisibility(2,0);
+    func_8033A45C(1,1);
+    func_8033A45C(2,0);
     if(D_80383758.unk18){
         viewport_setPosition_vec3f(D_80383758.unk1C);
         viewport_setRotation_vec3f(D_80383758.unk28);
@@ -564,87 +698,85 @@ void modelRender_reset(void){
     }
 }
 
-void modelRender_geoCmd_NOP(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
+//empty cmd, 
+void func_80338498(Gfx **gfx, Mtx **mtx, void *arg2){
     return;
 }
 
-void modelRender_geoCmd_Unk0(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_0_s *cmd = (struct geo_cmd_0_s *) data;
-    f32 transformed_pos[3];
+//cmd0_???
+void func_803384A8(Gfx **gfx, Mtx **mtx, void *arg2){
+    GeoCmd0 *cmd = (GeoCmd0 *)arg2;
+    f32 sp30[3];
 
-    if (cmd->branch_offset) {
-        mlMtx_apply_vec3f(transformed_pos, cmd->position);
-        mlMtx_push_translation(transformed_pos[0], transformed_pos[1], transformed_pos[2]);
+    if(cmd->unk8){
+        mlMtx_apply_vec3f(sp30, cmd->unkC);
+        mlMtx_push_translation(sp30[0], sp30[1], sp30[2]);
         mlMtxRotYaw(modelRenderCameraRotation[1]);
-        if (!cmd->do_pitch_rotate) {
+        if(!cmd->unkA){
             mlMtxRotPitch(modelRenderCameraRotation[0]);
         }
         mlMtxScale(modelRenderScale);
-        mlMtxTranslate(-cmd->position[0], -cmd->position[1], -cmd->position[2]);
+        mlMtxTranslate(-cmd->unkC[0], -cmd->unkC[1], -cmd->unkC[2]);
         mlMtxApply(*mtx);
         gSPMatrix((*gfx)++, (*mtx)++, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset));
+        func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk8));
         mlMtxPop();
         gSPPopMatrix((*gfx)++, G_MTX_MODELVIEW);
     }
 }
 
-// SORT - Call sublist based on points distance
-// Calculates which point is nearer, after they are transformed by the current matrix and then runs either
-// the first or second sublist, if the flag is set, else it calls both sublists, the nearer first
-void modelRender_geoCmd_SORT(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_sort_s *cmd = (struct geo_cmd_sort_s *) data;
-    f32 dot_prod;
-    static f32 debug_var;
-    static f32 dist[3];
-    static f32 p1[3];
-    static f32 p2[3];
+//cmd1_SORT
+void func_803385BC(Gfx **gfx, Mtx **mtx, void *arg2){
+    GeoCmd1 *cmd = (GeoCmd1 *)arg2;
+    f32 f14;
+    s32 tmp_v0;
 
-    mlMtx_apply_vec3f(p1, cmd->point_1);
-    mlMtx_apply_vec3f(p2, cmd->point_2);
+    mlMtx_apply_vec3f(D_80383C78, cmd->unk8);
+    mlMtx_apply_vec3f(D_80383C88, cmd->unk14);
 
-    dist[0] = p2[0] - p1[0];
-    dist[1] = p2[1] - p1[1];
-    dist[2] = p2[2] - p1[2];
+    D_80383C68[0] = D_80383C88[0] - D_80383C78[0];
+    D_80383C68[1] = D_80383C88[1] - D_80383C78[1];
+    D_80383C68[2] = D_80383C88[2] - D_80383C78[2];
 
-    dot_prod = dist[0] * p1[0] + dist[1] * p1[1] + dist[2] * p1[2];
-    dot_prod = -dot_prod;
-
-    if (cmd->flags & BK_GEO_CMD_SORT_RUN_BOTH_BIT) {
-        if ((dot_prod >= 0.0f) && cmd->branch_offset_2) {
-            debug_var = dot_prod;
-            modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset_2));
+    f14 = D_80383C68[0]*D_80383C78[0] + D_80383C68[1]*D_80383C78[1] + D_80383C68[2]*D_80383C78[2];
+    f14 = -f14;
+    if(cmd->unk20 & 1){
+        if(0.0f <= f14 && (tmp_v0 = cmd->unk24)){
+            D_80383C64 = f14;
+            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + tmp_v0));
         }
-        else {
-            debug_var = dot_prod;
-
-            if ((dot_prod < 0.0f) && cmd->branch_offset_1)
-                modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset_1));
+        else{
+            D_80383C64 = f14;
+            if(f14 < 0.0f){
+                if(cmd->unk22)
+                    func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk22));
+            }
         }
-    } else {
-        debug_var = dot_prod;
+    }
+    else{
+        D_80383C64 = f14;
+        if(0.0f <= f14){
+            if(cmd->unk22)
+                func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk22));
 
-        if (dot_prod >= 0.0f) {
-            if (cmd->branch_offset_1)
-                modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset_1));
+            if(cmd->unk24)
+                func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk24));
+        }
+        else{
+            if(cmd->unk24)
+                func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk24));
 
-            if (cmd->branch_offset_2)
-                modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset_2));
-        } else {
-            if (cmd->branch_offset_2)
-                modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset_2));
-
-            if (cmd->branch_offset_1)
-                modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset_1));
+            if(cmd->unk22)
+                func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk22));
         }
     }
 }
 
-// TEXWRAP - Sets the texture wrapping mode
-void modelRender_geoCmd_TEXWRAP(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_set_texture_wrap_mode_s *cmd = (struct geo_cmd_set_texture_wrap_mode_s *) data;
+//cmd10_???
+void func_8033878C(Gfx **gfx, Mtx **mtx, void *arg2){
+    GeoCmd10 *cmd = (GeoCmd10 *)arg2;
 
-    switch(cmd->mode) {
+    switch(cmd->unk8){
         case 1:
             gSPDisplayList((*gfx)++, mipMapClampDL);
             break;
@@ -654,217 +786,229 @@ void modelRender_geoCmd_TEXWRAP(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data)
     }
 }
 
-void modelRender_geoCmd_BONE(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_bone_s *cmd = (struct geo_cmd_bone_s *) data;
+//cmd2_BONE
+void func_803387F8(Gfx **gfx, Mtx **mtx, void *arg2){
+    GeoCmd2 *cmd = (GeoCmd2 *)arg2;
 
-    if (D_8038371C) {
-        mlMtx_push_multiplied_2(&D_80383BF8, animMtxList_get(D_8038371C, cmd->anim_matrix_id));
-        if (D_80370990) {
+    if(D_8038371C){
+        mlMtx_push_multiplied_2(&D_80383BF8, animMtxList_get(D_8038371C, cmd->unk9));
+        if(D_80370990){
             mlMtxApply(*mtx);
             gSPMatrix((*gfx)++, (*mtx)++, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
         }
     }
-
-    if (cmd->branch_offset) {
-        modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset));
+    if(cmd->unk8){
+        func_80339124(gfx, mtx, (BKGeoList*)((u8*)cmd + cmd->unk8));
     }
-
-    if (D_8038371C) {
+    if(D_8038371C){
         mlMtxPop();
-        if (D_80370990) {
+        if(D_80370990){
             gSPPopMatrix((*gfx)++, G_MTX_MODELVIEW);
         }
     }
 }   
 
-void modelRender_geoCmd_LOADDL(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_load_dl_s *cmd = (struct geo_cmd_load_dl_s *) data;
-    Gfx *gfx_sub_list;
+//cmd3_LOAD_DL
+void func_80338904(Gfx **gfx, Mtx **mtx, void *arg2){
+    GeoCmd3 *cmd = (GeoCmd3 *)arg2;
+    Gfx *vptr;
 
-    if (D_80370990) {
-        gfx_sub_list = &modelRenderDisplayList->list[cmd->gfx_index];
-        gSPDisplayList((*gfx)++, osVirtualToPhysical(gfx_sub_list));
+    if(D_80370990){
+        vptr = &modelRenderDisplayList->list[cmd->unk8];
+        gSPDisplayList((*gfx)++, osVirtualToPhysical(vptr));
     }
 }
 
-void modelRender_geoCmd_SKINNING(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_skinning_s *cmd = (struct geo_cmd_skinning_s *) data;
+//Cmd5_SKINNING
+void func_80338970(Gfx **gfx, Mtx **mtx, void *arg2){
+    GeoCmd5 *cmd = (GeoCmd5 *)arg2;
     int i;
 
-    if (D_80370990) {
-        gSPDisplayList((*gfx)++, osVirtualToPhysical(modelRenderDisplayList->list + cmd->gfx_index[0]));
+    if(D_80370990){
+        gSPDisplayList((*gfx)++, osVirtualToPhysical(modelRenderDisplayList->list + cmd->unk8[0]));
     }
 
-    if (D_80370990) {
-        for (i = 1; cmd->gfx_index[i] != 0; i++) {
+    if(D_80370990){
+        for(i = 1; cmd->unk8[i]; i++){
             mlMtxApply(*mtx);
             gSPMatrix((*gfx)++, (*mtx)++, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-            gSPDisplayList((*gfx)++, osVirtualToPhysical(modelRenderDisplayList->list + cmd->gfx_index[i]));
+            gSPDisplayList((*gfx)++, osVirtualToPhysical(modelRenderDisplayList->list + cmd->unk8[i]));
         }
     }
 }
 
-void modelRender_geoCmd_CALL(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_call_s *cmd = (struct geo_cmd_call_s *) data;
-
-    modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset));
+//Cmd6_???
+void func_80338AC4(Gfx **gfx, Mtx **mtx, void *arg2){
+    GeoCmd6 *cmd = (GeoCmd6 *)arg2;
+    func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk8));
 }
 
-void modelRender_geoCmd_LOADDL2(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    if (D_80370990) {
-        gSPDisplayList((*gfx)++, osVirtualToPhysical(&modelRenderDisplayList->list[((struct geo_cmd_load_dl_2_s *) data)->gfx_index]));
+//Cmd7_LOAD_DL???
+void func_80338AE8(Gfx **gfx, Mtx **mtx, void *arg2){
+    if(D_80370990){
+        gSPDisplayList((*gfx)++, osVirtualToPhysical(modelRenderDisplayList->list + ((GeoCmd7*)arg2)->unkA));
     }
 }
 
-void modelRender_geoCmd_LOD(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_lod_s *cmd = (struct geo_cmd_lod_s *) data;
+//Cmd8_LOD
+void func_80338B50(Gfx **gfx, Mtx **mtx, void *arg2){
+    GeoCmd8 *cmd = (GeoCmd8 *)arg2;
     f32 dist;
-    static f32 transformed_pos[3];
     
-    if (cmd->branch_offset) {
-        mlMtx_apply_vec3f(transformed_pos, cmd->position);
-        dist = LENGTH_VEC3F(transformed_pos);
-        if ((cmd->min < dist) && (dist <= cmd->max)) {
-            modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset));
+    if(cmd->subgeo_offset_1C){
+        mlMtx_apply_vec3f(D_80383C98, cmd->unk10);
+        dist = gu_sqrtf(D_80383C98[0]*D_80383C98[0] + D_80383C98[1]*D_80383C98[1] + D_80383C98[2]*D_80383C98[2]);
+        if(cmd->min_C < dist && dist <= cmd->max_8){
+            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->subgeo_offset_1C));
         }
     }
 }
 
-void modelRender_geoCmd_REFPOINT(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_reference_point_s *cmd = (struct geo_cmd_reference_point_s *) data;
-    f32 transformed_point[3];
+//CmdA_REFERENCE_POINT
+void func_80338BFC(Gfx **gfx, Mtx **mtx, void *arg2){
+    GeoCmdA *cmd = (GeoCmdA *)arg2;
+    f32 sp20[3];
 
-    if (modelRenderRefPoints) {
-        if (D_8038371C) {
-            mlMtx_push_multiplied_2(&D_80383BF8, animMtxList_get(D_8038371C, cmd->anim_mtx_id));
-            mlMtx_apply_vec3f(transformed_point, cmd->point);
+    if(D_80383650){
+        if(D_8038371C){
+            mlMtx_push_multiplied_2(&D_80383BF8, animMtxList_get(D_8038371C, cmd->unkA));
+            mlMtx_apply_vec3f(sp20, cmd->unkC);
             mlMtxPop();
-        } else {
-            mlMtx_apply_vec3f(transformed_point, cmd->point);
         }
-        transformed_point[0] += modelRenderCameraPosition[0];
-        transformed_point[1] += modelRenderCameraPosition[1];
-        transformed_point[2] += modelRenderCameraPosition[2];
-        vec3fArray_set_vec3f(modelRenderRefPoints, cmd->index, transformed_point);
+        else{
+            mlMtx_apply_vec3f(sp20, cmd->unkC);
+        }
+        sp20[0] += modelRenderCameraPosition[0];
+        sp20[1] += modelRenderCameraPosition[1];
+        sp20[2] += modelRenderCameraPosition[2];
+        func_8034A308(D_80383650, cmd->unk8, sp20);
     }
 }
 
-void modelRender_geoCmd_SELECTOR(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_selector_s *cmd = (struct geo_cmd_selector_s *) data;
-    s32 sub_cmd_addr;
-    s32 selection;
-    int i;
+//CmdC_SELECTOR
+void func_80338CD0(Gfx **gfx, Mtx **mtx, void *arg2){
+    GeoCmdC *cmd = (GeoCmdC *) arg2;
+    s32 sub_cmd;
+    s32 indx;
+    s32 s2;
     s32 s1;
-    s32 *offset;
+    s32 *s0;
     
-    selection = D_80383658[cmd->index];
+    indx = D_80383658[cmd->unkA];
 
-    if (cmd->index == 0)
+    if (cmd->unkA == 0)
         return;
 
-    if (selection == 0)
+    if (indx == 0)
         return;
     
-    if (selection > 0) {
-        if (selection <= cmd->branch_offset_count) {
-            offset = cmd->branch_offsets;
-            sub_cmd_addr = (s32) cmd;
-            sub_cmd_addr += *(s32*)(offset + (selection - 1));
-            modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s* ) sub_cmd_addr);
+    if (0 < indx) {
+        if (indx <= cmd->unk8) {
+            s0 = cmd->unkC;
+            sub_cmd = (s32)cmd;
+            sub_cmd += *(s32*)(s0 + (indx - 1));
+            func_80339124(gfx, mtx, (BKGeoList*)sub_cmd);
         }
     } else {
-        s1 = -selection;
-        offset = cmd->branch_offsets;
-        for (i = 0; i < cmd->branch_offset_count; i++) {
-            if (s1 & 0x01)
+        s1 = indx * (-1);
+        s0 = cmd->unkC;
+        for (s2 = 0; s2 < cmd->unk8; s2++) {
+            if (s1 & 1)
             {
-                sub_cmd_addr = (s32)cmd;
-                sub_cmd_addr += *offset;
-                modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s* ) sub_cmd_addr);
+                sub_cmd = (s32)cmd;
+                sub_cmd += s0[0];
+                func_80339124(gfx, mtx, (BKGeoList*)sub_cmd);
             }
             s1 >>= 1;
-            offset++;
+            s0++;
         }
     }
 }
 
-void modelRender_geoCmd_DRAWDIST(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    f32 scaled_min[3], scaled_max[3];
-    struct geo_cmd_draw_distance_s *cmd = (struct geo_cmd_draw_distance_s *) data;
+//CmdD_DRAW_DISTANCE
+void func_80338DCC(Gfx ** gfx, Mtx ** mtx, void *arg2){
+    f32 sp2C[3];
+    f32 sp20[3];
+    GeoCmdD * cmd = (GeoCmdD *)arg2;
+    if(cmd->unk14){
+        sp2C[0] = (f32)cmd->unk8[0] * modelRenderScale;
+        sp2C[1] = (f32)cmd->unk8[1] * modelRenderScale;
+        sp2C[2] = (f32)cmd->unk8[2] * modelRenderScale;
 
-    if (cmd->branch_offset) {
-        scaled_min[0] = cmd->min[0] * modelRenderScale;
-        scaled_min[1] = cmd->min[1] * modelRenderScale;
-        scaled_min[2] = cmd->min[2] * modelRenderScale;
-
-        scaled_max[0] = cmd->max[0] * modelRenderScale;
-        scaled_max[1] = cmd->max[1] * modelRenderScale;
-        scaled_max[2] = cmd->max[2] * modelRenderScale;
-
-        if (viewport_isBoundingBoxInFrustum(scaled_min, scaled_max)) {
-            modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset));
+        sp20[0] = (f32)cmd->unkE[0] * modelRenderScale;
+        sp20[1] = (f32)cmd->unkE[1] * modelRenderScale;
+        sp20[2] = (f32)cmd->unkE[2] * modelRenderScale;
+        if(viewport_isBoundingBoxInFrustum(sp2C, sp20)){
+            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk14));
         }
     }
 }
 
-void modelRender_geoCmd_UnkE(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    f32 pos_scaled[3];
-    f32 dist_scaled;
-    struct geo_cmd_E_s *cmd = (struct geo_cmd_E_s *) data;
+//cmdE_???
+void func_80338EB8(Gfx ** gfx, Mtx ** mtx, void *arg2){
+    f32 sp34[3];
+    f32 sp30;
+    GeoCmdE * cmd = (GeoCmdE *)arg2;
 
-    if (cmd->anim_mtx_id == -1) {
-        pos_scaled[0] = cmd->position[0] * modelRenderScale;
-        pos_scaled[1] = cmd->position[1] * modelRenderScale;
-        pos_scaled[2] = cmd->position[2] * modelRenderScale;
-        dist_scaled = cmd->distance * modelRenderScale;
-
-        if (viewport_func_8024DB50(pos_scaled, dist_scaled) && cmd->branch_offset) {
-            modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset));
+    if(cmd->unk12 == -1){
+        sp34[0] = (f32)cmd->unk8[0] * modelRenderScale;
+        sp34[1] = (f32)cmd->unk8[1] * modelRenderScale;
+        sp34[2] = (f32)cmd->unk8[2] * modelRenderScale;
+        sp30 = (f32)cmd->unkE*modelRenderScale;
+        if(viewport_func_8024DB50(sp34, sp30) && cmd->unk10){
+            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk10));
         }
-    } else {
-        pos_scaled[0] = cmd->position[0];
-        pos_scaled[1] = cmd->position[1];
-        pos_scaled[2] = cmd->position[2];
-        dist_scaled = cmd->distance * modelRenderScale;
+    }
+    else{
+        sp34[0] = (f32)cmd->unk8[0];
+        sp34[1] = (f32)cmd->unk8[1];
+        sp34[2] = (f32)cmd->unk8[2];
 
-        if (D_8038371C) {
-            mlMtx_push_multiplied_2(&D_80383BF8, animMtxList_get(D_8038371C, cmd->anim_mtx_id));
-            mlMtx_apply_vec3f(pos_scaled, pos_scaled);
+        sp30 = (f32)cmd->unkE*modelRenderScale;
+        if(D_8038371C){
+            mlMtx_push_multiplied_2(&D_80383BF8, animMtxList_get(D_8038371C, cmd->unk12));
+            mlMtx_apply_vec3f(sp34, sp34);
             mlMtxPop();
-        } else {
-            mlMtx_apply_vec3f(pos_scaled, pos_scaled);
+        }
+        else{
+            mlMtx_apply_vec3f(sp34, sp34);
         }
 
-        pos_scaled[0] += modelRenderCameraPosition[0];
-        pos_scaled[1] += modelRenderCameraPosition[1];
-        pos_scaled[2] += modelRenderCameraPosition[2];
-        if (viewport_func_8024DB50(pos_scaled, dist_scaled) && cmd->branch_offset) {
-            modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset));
+        sp34[0] += modelRenderCameraPosition[0];
+        sp34[1] += modelRenderCameraPosition[1];
+        sp34[2] += modelRenderCameraPosition[2];
+        if(viewport_func_8024DB50(sp34, sp30) && cmd->unk10){
+            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk10));
         }
-    }
-}
 
-void modelRender_geoCmd_CAMERA(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    struct geo_cmd_camera_s *cmd = (struct geo_cmd_camera_s *) data;
-    bool found = cameraAreaList_searchForEntryInBounds(modelRenderCameraAreaList, cmd->id_list, cmd->count);
-
-    if ((!found && (cmd->flags & BK_GEO_CMD_CAMERA_IS_OUTSIDE_BIT)) || (found && (cmd->flags & BK_GEO_CMD_CAMERA_IS_INSIDE_BIT))) {
-        if (cmd->branch_offset)
-            modelRender_executeGeoCmds(gfx, mtx, (struct bk_geo_cmd_s *) ((u8 *) cmd + cmd->branch_offset));
     }
 
 }
 
-void modelRender_executeGeoCmds(Gfx **gfx, Mtx **mtx, struct bk_geo_cmd_s *data) {
-    while (TRUE) {
-        sGeoCmdList[data->cmd](gfx, mtx, data);
-        if (data->next_offset == 0)
+//cmdF_??? (processes model_setup offset_0x20)
+void func_8033909C(Gfx ** gfx, Mtx ** mtx, void *arg2){
+    GeoCmdF *cmd = (GeoCmdF *)arg2;
+    int tmp_v0 = func_802ED420(D_8038372C, cmd->unkC, cmd->unkA);
+    if( (!tmp_v0 && (cmd->unkB & 1))
+        || (tmp_v0 && (cmd->unkB & 2)) 
+    ){
+        if(cmd->unk8 != 0)
+            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk8));
+    }
+
+}
+
+//render_GeoList
+void func_80339124(Gfx ** gfx, Mtx ** mtx, BKGeoList *geo_list){
+    do{
+        D_80370994[geo_list->cmd_0](gfx, mtx, geo_list);
+        if(geo_list->size_4 == 0)
             return;
-        data = (struct bk_geo_cmd_s *) ((u8 *) data + data->next_offset);
-    };
+        geo_list = (BKGeoList*)((s32)geo_list + geo_list->size_4);
+    }while(1);
 }
 
-BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation[3], f32 scale, f32*arg5, BKModelBin* model_bin) {
+BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation[3], f32 scale, f32*arg5, BKModelBin* model_bin){
     f32 camera_focus[3];
     f32 camera_focus_distance;
     f32 padEC;
@@ -878,23 +1022,23 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
     f32 tmp_f0;
     f32 padB8;
     
-    if ((!model_bin && !sSecondaryModelData.model_id) || (model_bin && sSecondaryModelData.model_id)) {
+    if( (!model_bin && !D_803837C8.model_id)
+        || (model_bin && D_803837C8.model_id)
+    ){
         modelRender_reset();
-        return NULL;
+        return 0;
     }
 
-    D_80370990 = FALSE;
-
+    D_80370990 = 0;
     viewport_getPosition_vec3f(modelRenderCameraPosition);
     viewport_getRotation_vec3f(modelRenderCameraRotation);
-
     if(D_80383758.unk18){
-        D_80383758.unk1C[0] = modelRenderCameraPosition[0],
-        D_80383758.unk1C[1] = modelRenderCameraPosition[1],
+        D_80383758.unk1C[0] = modelRenderCameraPosition[0];
+        D_80383758.unk1C[1] = modelRenderCameraPosition[1];
         D_80383758.unk1C[2] = modelRenderCameraPosition[2];
-    
-        D_80383758.unk28[0] = modelRenderCameraRotation[0],
-        D_80383758.unk28[1] = modelRenderCameraRotation[1],
+
+        D_80383758.unk28[0] = modelRenderCameraRotation[0];\
+        D_80383758.unk28[1] = modelRenderCameraRotation[1];\
         D_80383758.unk28[2] = modelRenderCameraRotation[2];
     }
 
@@ -936,15 +1080,15 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
     }
 
     if(model_bin){
-        verts = modelRendervertexList ? modelRendervertexList : modelbin_getVtxList_MACRO(model_bin);
+        verts = modelRendervertexList ? modelRendervertexList : (BKVertexList *)((s32)model_bin + model_bin->vtx_list_offset_10);
         spD0 = verts->global_norm;
         spD4 = verts->local_norm;
     }
     else{
-        spD0 = sSecondaryModelData.distance_from_origin;
-        spD4 = sSecondaryModelData.distance_from_center;
+        spD0 = D_803837C8.unk8;
+        spD4 = D_803837C8.unk4;
     }
-    camera_focus_distance = sqrtf(camera_focus[0]*camera_focus[0] + camera_focus[1]*camera_focus[1] + camera_focus[2]*camera_focus[2]);
+    camera_focus_distance = gu_sqrtf(camera_focus[0]*camera_focus[0] + camera_focus[1]*camera_focus[1] + camera_focus[2]*camera_focus[2]);
     if( 4000.0f <= camera_focus_distance && spD4*scale*D_8038370C*50.0f < D_80383708){
         D_80383708 = spD4*scale*D_8038370C*50.0f;
     }
@@ -954,24 +1098,24 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
         return 0;
     }
 
-    D_80370990 = (D_80383704) ? viewport_func_8024DB50(object_position, spD0*scale) : TRUE;
-    if (!D_80370990) {
+    D_80370990 = (D_80383704) ? viewport_func_8024DB50(object_position, spD0*scale) : 1;
+    if(D_80370990 == 0){
         modelRender_reset();
         return 0;
     }
 
-    if (modelRenderCallback.pre_draw != NULL) {
-        modelRenderCallback.pre_draw(modelRenderCallback.pre_draw_arg);
+    if(modelRenderCallback.pre_method != NULL){
+        modelRenderCallback.pre_method(modelRenderCallback.pre_arg);
     }
     func_80349AD0();
     if(model_bin == NULL){
-        model_bin = assetcache_get(sSecondaryModelData.model_id);
+        model_bin = assetcache_get(D_803837C8.model_id);
     }
     modelRenderModelBin = model_bin;
-    modelRenderDisplayList = modelRenderDisplayList ? modelRenderDisplayList : modelbin_getGfxList_MACRO(modelRenderModelBin),
-    modelRenderTextureList = modelRenderTextureList ? modelRenderTextureList : modelbin_getTextureList_MACRO(modelRenderModelBin),
-    modelRendervertexList = modelRendervertexList ? modelRendervertexList : modelbin_getVtxList_MACRO(modelRenderModelBin),
-    modelRenderCameraAreaList = (modelRenderModelBin->camera_area_list_offset == NULL) ? NULL : modelbin_getCameraAreaList_MACRO(model_bin);
+    modelRenderDisplayList = modelRenderDisplayList ? modelRenderDisplayList : (BKGfxList *)((s32)modelRenderModelBin + modelRenderModelBin->gfx_list_offset_C),
+    modelRenderTextureList = modelRenderTextureList ? modelRenderTextureList : (BKTextureList *)((s32)modelRenderModelBin + modelRenderModelBin->texture_list_offset_8),
+    modelRendervertexList = modelRendervertexList ? modelRendervertexList : (BKVertexList *)((s32)modelRenderModelBin + modelRenderModelBin->vtx_list_offset_10),
+    D_8038372C = (modelRenderModelBin->unk20 == NULL) ? NULL : (BKModelUnk20List *)((u8*)model_bin + model_bin->unk20);
 
     if(D_80383710){
         tmp_f0 = D_80383708 - 500.0f;
@@ -993,8 +1137,8 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
     }
 
     // Set up segments 1 and 2 to point to vertices and textures respectively
-    gSPSegment((*gfx)++, 0x01, osVirtualToPhysical(&modelRendervertexList->vertices));
-    gSPSegment((*gfx)++, 0x02, osVirtualToPhysical(&modelRenderTextureList->texture_infos[modelRenderTextureList->count]));
+    gSPSegment((*gfx)++, 0x01, osVirtualToPhysical(&modelRendervertexList->vtx_18));
+    gSPSegment((*gfx)++, 0x02, osVirtualToPhysical(&modelRenderTextureList->tex_8[modelRenderTextureList->cnt_4]));
 
     //segments 11 to 15 contain animated textures
     if(modelRenderAnimatedTexturesCacheId){
@@ -1003,7 +1147,7 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
         
         for(i_segment = 0; i_segment < 4; i_segment++){
             if(AnimTextureListCache_tryGetTextureOffset(modelRenderAnimatedTexturesCacheId, i_segment, &texture_offset))
-                gSPSegment((*gfx)++, 15 - i_segment, osVirtualToPhysical((u8*)&modelRenderTextureList->texture_infos[modelRenderTextureList->count] + texture_offset));
+                gSPSegment((*gfx)++, 15 - i_segment, osVirtualToPhysical((u8*)&modelRenderTextureList->tex_8[modelRenderTextureList->cnt_4] + texture_offset));
         }
     }
 
@@ -1067,11 +1211,11 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
         gSPSegment((*gfx)++, 0x03, osVirtualToPhysical(rendermode_table_xlu));
     }
 
-    if(modelRenderModelBin->geo_type & BK_GEO_TYPE_MIPMAP_TRILINEAR_BIT){ //trilinear mipmapping
+    if(modelRenderModelBin->geo_typ_A & 2){ //trilinear mipmapping
         gSPDisplayList((*gfx)++, mipMapWrapDL);
     }
 
-    if(modelRenderModelBin->geo_type & BK_GEO_TYPE_ENV_MAP_BIT){ //env mapping
+    if(modelRenderModelBin->geo_typ_A & 4){ //env mapping
         if(0.0f == camera_focus[2]){
             camera_focus[2] = -0.1f;
         }
@@ -1086,25 +1230,25 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
             D_803837E0.cur_lookat = D_803837E0.lookat_buffer;
     }
 
-    if(D_8038371C && !modelRenderModelBin->animation_list_offset){
+    if(D_8038371C && !modelRenderModelBin->animation_list_offset_18){
         D_8038371C = 0;
     }
-    else if(D_8038371C == 0 && modelRenderModelBin->animation_list_offset){
+    else if(D_8038371C == 0 && modelRenderModelBin->animation_list_offset_18){
         if(modelRenderBoneTransformList == NULL){
-            animMtxList_setBoneless(&modelRenderAnimMtxList, modelbin_getAnimationList_MACRO(model_bin));
+            animMtxList_setBoneless(&modelRenderAnimMtxList, (u8*)model_bin + model_bin->animation_list_offset_18);
         }
         else{
-            animMtxList_setBoned(&modelRenderAnimMtxList, modelbin_getAnimationList_MACRO(model_bin), modelRenderBoneTransformList);
+            animMtxList_setBoned(&modelRenderAnimMtxList, (u8*)model_bin + model_bin->animation_list_offset_18, modelRenderBoneTransformList);
         }
         D_8038371C = modelRenderAnimMtxList;
     }
 
-    if(modelRenderCameraAreaList){
-        cameraAreaList_updateInBoundsFlag(modelRenderCameraAreaList, modelRenderCameraPosition, scale);
+    if(D_8038372C){
+        func_802ED52C(D_8038372C, modelRenderCameraPosition, scale);
     }
 
-    if(model_bin->anim_vertices_list_offset != NULL && D_8038371C != NULL){
-        animVerticesList_transform(modelbin_getAnimVerticesList_MACRO(modelRenderModelBin), modelRendervertexList, D_8038371C);
+    if(model_bin->unk28 != NULL && D_8038371C != NULL){
+        func_802E6BD0((s32)modelRenderModelBin + modelRenderModelBin->unk28, modelRendervertexList, D_8038371C);
     }
 
     mlMtxIdent();
@@ -1133,14 +1277,14 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
         modelRenderRotation[0] = modelRenderRotation[1] = modelRenderRotation[2] = 0.0f;
     }
 
-    modelRender_executeGeoCmds(gfx, mtx, modelbin_getGeoCmdList_MACRO(model_bin));
+    func_80339124(gfx, mtx, (BKGeoList *)((u8 *)model_bin + model_bin->geo_list_offset_4));
     gSPPopMatrix((*gfx)++, G_MTX_MODELVIEW);
 
-    if (modelRenderCallback.post_draw != NULL) {
-        modelRenderCallback.post_draw(modelRenderCallback.post_draw_arg);
+    if(modelRenderCallback.post_method != NULL){
+        modelRenderCallback.post_method(modelRenderCallback.post_arg);
     }
 
-    if(sSecondaryModelData.model_id){
+    if(D_803837C8.model_id){
         assetCache_free(model_bin);
     }
 
@@ -1148,93 +1292,90 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
     return model_bin;
 }
 
-BKAnimVerticesList *modelbin_getAnimVerticesList(BKModelBin *this) {
-    if (this->anim_vertices_list_offset == 0)
+BKModelUnk28List *func_8033A048(BKModelBin *arg0){
+    if(arg0->unk28 == 0)
         return NULL;
-
-    return modelbin_getAnimVerticesList_MACRO(this);
+    return (BKModelUnk28List *)((s32)arg0 + arg0->unk28);
 }
 
-BoneTransformList *modelRender_getBoneTransformList(void) {
+BoneTransformList *modelRender_getBoneTransformList(void){
     return modelRenderBoneTransformList;
 }
 
-BkGeoType modelbin_getGeoType(BKModelBin *this) {
-    return this->geo_type;
+s32 func_8033A070(BKModelBin *arg0){
+    return arg0->geo_typ_A;
 }
 
-BKGfxList *modelbin_getGfxList(BKModelBin *this) {
-    return modelbin_getGfxList_MACRO(this);
+BKGfxList *model_getDisplayList(BKModelBin *arg0){
+    return (BKGfxList *)((s32)arg0 + arg0->gfx_list_offset_C);
 }
 
-BKCollisionList *modelbin_getCollisionList(BKModelBin *this) {
-    if (this == NULL)
+BKCollisionList *model_getCollisionList(BKModelBin *arg0){
+    if(arg0 == NULL)
         return NULL;
     
-    if (this->collision_list_offset == 0)
+    if(arg0->collision_list_offset_1C == 0)
         return NULL;
 
-    return modelbin_getCollisionList_MACRO(this);
+    return (BKCollisionList *)((s32)arg0 + arg0->collision_list_offset_1C);
 }
 
-BKMeshList *modelbin_getMeshList(BKModelBin *this) {
-    if (this->mesh_list_offset == 0)
+BKEffectsList *func_8033A0B0(BKModelBin *arg0){
+    if(arg0->effects_list_setup_24 == 0)
         return NULL;
 
-    return modelbin_getMeshList_MACRO(this);
+    return (BKEffectsList *)((s32)arg0 + arg0->effects_list_setup_24);
 }
 
-f32 modelbin_getUnk34(BKModelBin *this) {
-    return this->unk34;
+f32 func_8033A0CC(UNK_TYPE(void *) arg0){
+    return *(f32 *)BKA_TRANSLATE_ADDR(((s32)arg0 + 0x34));
 }
 
-BKAnimationList *modelbin_getAnimationList(BKModelBin *this) {
-    if (this->animation_list_offset == 0)
+BKAnimationList *model_getAnimationList(BKModelBin *arg0){
+    if(arg0->animation_list_offset_18 == 0)
         return NULL;
 
-    return modelbin_getAnimationList_MACRO(this);
+    return (BKAnimationList *)((s32)arg0 + arg0->animation_list_offset_18);
 }
 
-s32 modelRender_func_8033A0F0(s32 arg0) {
+s32 func_8033A0F0(s32 arg0){
     return D_80383658[arg0];
 }
 
-BKTextureList *modelbin_getTextureList(BKModelBin *this) {
-    return modelbin_getTextureList_MACRO(this);
+BKTextureList *model_getTextureList(BKModelBin *model_bin){
+    return (BKTextureList *)((s32)model_bin + model_bin->texture_list_offset_8);
 }
 
-BKAnimTextureList *modelbin_getAnimTextureList(BKModelBin *this) {
-    if (this->animated_texture_list_offset == 0)
+AnimTexture *model_getAnimTextureList(BKModelBin *model_bin){
+    if(model_bin->animated_texture_list_offset == 0)
         return NULL;
-
-    return modelbin_getAnimTextureList_MACRO(this);
+    return (void*)((s32)model_bin + model_bin->animated_texture_list_offset);
 }
 
-BKModelUnk14List *modelbin_getUnk14List(BKModelBin *this) {
-    if (this->unk14_list_offset == 0)
-        return NULL;
-
-    return modelbin_getUnk14List_MACRO(this);
+BKModelUnk14List *func_8033A12C(BKModelBin *this){
+    if(this->unk14 == 0)
+        return 0;
+    return (BKModelUnk14List *)((s32)this + this->unk14);
 }
 
-BKVertexList *modelbin_getVtxList(BKModelBin *this) {
-    return modelbin_getVtxList_MACRO(this);
+BKVertexList *model_getVtxList(BKModelBin *arg0){
+    return (BKVertexList *)((s32)arg0 + arg0->vtx_list_offset_10);
 }
 
-BKCameraAreaList *modelbin_getCameraAreaList(BKModelBin *this) {
-    return (this->camera_area_list_offset == 0) ? NULL : modelbin_getCameraAreaList_MACRO(this);
+BKModelUnk20List *func_8033A154(BKModelBin *arg0){
+    return (arg0->unk20 == 0) ? NULL : (BKModelUnk20List *)((s32)arg0 + arg0->unk20);
 }
 
-bool modelRender_func_8033A170(void) {
+s32 func_8033A170(void){
     return D_80370990;
 }
 
-void modelRender_free(void) {
+void modelRender_free(void){
     animMtxList_free(modelRenderAnimMtxList);
     modelRenderAnimMtxList = NULL;
 }
 
-void modelRender_init(void) {
+void modelRender_init(void){
     modelRender_reset();
     D_80383758.unk18 = 0;
     D_803837E0.cur_lookat = D_803837E0.lookat_buffer;
@@ -1243,36 +1384,36 @@ void modelRender_init(void) {
     modelRenderAnimMtxList = animMtxList_new();
 }
 
-void modelRender_func_8033A1FC(void) {
+void func_8033A1FC(void){
     s32 i;
     for(i = 0; i < 0x2A; i++){
         D_80383658[i] = 0;
     }
 }
 
-void modelRender_setBoneTransformList(BoneTransformList *arg0) {
+void modelRender_setBoneTransformList(BoneTransformList *arg0){
     modelRenderBoneTransformList = arg0;
 }
 
-f32 modelRender_func_8033A244(f32 arg0){
+f32 func_8033A244(f32 arg0){
     f32 out = D_80383708;
     D_80383708 = arg0;
     return out;
 }
 
-void modelRender_func_8033A25C(bool arg0){
+void func_8033A25C(n64_bool arg0){
     D_80383704 = BOOL(arg0);
 }  
 
-void modelRender_func_8033A280(f32 arg0){
+void func_8033A280(f32 arg0){
     D_8038370C = arg0;
 }
 
-void modelRender_func_8033A28C(bool arg0){
+void func_8033A28C(n64_bool arg0){
     D_80383710 = arg0;
 }
 
-void modelRender_func_8033A298(bool arg0) {
+void func_8033A298(n64_bool arg0){
     D_80383758.unk18 = arg0;
     if(arg0){
         viewport_getPosition_vec3f(D_80383758.unk0);
@@ -1283,24 +1424,24 @@ void modelRender_func_8033A298(bool arg0) {
 /* moderRender_preDraw() sets a generic 1 argument function that will
  * be called immediately prior to the model being drawn
  */
-void modelRender_setPreDrawCallback(model_render_pre_draw_callback_f func, void *arg) {
-    modelRenderCallback.pre_draw = func;
-    modelRenderCallback.pre_draw_arg = arg;
+void modelRender_preDraw(GenFunction_1 func, s32 arg){
+    modelRenderCallback.pre_method = func;
+    modelRenderCallback.pre_arg = arg;
 }
 
 /* moderRender_postDraw() sets a generic 1 argument function that will
  * be called immediately after to the model has been drawn
  */
-void modelRender_setPostDrawCallback(model_render_post_draw_callback_f func, void *arg) {
-    modelRenderCallback.post_draw = func;
-    modelRenderCallback.post_draw_arg = arg;
+void modelRender_postDraw(GenFunction_1 func, s32 arg){
+    modelRenderCallback.post_method = func;
+    modelRenderCallback.post_arg = arg;
 }
 
 void modelRender_setDisplayList(BKGfxList *gfx_list){
     modelRenderDisplayList = gfx_list;
 }
 
-void modelRender_func_8033A308(f32 arg0[3]){
+void func_8033A308(f32 arg0[3]){
     D_803837B0.unk0 = TRUE;
     D_803837B0.unk4[0] = arg0[0];
     D_803837B0.unk4[1] = arg0[1];
@@ -1340,46 +1481,46 @@ void modelRender_setAlpha(s32 a){
     }
 }
 
-void modelRender_func_8033A444(AnimMtxList *arg0){
+void func_8033A444(AnimMtxList *arg0){
     D_8038371C = arg0;
 }
 
-void modelRender_setRefPoints(Vec3fArray *ref_points) {
-    modelRenderRefPoints = ref_points;
+void func_8033A450(struct5Bs *arg0){
+    D_80383650 = arg0;
 }
 
-void modelRender_setAppendageVisibility(s32 appendage_id, s32 appendage_visibility){
-    D_80383658[appendage_id] = appendage_visibility;
+void func_8033A45C(s32 arg0, s32 arg1){
+    D_80383658[arg0] = arg1;
 }
 
-void modelRender_func_8033A470(s32 arg0, s32 arg1){
+void func_8033A470(s32 arg0, s32 arg1){
     D_80383658[arg0] = -arg1;
 }
 
-void modelRender_setTextureList(BKTextureList *texture_list) {
-    modelRenderTextureList = texture_list;
+void modelRender_setTextureList(BKTextureList *textureList){
+    modelRenderTextureList = textureList;
 }
 
 void modelRender_setAnimatedTexturesCacheId(s32 arg0){
     modelRenderAnimatedTexturesCacheId = arg0;
 }
 
-void modelRender_setSecondaryModel(enum asset_e model_id, f32 distance_from_center, f32 distance_from_origin) {
-    sSecondaryModelData.model_id = model_id;
-    sSecondaryModelData.distance_from_center = distance_from_center;
-    sSecondaryModelData.distance_from_origin = distance_from_origin;
+void func_8033A4A0(enum asset_e modelId, f32 arg1, f32 arg2){
+    D_803837C8.model_id = modelId;
+    D_803837C8.unk4 = arg1;
+    D_803837C8.unk8 = arg2;
 }
 
-void modelRender_setVertexList(BKVertexList *vertex_list) {
-    modelRendervertexList = vertex_list;
+void modelRender_setVertexList(BKVertexList *vertexList){
+    modelRendervertexList = vertexList;
 }
 
-void modelRender_setDepthMode(enum model_render_depth_mode_e mode) {
-    modelRenderDepthMode = mode;
+void modelRender_setDepthMode(enum model_render_depth_mode_e renderMode){
+    modelRenderDepthMode = renderMode;
 }
 
-void modelRender_defrag(void) {
-    if (modelRenderAnimMtxList != NULL) {
+void modelRender_defrag(void){
+    if(modelRenderAnimMtxList != NULL){
         modelRenderAnimMtxList = animMtxList_defrag(modelRenderAnimMtxList);
     }
 }

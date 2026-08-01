@@ -3,7 +3,7 @@
 #include "functions.h"
 #include "variables.h"
 
-#include "time.h"
+/* Redirected */ #include <n64_time.h>
 
 f32 func_802FB0DC(struct8s *);
 f32 func_802FB0E4(struct8s *);
@@ -224,7 +224,7 @@ void fxcommon2score_update(s32 arg0, struct8s * arg1){
                 phi_f16 = 0.333f;
         }
         if(arg0 < 6){
-            if(item_getCount(arg0) < VER_SELECT(30, 25, 0, 0)){
+            if(item_getCount(arg0) < 30){
                 arg1->unk28 |= 8;
             }
             else{
@@ -233,11 +233,11 @@ void fxcommon2score_update(s32 arg0, struct8s * arg1){
         }
         if((arg1->unk28 & 4) == 0){
             tmpf = arg1->unk2C;
-             arg1->unk60 = time_getDelta() * (arg1->unk34 * arg1->unk30) * VER_SELECT(60.0f, 50.0f, 0, 0) * phi_f16 + arg1->unk60;
+             arg1->unk60 = time_getDelta() * (arg1->unk34 * arg1->unk30) * 60.0f * phi_f16 + arg1->unk60;
              if(arg1->unk2C <= arg1->unk60){
                  if(arg1->unk28 & 1){
                        arg1->unk34 *= -1.0f;
-                       arg1->unk60 -= two* arg1->unk30 * time_getDelta() * VER_SELECT(60.0f, 50.0f, 0, 0);
+                       arg1->unk60 -= two* arg1->unk30 * time_getDelta() * 60.0f;
                  }
                  else{
                     arg1->unk60 -= arg1->unk2C; 
@@ -251,7 +251,7 @@ void fxcommon2score_update(s32 arg0, struct8s * arg1){
                 if(arg1->unk60 < 0.0){
                     if(arg1->unk28 & 1){
                         arg1->unk34 *= -1.0f;
-                        arg1->unk60 +=  two * arg1->unk30 * time_getDelta() * VER_SELECT(60.0f, 50.0f, 0, 0);
+                        arg1->unk60 +=  two * arg1->unk30 * time_getDelta() * 60.0f;
                     }
                     else{
                         arg1->unk60 += arg1->unk2C;
@@ -280,7 +280,7 @@ void fxcommon2score_draw(enum item_e item_id, struct8s *arg1, Gfx **gfx, Mtx **m
         }
     }
     if(item_id < 6){
-        sp38 = ((sp38)? 1: 0) + sp38/FRAMERATE;
+        sp38 = ((sp38)? 1: 0) + sp38/60;
     }//L802FDBA8
     if(item_id == ITEM_1B_VILE_VILE_SCORE && 9 < sp38){
         sp34 = -16.0f;

@@ -205,7 +205,7 @@ f32 func_80323A48(f32 arg0[3], s32 arg1, f32 arg2, f32 arg3, f32 arg4) {
                     func_80341180(var_f24, arg1, 3, arg0, &spDC);
                     ml_vec3f_diff_copy(spC4, spDC, spE8);
                     func_80258CDC(spD0, spC4);
-                    var_f22 = var_f26 + sqrtf(spD0[0]*spD0[0] + spD0[1]*spD0[1] + spD0[2]*spD0[2]);
+                    var_f22 = var_f26 + gu_sqrtf(spD0[0]*spD0[0] + spD0[1]*spD0[1] + spD0[2]*spD0[2]);
                 }
             } else {
                 func_80341180(var_f24, arg1, 3, arg0, spDC);
@@ -231,7 +231,7 @@ f32 func_80323A48(f32 arg0[3], s32 arg1, f32 arg2, f32 arg3, f32 arg4) {
                 func_80341180((f32) var_f24, arg1, 3, arg0, &spDC);
                 ml_vec3f_diff_copy(&spC4, &spDC, &spE8);
                 func_80258CDC(&spD0, &spC4);
-                var_f22 = var_f26 + sqrtf(spD0[0]*spD0[0] + spD0[1]*spD0[1] + spD0[2]*spD0[2]);
+                var_f22 = var_f26 + gu_sqrtf(spD0[0]*spD0[0] + spD0[1]*spD0[1] + spD0[2]*spD0[2]);
             } else {
                 func_80341180(var_f24, arg1, 3, arg0, &spDC);
                 var_f22 = var_f26 + ml_vec3f_length(&spF4, &spDC);
@@ -291,7 +291,7 @@ f32 func_80324078(struct56s *arg0, f32 arg1, f32 arg2) {
     return func_80323A48(arg0->unk8, sp24, arg1, (f32) (arg2 * (1.0/30.0)), func_803237E8(arg0));
 }
 
-f32 func_803240E0(struct56s *arg0, f32 arg1, f32 arg2, bool *arg3) {
+f32 func_803240E0(struct56s *arg0, f32 arg1, f32 arg2, n64_bool *arg3) {
     f32 temp_f0;
     f32 temp_f2;
 
@@ -325,7 +325,7 @@ void func_8032417C(struct56s *arg0, f32 arg1, f32 arg2[3], f32 arg3[3]) {
     func_80341180(var_f0, sp64, 3, sp60, sp44);
     ml_vec3f_diff_copy(arg2, sp44, sp50);
     ml_vec3f_normalize(arg2);
-    ml_horizontal_and_vertical_angles(sp44[0], sp44[1], sp44[2], sp50[0], sp50[1], sp50[2], &arg3[0], &arg3[1]);
+    func_8025727C(sp44[0], sp44[1], sp44[2], sp50[0], sp50[1], sp50[2], &arg3[0], &arg3[1]);
     arg3[0] = mlNormalizeAngle(-arg3[0]);
     arg3[2] = 0.0f;
 }

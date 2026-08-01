@@ -1,7 +1,6 @@
-#include <ultratypes.h>
-#include "checksums.h"
-#include "version.h"
+/* Redirected */ #include <n64_types.h>
 
-s32 D_8038C300 = VER_SELECT(0x00146061, 0x00148214, 0, 0); // MMM_TEXT_CRC1
-s32 D_8038C304 = VER_SELECT(0xEC79D7B4, 0xE11088CE, 0, 0); // MMM_TEXT_CRC2
-s32 D_8038C308 = VER_SELECT(0x0001B98D, 0x0001C16B, 0, 0); // MMM_DATA_CRC1
+u32 D_8038C300 = 0x00146061;
+u32 D_8038C304 = 0xEC79D7B4;
+u32 D_8038C308 = 0x0001B98D;
+u32 D_8038C30C = 0x0;

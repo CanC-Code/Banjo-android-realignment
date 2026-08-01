@@ -4,7 +4,6 @@
 
 #include "core2/ba/physics.h"
 #include "core2/ba/timer.h"
-#include "core2/yaw.h"
 
 extern f32 func_80296548(void);
 extern f32 func_8029653C(void);
@@ -28,7 +27,7 @@ void func_802B35DC(void) {
 void func_802B360C(void) {
     f32 sp44[3];
     f32 sp38[3];
-    f32 player_position[3];
+    f32 sp2C[3];
     f32 sp28;
     f32 sp24;
     f32 sp20;
@@ -36,16 +35,16 @@ void func_802B360C(void) {
 
     sp1C = func_80296560();
     func_80294980(sp38);
-    playerPosition_get(player_position);
-    func_80257F18(sp38, player_position, &sp28);
+    playerPosition_get(sp2C);
+    func_80257F18(sp38, sp2C, &sp28);
     if ((sp1C == 0xE) || (sp1C == 0x10)) {
         func_802B35D0(1);
-        code_14420_setUpdateTypes(1, YAW_STATE_1_DEFAULT, 2, BA_PHYSICS_UNK1);
+        func_8029C7F4(1, 1, 2, BA_PHYSICS_UNK1);
         yaw_setIdeal(mlNormalizeAngle(sp28));
         baphysics_set_gravity(func_80296548());
         sp20 = func_8029653C();
-        sp24 = func_8029B56C(player_position[1], sp38[1], sp20, baphysics_get_gravity());
-        ml_vec3f_diff_copy(sp44, sp38, player_position);
+        sp24 = func_8029B56C(sp2C[1], sp38[1], sp20, baphysics_get_gravity());
+        ml_vec3f_diff_copy(sp44, sp38, sp2C);
         D_8037D504 = sp24;
         sp44[0] /= sp24;
         sp44[1] /= sp24;
@@ -62,7 +61,7 @@ void func_802B360C(void) {
         baphysics_set_horizontal_velocity(sp28, baphysics_get_target_horizontal_velocity());
         baphysics_set_vertical_velocity(barebound_get_vertical_velocity());
         baphysics_set_gravity(barebound_get_gravity());
-        code_14420_setUpdateTypes(1, YAW_STATE_1_DEFAULT, 2, BA_PHYSICS_LOCKED_ROTATION);
+        func_8029C7F4(1, 1, 2, BA_PHYSICS_LOCKED_ROTATION);
         if (barebound_802987B4() == 2) {
             baphysics_set_type(BA_PHYSICS_AIRBORN);
         }
@@ -86,7 +85,7 @@ void func_802B37DC(void) {
     }
 }
 
-void rebound_init(void) {
+void func_802B3868(void) {
     AnimCtrl *anim_ctrl;
     f32 sp20;
 
@@ -110,13 +109,13 @@ void rebound_init(void) {
 }
 
 
-void rebound_update(void) {
+void func_802B3954(void) {
     s32 next_state;
     AnimCtrl *anim_ctrl;
 
     next_state = 0;
     anim_ctrl = baanim_getAnimCtrlPtr();
-    if (batimer_decrement(0) && gsworld_getMap() == MAP_93_GL_DINGPOT) {
+    if (batimer_decrement(0) && gsworld_get_map() == MAP_93_GL_DINGPOT) {
         baMarker_collisionOn();
     }
     func_802B37DC();
@@ -133,7 +132,7 @@ void rebound_update(void) {
 }
 
 
-void rebound_end(void) {
+void func_802B3A20(void) {
     func_802B35DC();
     baphysics_reset_gravity();
     baMarker_collisionOn();

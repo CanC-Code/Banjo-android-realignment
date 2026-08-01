@@ -117,7 +117,7 @@ void drawPixel(s32 x, s32 y, s32 w, s32 h) {
         }
     }
 
-    osWritebackDCacheAll();
+    osWriteBackDCacheAll();
 }
 
 // Sets the color and draws a square
@@ -162,7 +162,7 @@ void gcdebugText_drawSquareOnly(s32 color) {
 // Draws the character and the background. 
 // keepCursor: When true, does not advance to the next character and keeps an imaginary "cursor" in place before drawing the next
 // setBackgroundColorBlack: When true, sets the color to black for the background. Kind of just draws boxes otherwise
-void drawCharacter(s32 colorSelect, s32 displayCharacter, s32 fontSize, s32 keepCursor, bool setBackgroundColorBlack, s32 r, s32 g, s32 b) {
+void drawCharacter(s32 colorSelect, s32 displayCharacter, s32 fontSize, s32 keepCursor, n64_bool setBackgroundColorBlack, s32 r, s32 g, s32 b) {
     s32 j;
     s32 i;
     u32 char_width;
@@ -223,7 +223,7 @@ void gcdebugText_clearText(void) {
             gFramebuffers[0][i] = 0;
             gFramebuffers[1][i] = 0;
         }
-        osWritebackDCacheAll();
+        osWriteBackDCacheAll();
     }
 }
 

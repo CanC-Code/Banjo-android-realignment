@@ -30,7 +30,7 @@ f32 D_80389A00[3] = {0.0f, 0.0f, 0.0f};
 void __chorange_collisionCallback(ActorMarker *marker, ActorMarker *other_marker) {
     if (!player_isDead() &&
         !mapSpecificFlags_get(MM_SPECIFIC_FLAG_8_HIT_WITH_ORANGE) &&
-        gcdialog_showDialog(VER_SELECT(ASSET_B3A_DIALOG_CONGA_HITS_PLAYER, 0x958, 0, 0), 0, 0, 0, NULL, NULL)) {
+        gcdialog_showDialog(ASSET_B3A_DIALOG_CONGA_HITS_PLAYER, 0, 0, 0, NULL, NULL)) {
 
         mapSpecificFlags_set(MM_SPECIFIC_FLAG_8_HIT_WITH_ORANGE, TRUE);
     }
@@ -84,8 +84,10 @@ void chorange_update(Actor *this) {
 
 Actor *chorange_draw(ActorMarker *this, Gfx **dl, Mtx **mptr, Vtx **vtx) {
     Actor *actorPtr = actor_drawFullDepth(this, dl, mptr, vtx);
-    f32 sp60[3] = D_803899F4;
-    f32 rotation[3] = D_80389A00;
+    f32 sp60[3];
+    n64_memcpy(sp60, D_803899F4, 3 * sizeof(f32));
+    f32 rotation[3];
+    n64_memcpy(rotation, D_80389A00, 3 * sizeof(f32));
     f32 position[3];
 
     if (actorPtr->state == ORANGE_STATE_2_LANDED) {

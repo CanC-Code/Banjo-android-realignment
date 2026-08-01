@@ -16,6 +16,7 @@ typedef struct struct_core2_9B180_s{
     void (*unk10)(struct struct_core2_9B180_s *);
 }Struct_core2_9B180_0;
 
+extern void func_8024FE44(u8, f32, f32);
 extern void func_8030EDAC(f32, f32);
 
 void func_80322298(Struct_core2_9B180_0 *);
@@ -68,7 +69,7 @@ void func_80322130(Struct_core2_9B180_0 *arg0) {
 
 
 void func_803221C4(Struct_core2_9B180_0 * arg0){
-    musicSlot_func_8024FE44(0, 0.2f, 1.25f);
+    func_8024FE44(0, 0.2f, 1.25f);
 }
 
 void func_803221F4(Struct_core2_9B180_0 * arg0){
@@ -80,7 +81,7 @@ void func_8032222C(Struct_core2_9B180_0 * arg0) {
     s32 phi_s0;
 
     for(phi_s0 = 1; phi_s0 < 5; phi_s0++){
-        musicSlot_func_8024FE44(phi_s0, 0.2f, 1.25f);
+        func_8024FE44(phi_s0, 0.2f, 1.25f);
     }
 }
 
@@ -108,7 +109,7 @@ void func_80322318(Struct_core2_9B180_0 * arg0){
     func_8031D0C0(0, 0);
 }
 
-bool func_80322340(s32 arg0) {
+n64_bool func_80322340(s32 arg0) {
     f32 sp1C[3];
 
     if (nodeProp_findPositionFromActorId(arg0, &sp1C)) {
@@ -170,7 +171,7 @@ void func_803224FC(void) {
     func_8030EDAC(0.0f, 1.0f);
     func_80244A98(1);
     for(i = 0; i < 5; i++){
-        musicSlot_func_8024FE44(i, 0.0f, 1.0f);
+        func_8024FE44(i, 0.0f, 1.0f);
     }
 }
 

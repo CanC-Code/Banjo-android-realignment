@@ -29,7 +29,7 @@ ActorInfo chjujuhitboxInfo = {
 };
 
 /* code */
-bool func_80388B30(Actor *this, float arg1) {
+n64_bool func_80388B30(Actor *this, float arg1) {
     f32 yaw;
 
     yaw = this->yaw - subaddie_getYawToPlayer(this);

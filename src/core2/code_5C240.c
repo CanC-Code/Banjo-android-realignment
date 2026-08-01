@@ -3,7 +3,7 @@
 #include "functions.h"
 #include "variables.h"
 
-#include "time.h"
+/* Redirected */ #include <n64_time.h>
 
 extern void func_8023DFF0(s32);
 extern void coMusicPlayer_update(void);
@@ -44,11 +44,11 @@ void func_802E329C(s32 arg0, Gfx **gfx_begin, Gfx **gfx_end) {
     Vtx *vtx;
     Vtx *vtx_start;
 
-    graphicscache_swapAndGetStacks(&gfx, &mtx, &vtx);
+    getGraphicsStacks(&gfx, &mtx, &vtx);
     gfx_start = gfx;
     mtx_start = mtx;
     vtx_start = vtx;
-    setupFramebufferForGamemode(&gfx, arg0);
+    scissorBox_SetForGameMode(&gfx, arg0);
     if (D_8037E8C0.unk14 == 2) {
         drawRectangle2D(&gfx, 0, 0, (s32) (f32) gFramebufferWidth, (s32) (f32) gFramebufferHeight, 0, 0, 0);
     }
@@ -61,7 +61,7 @@ void func_802E329C(s32 arg0, Gfx **gfx_begin, Gfx **gfx_end) {
         viewport_setRenderViewportAndPerspectiveMatrix(&gfx, &mtx);
         func_802F1858(D_8037E8C0.unk10, &gfx, &mtx, &vtx);
     }
-    core1_15B30_finishDList(&gfx);
+    finishFrame(&gfx);
     osWritebackDCache(mtx_start, (mtx - mtx_start) * sizeof(Mtx));
     osWritebackDCache(vtx_start, (vtx - vtx_start) * sizeof(Vtx));
     *gfx_begin = gfx_start;
@@ -78,7 +78,7 @@ void func_802E3460(s32 arg0) {
     }
     else if (D_8037E8C0.unk14 == 1) {
         D_8037E8C0.unk4 = 0.0f;
-        if (comusic_isTrackQueued(COMUSIC_31_GAME_OVER)) {
+        if (func_8025AD7C(COMUSIC_31_GAME_OVER)) {
             comusic_8025AB44(COMUSIC_31_GAME_OVER, 0, 200);
         }
         func_802F1934(D_8037E8C0.unk10, getActiveFramebuffer());
@@ -94,8 +94,8 @@ void func_802E3524(s32 arg0) {
 
     func_802E31D0(getOtherFramebuffer());
     func_802E329C(getOtherFramebuffer(), &gfx_begin, &gfx_end);
-    core1_15B30_addF3DEXTaskData_0(gfx_begin, gfx_end);
-    core1_15B30_sendMesg3ToRenderThread();
+    func_80253EA4(gfx_begin, gfx_end);
+    func_80254008();
     viMgr_func_8024C1B4();
 }
 
@@ -104,7 +104,7 @@ void func_802E3580(void) {
     func_802F1884(D_8037E8C0.unk10);
     func_802E5F68();
     coMusicPlayer_free();
-    depthbuffer_stub();
+    depthBuffer_stub();
     viMgr_func_8024BF94(2);
 }
 

@@ -11,7 +11,7 @@ s32 usedAbilities;
 
 void ability_use(enum ability_used ability) {
     s32 dialog_id;
-    bool play_ding;
+    n64_bool play_ding;
 
     dialog_id = 0;
     play_ding = TRUE;
@@ -38,19 +38,19 @@ void ability_use(enum ability_used ability) {
             break;
 
         case ABILITY_USED_SWIM:
-            if (gsworld_getMap() == MAP_1_SM_SPIRAL_MOUNTAIN) {
+            if (gsworld_get_map() == MAP_1_SM_SPIRAL_MOUNTAIN) {
                 dialog_id = ASSET_DFC_BOTTLES_UNDERWATER_TUTORIAL;
             }
             break;
 
         case ABILITY_USED_CLIMB:
-            if (gsworld_getMap() == MAP_1_SM_SPIRAL_MOUNTAIN) {
+            if (gsworld_get_map() == MAP_1_SM_SPIRAL_MOUNTAIN) {
                 dialog_id = ASSET_E02_DIALOG_BOTTLES_CLIMB_OTHER;
             }
             break;
 
         case ABILITY_USED_BEAK_BARGE:
-            if (gsworld_getMap() == MAP_1_SM_SPIRAL_MOUNTAIN) {
+            if (gsworld_get_map() == MAP_1_SM_SPIRAL_MOUNTAIN) {
                 dialog_id = ASSET_E05_DIALOG_BOTTLES_KAZOOIE_BARGE;
             }
             break;
@@ -58,7 +58,7 @@ void ability_use(enum ability_used ability) {
         case ABILITY_USED_SLIDE:
             play_ding = FALSE;
             if (!ability_isUnlocked(ABILITY_10_TALON_TROT)) {
-                if (gsworld_getMap() == MAP_2_MM_MUMBOS_MOUNTAIN) {
+                if (gsworld_get_map() == MAP_2_MM_MUMBOS_MOUNTAIN) {
                     dialog_id = ASSET_B4D_DIALOG_BOTTLES_MM_SLIP_ON_HILL;
                 } else {
                     return;
@@ -111,7 +111,7 @@ void ability_clearAll(void) {
     usedAbilities = 0;
 }
 
-void ability_setLearned(enum ability_e ability, bool hasLearned) {
+void ability_setLearned(enum ability_e ability, n64_bool hasLearned) {
     if (hasLearned) {
         learnedAbilities |= (1 << ability);
     } else {

@@ -4,7 +4,7 @@
 #include "variables.h"
 #include "core2/ba/physics.h"
 #include "core2/ba/timer.h"
-#include "core2/yaw.h"
+
 
 extern void yaw_applyIdeal(void);
 extern f32 cosf(f32);
@@ -28,6 +28,10 @@ struct {
     u8 player_transformation; //enum bs_e
     u8 state;
 } D_8037D470;
+
+
+/* Automated Forward Decls */
+static void __bsdronexform_setState(int next_state);
 
 /* .code */
 void func_802AF7A0(ParticleEmitter *arg0, enum asset_e arg1){
@@ -55,28 +59,28 @@ void func_802AF900(void){
     f32 sp44;
     f32 sp40;
     f32 sp3C;
-    f32 player_position[3];
+    f32 sp30[3];
 
-    player_getPosition(player_position);
+    player_getPosition(sp30);
     sp3C = D_8037D470.unk8;
     sp48 = func_80257A44(sp3C, 0.38f);
     sp4C = sp48 * 6.283185308;
     sp40 = sinf(sp4C);
     sp44 = cosf(sp4C);
-    player_position[0] += sp40 * D_8037D470.unk18;
-    player_position[1] += ml_interpolate_f(func_80257A44(sp3C, 1.14f), 0.0f, 130.0f);
-    player_position[2] += sp44 * D_8037D470.unk18;
+    sp30[0] += sp40 * D_8037D470.unk18;
+    sp30[1] += ml_interpolate_f(func_80257A44(sp3C, 1.14f), 0.0f, 130.0f);
+    sp30[2] += sp44 * D_8037D470.unk18;
     func_802AF88C(D_8037D470.unk4, sp40, sp44);
-    particleEmitter_setPosition(D_8037D470.unk4, player_position);
+    particleEmitter_setPosition(D_8037D470.unk4, sp30);
     particleEmitter_emitN(D_8037D470.unk4, 1);
 
-    player_getPosition(player_position);
+    player_getPosition(sp30);
     sp4C = (1.0 - ml_remainder_f(sp48 + 0.5, 1.0f))* 6.283185308;
-    player_position[0] -= sinf(sp4C) * D_8037D470.unk18;
-    player_position[1] += ml_interpolate_f(func_80257A44(sp3C, 1.14f), 130.0f, 0.0f);
-    player_position[2] -= cosf(sp4C) * D_8037D470.unk18;
+    sp30[0] -= sinf(sp4C) * D_8037D470.unk18;
+    sp30[1] += ml_interpolate_f(func_80257A44(sp3C, 1.14f), 130.0f, 0.0f);
+    sp30[2] -= cosf(sp4C) * D_8037D470.unk18;
     func_802AF88C(D_8037D470.unk0, sp40, sp44);
-    particleEmitter_setPosition(D_8037D470.unk0, player_position);
+    particleEmitter_setPosition(D_8037D470.unk0, sp30);
     particleEmitter_emitN(D_8037D470.unk0, 1);
 }
 
@@ -248,7 +252,7 @@ void func_802B01C8(void){
 static void __bsdronexform_setState(int next_state){
     enum asset_e sp34;
     f32 sp30;
-    f32 player_position[3];
+    f32 sp24[3];
 
     D_8037D470.state = next_state;
     switch(next_state){
@@ -278,10 +282,10 @@ static void __bsdronexform_setState(int next_state){
             break;
 
         case 5:// 802B02F4
-            playerPosition_get(player_position);
-            player_position[1] += 30.0f;
-            viewport_adjustPointDistance(player_position, 80.0f);
-            func_802AFBB8(player_position);
+            playerPosition_get(sp24);
+            sp24[1] += 30.0f;
+            viewport_adjustPointDistance(sp24, 80.0f);
+            func_802AFBB8(sp24);
             batimer_set(0, 0.1f);
             break;
 
@@ -323,7 +327,7 @@ void bsdronexform_init(void){
     enum asset_e sp18;
     func_8029BCAC(&sp18, &sp1C);
     baanim_playForDuration_loopSmooth(sp18, sp1C);
-    code_14420_setUpdateTypes(1, YAW_STATE_1_DEFAULT, 3, BA_PHYSICS_FREEZE);
+    func_8029C7F4(1,1,3, BA_PHYSICS_FREEZE);
     baphysics_set_velocity(0);
     baphysics_set_target_velocity(0);
     pitch_setIdeal(0.0f);

@@ -71,19 +71,26 @@ ParticleSettingsVelocityPosition CH_TREASUREHUNT_VELOCITY_RANGES = {
     {{-60.0f, 0.0f, -60.0f}, {60.0f, 30.0f, 60.0f}},
 };
 
+
+/* Automated Forward Decls */
+static n64_bool __chTreasurehunt_isActiveHitboxBeakBusterHitbox(void);
+static void __chTreasurehunt_spawnRedXForNextStep(void);
+static void __chTreasurehunt_spawnActorForNextStep(void);
+static void __chTreasurehunt_checkStepProgress(s32 currentStep);
+
 /* .code */
-static bool __chTreasurehunt_isActiveHitboxBeakBusterHitbox(void) {
-    enum comusic_e track_id;
+static n64_bool __chTreasurehunt_isActiveHitboxBeakBusterHitbox(void) {
+    enum comusic_e comusic_id;
     s32 music_volume;
 
     if (player_getActiveHitbox(0) == HITBOX_1_BEAK_BUSTER) {
-        track_id = COMUSIC_2B_DING_B;
+        comusic_id = COMUSIC_2B_DING_B;
         music_volume = 28000;
         if (chtreasureHunt_puzzleCurrentStep == 5) {
-            track_id = COMUSIC_2D_PUZZLE_SOLVED_FANFARE;
+            comusic_id = COMUSIC_2D_PUZZLE_SOLVED_FANFARE;
             music_volume = 0x7FFF;
         }
-        coMusicPlayer_playMusic(track_id, music_volume);
+        coMusicPlayer_playMusic(comusic_id, music_volume);
         return TRUE;
     }
     return FALSE;
@@ -116,10 +123,10 @@ static void __chTreasurehunt_spawnActorForNextStep(void) {
 static void __chTreasurehunt_checkStepProgress(s32 currentStep){
     if(chtreasureHunt_puzzleCurrentStep == currentStep && __chTreasurehunt_isActiveHitboxBeakBusterHitbox()){
         if(currentStep == 0 && !jiggyscore_isCollected(JIGGY_11_TTC_RED_X)){
-            gcdialog_showDialog(VER_SELECT(ASSET_A18_DIALOG_TREASUREHUNT_FOLLOW_CLUES, 0x918, 0, 0), 4, NULL, NULL, NULL, NULL);
+            gcdialog_showDialog(ASSET_A18_DIALOG_TREASUREHUNT_FOLLOW_CLUES, 4, NULL, NULL, NULL, NULL);
         }
         else if(currentStep == 4){
-            gcdialog_showDialog(VER_SELECT(ASSET_A19_DIALOG_TREASUREHUNT_SECOND_STEP, 0x919, 0, 0), 4, NULL, NULL, NULL, NULL);
+            gcdialog_showDialog(ASSET_A19_DIALOG_TREASUREHUNT_SECOND_STEP, 4, NULL, NULL, NULL, NULL);
         }
 
         chtreasureHunt_puzzleCurrentStep++;
@@ -170,7 +177,7 @@ void chTreasurehunt_checkStepProgress5(NodeProp *this, ActorMarker *arg1){
         gcpausemenu_80314AC8(0);
         timedFunc_set_2(0.1f, (GenFunction_2) func_8028F45C, 9, (s32)&particleTargetPosition);
         timedFunc_set_1(0.1f, (GenFunction_1) gcpausemenu_80314AC8, 1);
-        gcdialog_showDialog(VER_SELECT(ASSET_A17_DIALOG_BURIED_TREASURE_SPAWNED, 0x917, 0, 0), 4, NULL, NULL, NULL, NULL);
+        gcdialog_showDialog(ASSET_A17_DIALOG_BURIED_TREASURE_SPAWNED, 4, NULL, NULL, NULL, NULL);
         chtreasureHunt_puzzleCurrentStep++;
     }
 }
@@ -239,7 +246,7 @@ static Actor *__chTreasurehunt_animFunc(ActorMarker *marker, Gfx **gfx, Mtx **mt
     sp40[2] = actor->position[2];
 
     suSetSpriteScale(actor, sp3C);
-    modelRender_setPreDrawCallback(actor_predrawMethod, actor);
+    modelRender_preDraw(actor_predrawMethod, actor);
     modelRender_draw(gfx, mtx, sp40, sp4C, sp3C, NULL, marker_loadModelBin(marker));
     return actor;
 }

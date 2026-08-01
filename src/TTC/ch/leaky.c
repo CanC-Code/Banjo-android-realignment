@@ -22,8 +22,14 @@ ActorInfo gChLeaky = {
     0, 0, 0.0f, 0
 };
 
+
+/* Automated Forward Decls */
+static n64_bool __chLeaky_isCurrentModelShrapnel(Actor *this);
+static void __func_80388F88(void);
+static void __chLeaky_showDoneText(ActorMarker *caller, enum asset_e text_id, s32 arg2);
+
 /* .code */
-static bool __chLeaky_isCurrentModelShrapnel(Actor *this){
+static n64_bool __chLeaky_isCurrentModelShrapnel(Actor *this){
     return this->modelCacheIndex == ACTOR_56_SHRAPNEL;
 }
 
@@ -60,7 +66,7 @@ static void __chLeaky_updateFunc(Actor *this) {
         && !this->has_met_before
         && subaddie_playerIsWithinSphereAndActive(this, 250) && !subaddie_playerIsWithinSphereAndActive(this, 160)
         && !player_movementGroup() 
-        && gcdialog_showDialog(VER_SELECT(ASSET_A1A_DIALOG_LEAKY_FIRST_MEET, 0x91A, 0, 0), 0, NULL, NULL, NULL, NULL)
+        && gcdialog_showDialog(ASSET_A1A_DIALOG_LEAKY_FIRST_MEET, 0, NULL, NULL, NULL, NULL)
     ){
         this->has_met_before = TRUE;
     }
@@ -102,7 +108,7 @@ static void __chLeaky_showDoneText(ActorMarker *caller, enum asset_e text_id, s3
     musicKeepsPlaying();
 }
 
-bool chLeaky_eggCollision(ActorMarker *marker){
+n64_bool chLeaky_eggCollision(ActorMarker *marker){
     Actor *this = marker_getActor(marker);
 
     if (levelSpecificFlags_get(LEVEL_FLAG_2_TTC_UNKNOWN)) {
@@ -118,6 +124,6 @@ bool chLeaky_eggCollision(ActorMarker *marker){
 
     levelSpecificFlags_set(2, TRUE);
     levelSpecificFlags_set(5, TRUE);
-    gcdialog_showDialog(VER_SELECT(ASSET_A28_DIALOG_LEAKY_DONE, 0x928, 0, 0), 0x2a, this->position, this->marker, __chLeaky_showDoneText, NULL);
+    gcdialog_showDialog(ASSET_A28_DIALOG_LEAKY_DONE, 0x2a, this->position, this->marker, __chLeaky_showDoneText, NULL);
     return TRUE;
 }

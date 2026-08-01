@@ -10,6 +10,10 @@ void anim_drawSetup(Animation *this);
 void animationFile_getBoneTransformList(s32, f32, s32);
 void boneTransformList_interpolate(s32, s32, s32, f32);
 
+
+/* Automated Forward Decls */
+static void __anim_resetTransform(Animation *this, s32 arg1);
+
 //function definitions
 static void __anim_resetTransform(Animation *this, s32 arg1){
     s32 *tmp;
@@ -139,7 +143,7 @@ void anim_release(Animation *this){
     }
 }
 
-void anim_new(Animation *this, bool triple_buffer){
+void anim_new(Animation *this, n64_bool triple_buffer){
     this->triple_buffer = triple_buffer;
     anim_setIndex(this,0);
     anim_setTimer(this, 0.0f);

@@ -3,14 +3,15 @@
 #include "functions.h"
 #include "variables.h"
 
-s32 D_803899C0 = VER_SELECT(0x000C740C, 0x000C896A, 0, 0); // MM_TEXT_CRC1
-s32 D_803899C4 = VER_SELECT(0xCD249CB3, 0xED04CB8F, 0, 0); // MM_TEXT_CRC2
-s32 D_803899C8 = VER_SELECT(0x0000D44F, 0x0000D9E8, 0, 0); // MM_DATA_CRC1
+/* .data */
+//TODO Implement CRC calculation in Makefile(?)
+u32 D_803899C0 = 0x000C740C; //MM.code CRC1
+u32 D_803899C4 = 0xCD249CB3; //MM.code CRC2
+u32 D_803899C8 = 0x0000D44F; //MM.data CRC1 (with this value = 0)
 
 void chmumbo_func_802D1724(void);
 
-#if ANTI_TAMPER
-void MM_makeMumboAlwaysTransformBanjoIntoTermite(void) {
+void func_80387EC0(void) {
     u32 *temp_v0;
     u32 temp_a0;
 
@@ -25,16 +26,13 @@ void MM_makeMumboAlwaysTransformBanjoIntoTermite(void) {
         osInvalICache((void *)temp_a0, 8);
     }
 }
-#endif
 
-void MM_checkMMChecksums(void) {
-#if ANTI_TAMPER
-    s32 rom_data;
+void MM_func_80387F44(void) {
+    s32 sp1C;
 
-    osPiReadIo(0x578, (u32 *)&rom_data);
-    rom_data = rom_data & (rom_data ^ 0xFFFF0000);
-    if (rom_data != 0x8965){
-        MM_makeMumboAlwaysTransformBanjoIntoTermite();
+    osPiReadIo(0x578, (u32 *)&sp1C);
+    sp1C = sp1C & (sp1C ^ 0xFFFF0000);
+    if (sp1C != 0x8965){
+        func_80387EC0();
     }
-#endif
 }

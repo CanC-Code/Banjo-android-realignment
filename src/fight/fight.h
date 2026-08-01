@@ -1,6 +1,17 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef _FIGHT_INTERNAL_H_
 #define _FIGHT_INTERNAL_H_
+#ifdef __cplusplus
+}
+#endif
+#include <n64_types.h>
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 enum ch_bossjinjo_e {
     BOSSJINJO_0_UNKNOWN,
     BOSSJINJO_1_ORANGE,
@@ -150,8 +161,8 @@ extern void chfinalboss_createGreenGlowParticle(f32 position[3], s32 color[3]);
 extern void chfinalboss_createSingleSpriteParticle(f32 position[3], enum asset_e sprite_id);
 extern void chfinalboss_spawnBroomstickGlowParticles(Actor *this);
 extern void chfinalboss_func_80386B54(f32 *arg0, f32 arg1);
-extern bool chfinalboss_func_80386BEC(Actor *this, f32 arg1);
-extern bool chfinalboss_func_80386C68(Actor *this, f32 arg1);
+extern n64_bool chfinalboss_func_80386BEC(Actor *this, f32 arg1);
+extern n64_bool chfinalboss_func_80386C68(Actor *this, f32 arg1);
 extern void chfinalboss_func_80386CF8(Actor *actor);
 extern void __chfinalboss_dropHealth(ActorMarker *arg0);
 extern void chfinalboss_despawnFlightPad(void);
@@ -164,7 +175,7 @@ extern void chfinalboss_func_80387110(ActorMarker *marker, f32 arg1[3], f32 arg2
 extern void chfinalboss_func_803872F8(Actor *arg0);
 extern s32 chfinalboss_func_80387340(Actor *this, f32 arg1);
 extern void chfinalboss_func_803873DC(Actor *actor, f32 arg1, f32 arg2);
-extern bool chfinalboss_flyTo(Actor *this, f32 arg1[3], f32 v_max, f32 arg3, f32 arg4, f32 arg5, f32 arg6);
+extern n64_bool chfinalboss_flyTo(Actor *this, f32 arg1[3], f32 v_max, f32 arg3, f32 arg4, f32 arg5, f32 arg6);
 extern void chfinalboss_func_8038770C(Actor *actor);
 extern void chfinalboss_setPhase(ActorMarker *this, enum ch_finalboss_phase_e phase_id);
 extern void chfinalboss_func_80387ACC(Actor *arg0, f32 arg1);
@@ -204,7 +215,7 @@ extern void chfinalboss_phase5_update(ActorMarker *marker);
 extern void chfinalboss_phase0_endTextCallback(ActorMarker *marker, enum asset_e text_id, s32 arg2);
 extern void chfinalboss_func_8038B780(ActorMarker *marker);
 extern void chfinalboss_phase0_update(ActorMarker *marker);
-extern bool chfinalboss_func_8038B834(ActorMarker *marker, ActorMarker *other_marker);
+extern n64_bool chfinalboss_func_8038B834(ActorMarker *marker, ActorMarker *other_marker);
 extern void chfinalboss_collisionPassive(ActorMarker *marker, ActorMarker *other_marker);
 extern void chfinalboss_collisionActive(ActorMarker *marker, ActorMarker *other_marker);
 extern void chfinalboss_spawnShadow(ActorMarker *marker);
@@ -214,11 +225,11 @@ extern void chfinalboss_spellBarrierInactive();
 extern void chfinalboss_func_8038C10C(s32 arg0);
 extern void chfinalboss_func_8038C138();
 extern void chfinalboss_setBossDefeated(void);
-extern void chfinalboss_setJinjoStatueActivated(bool state);
+extern void chfinalboss_setJinjoStatueActivated(n64_bool state);
 extern f32 chfinalboss_getScreamTime();
 extern s32 chfinalboss_func_8038C298();
-extern bool chfinalboss_isJinjoSpawned();
-extern bool chfinalboss_isJinjonatorSpawned();
+extern n64_bool chfinalboss_isJinjoSpawned();
+extern n64_bool chfinalboss_isJinjonatorSpawned();
 
 // chbossjinfo.c
 extern void chbossjinjo_createSpriteParticles(f32 position[3], s32 count, enum asset_e sprite_id, f32 scale);
@@ -272,12 +283,12 @@ extern void chSpellFireball_func_8038F01C(void);
 extern void chSpellFireball_func_8038F050(void);
 extern void chSpellFireball_createExplosionParticles(ActorMarker *marker);
 extern void chSpellFireball_collisionDie(ActorMarker *marker, ActorMarker *other);
-extern bool chSpellFireball_isPositionOverThreshold(f32 *position, f32 distance);
+extern n64_bool chSpellFireball_isPositionOverThreshold(f32 *position, f32 distance);
 extern void chSpellFireball_free(Actor *this);
 extern void chSpellFireball_update(Actor *this);
 extern void chSpellFireball_func_8038FB84(ActorMarker *marker, f32 *position, f32 *velocity, f32 *arg3);
 extern void chSpellFireball_resetSpellHits(void);
-extern void chSpellFireball_setLastSpellFired(bool value);
+extern void chSpellFireball_setLastSpellFired(n64_bool value);
 
 // chgreenblast.c
 extern Actor *chGreenBlast_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
@@ -294,16 +305,21 @@ extern void chjinjonator_spawnAttackParticles(Actor *this, s32 hit_id);
 extern void chjinjonator_803903C4(Actor *this);
 extern void chjinjonator_8039040C(Actor *this);
 extern void chjinjonator_update(Actor *this);
-extern void chjinjonator_attack(ActorMarker *marker, s32 hit_count, bool mirrored);
+extern void chjinjonator_attack(ActorMarker *marker, s32 hit_count, n64_bool mirrored);
 extern void chjinjonator_finalAttack(ActorMarker *marker);
 extern f32 chjinjonator_80391234(void);
 extern f32 chjinjonator_80391240(void);
 extern f32 chjinjonator_80391250(void);
-extern bool chjinjonator_8039125C(ActorMarker *marker);
+extern n64_bool chjinjonator_8039125C(ActorMarker *marker);
 extern void chjinjonator_8039129C(f32 arg0[3]);
 
 // chbossshadow.c
 extern Actor *chBossShadow_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
 extern void chBossShadow_update(Actor *this);
 
+#endif
+
+
+#ifdef __cplusplus
+}
 #endif

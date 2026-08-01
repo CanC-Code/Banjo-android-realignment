@@ -13,10 +13,10 @@ extern NodeProp *func_80304ED0(void*, f32 *);
 extern void func_8031CD44(enum map_e, s32, f32, f32, s32);
 extern void mapSpecificFlags_set(s32, s32);
 
-bool cutscene_skipEnterLairCutsceneCheck(void);
-bool cutscene_skipGameOverCutsceneCheck(void);
-bool cutscene_skipIntroCutsceneCheck(void);
-bool cutscene_skipBeachCutsceneCheck(void);
+n64_bool cutscene_skipEnterLairCutsceneCheck(void);
+n64_bool cutscene_skipGameOverCutsceneCheck(void);
+n64_bool cutscene_skipIntroCutsceneCheck(void);
+n64_bool cutscene_skipBeachCutsceneCheck(void);
 
 extern void func_802DC560(s32, s32);
 
@@ -30,7 +30,7 @@ u8 D_80383190;
 
 /* .code */
 // func_8031C640
-bool cutscene_skipIntroCutsceneCheck(void) {
+n64_bool cutscene_skipIntroCutsceneCheck(void) {
     if ((func_8024E698(0) == 1) && (gameFile_anyNonEmpty() != 0)) {
         return TRUE;
     }
@@ -38,7 +38,7 @@ bool cutscene_skipIntroCutsceneCheck(void) {
 }
 
 // func_8031C688
-bool cutscene_skipEnterLairCutsceneCheck(void) {
+n64_bool cutscene_skipEnterLairCutsceneCheck(void) {
     if ((func_8024E698(0) == 1) 
         && ((D_8037DCCE[0] != 0) 
             || (D_8037DCCE[1] != 0) 
@@ -49,7 +49,7 @@ bool cutscene_skipEnterLairCutsceneCheck(void) {
 }
 
 
-bool cutscene_skipGameOverCutsceneCheck(void) {
+n64_bool cutscene_skipGameOverCutsceneCheck(void) {
     s32 sp24;
 
     sp24 = func_8024E698(0);
@@ -69,14 +69,14 @@ bool cutscene_skipGameOverCutsceneCheck(void) {
     return FALSE;
 }
 
-bool cutscene_skipBeachCutsceneCheck(void){
+n64_bool cutscene_skipBeachCutsceneCheck(void){
     func_803219F4(1);
     return FALSE;
 }
 
 //checks is a cutscene can be inturrupted and performs take me there
-void cutscenetrigger_check(s32 cs_map, s32 arg1, s32 return_map, s32 return_exit, bool (* condFunc)(void)){
-    if(gsworld_getMap() != cs_map)
+void cutscenetrigger_check(s32 cs_map, s32 arg1, s32 return_map, s32 return_exit, n64_bool (* condFunc)(void)){
+    if(gsworld_get_map() != cs_map)
         return;
 
     if((condFunc && condFunc()) || mapSpecificFlags_get(arg1)){
@@ -111,7 +111,7 @@ s32 cutscenetrigger_update(void){
     cutscenetrigger_check(MAP_7C_CS_INTRO_BANJOS_HOUSE_1,   0xC, MAP_1_SM_SPIRAL_MOUNTAIN,      0x12, cutscene_skipIntroCutsceneCheck);
     cutscenetrigger_check(MAP_86_CS_SPIRAL_MOUNTAIN_4,      0xC, MAP_1_SM_SPIRAL_MOUNTAIN,      0x12, cutscene_skipIntroCutsceneCheck);
     cutscenetrigger_check(MAP_89_CS_INTRO_BANJOS_HOUSE_2,   0xC, MAP_1_SM_SPIRAL_MOUNTAIN,      0x12, cutscene_skipIntroCutsceneCheck);
-    if(gsworld_getMap() == MAP_95_CS_END_ALL_100 && mapSpecificFlags_get(1)){
+    if(gsworld_get_map() == MAP_95_CS_END_ALL_100 && mapSpecificFlags_get(1)){
         func_8034B9E4();
         mapSpecificFlags_set(1, 0);
     }
@@ -122,8 +122,8 @@ void func_8031CB50(enum map_e map_id, s32 exit_id, s32 arg2) {
     s32 sp1C;
 
     if ((D_80383190 == 0) && (getGameMode() != GAME_MODE_8_BOTTLES_BONUS) && (getGameMode() != GAME_MODE_7_ATTRACT_DEMO)) {
-        sp1C = core2_9B650_getMusicTrackFromMap(gsworld_getMap());
-        if ((core2_9B650_getMusicTrackFromMap(map_id) != sp1C) && (func_80322914() == 0)) {
+        sp1C = func_803226E8(gsworld_get_map());
+        if ((func_803226E8(map_id) != sp1C) && (func_80322914() == 0)) {
             func_8025A388(0, 0x4E2);
             func_8025AB00();
             core1_ce60_incOrDecCounter(FALSE);
@@ -135,7 +135,7 @@ void func_8031CB50(enum map_e map_id, s32 exit_id, s32 arg2) {
         } else {
             transitionToMap(map_id, exit_id, 1);
         }
-        gsworld_setEnableUpdate(arg2);
+        func_80335110(arg2);
     }
 }
 
@@ -401,7 +401,7 @@ void func_8031D628(s32 arg0, s32 arg1) {
     if (actor) {
         marker_despawn(actor->marker);
     }
-    func_8031CB50(MAP_7_TTC_TREASURE_TROVE_COVE, WARP_TTC_C_LIGHTHOUSE_BOTTOM, 0);
+    func_8031CB50(MAP_7_TTC_TREASURE_TROVE_COVE, 0xC, 0);
 }
 
 void warp_mmmEnterDiningRoomDoor(s32 arg0, s32 arg1) {
@@ -559,7 +559,7 @@ void warp_mmmEnterRainBarrel(s32 arg0, s32 arg1) {
 }
 
 void func_8031DBE8(void) {
-    func_8031CB50(MAP_2F_MMM_WATERDRAIN_BARREL, WARP_MMM_DRAINPIPE_1_TOP_ENTRANCE, 1);
+    func_8031CB50(MAP_2F_MMM_WATERDRAIN_BARREL, 1, 1);
 }
 
 void func_8031DC10(s32 arg0, s32 arg1) {
@@ -727,7 +727,7 @@ void warp_rbbExitBossBoomBoxRoom(s32 arg0, s32 arg1) {
 }
 
 void warp_rbbEnterBossBoomBoxRoom(s32 arg0, s32 arg1) {
-    func_8031CB50(MAP_3A_RBB_BOSS_BOOM_BOX, WARP_RBB_BOSS_1_ENTRANCE, 0);
+    func_8031CB50(MAP_3A_RBB_BOSS_BOOM_BOX, 1, 0);
 }
 
 void func_8031E204(NodeProp *node, s32 arg1, s32 arg2){

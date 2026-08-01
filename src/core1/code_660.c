@@ -1,6 +1,8 @@
 #include <ultra64.h>
+#include "bka_safe_base.h"
 #include "core1/core1.h"
 
+extern u32 func_80000618(u8 **inPtr, u8 **outPtr, struct huft *arg2);
 
 static int _rarezip_uncompress(u8 **arg0, u8 **arg1, struct huft * arg2);
 
@@ -16,7 +18,6 @@ u16 D_80275684[] = {
     3, 4, 5, 6, 7, 8, 9, 10, 11, 13, 15, 17, 19, 23, 27, 31,
     35, 43, 51, 59, 67, 83, 99, 115, 131, 163, 195, 227, 258, 0, 0
 };
-//         /* note: see note #13 above about the 258 in this list. */
 
 // static uch cplext[] = {         /* Extra bits for literal codes 257..285 */
 u8 D_802756C4[] = {
@@ -49,7 +50,7 @@ s32 D_80275764 = 9; //lbits
 s32 D_80275768 = 6; //dbits
 
 /* .data */
-extern struct huft gGlobalHuffTable;
+extern struct huft D_803FBE00;
 struct huft *D_8027BF00;
 u8 pad_8027BF08[0x8];
 u8 *D_8027BF10; //inbuf
@@ -69,9 +70,9 @@ static int _rarezip_inflate(u8 * src, u8 * dst, struct huft * arg2);
 s32 rarezip_get_uncompressed_size(u8 *arg0) {
     return *((s32*) (arg0 + 2));
 }
- 
+
 void rarezip_init(void){
-    D_8027BF00 = &gGlobalHuffTable;
+    D_8027BF00 = &D_803FBE00;
 }
 
 void rarezip_inflate(u8 *src, u8 *dst){
@@ -79,7 +80,6 @@ void rarezip_inflate(u8 *src, u8 *dst){
 }
 
 void rarezip_uncompress(u8 **srcPtr, u8 **dstPtr){
-    //updates in and out buffer ptrs,
     _rarezip_uncompress(srcPtr, dstPtr, D_8027BF00);
 }
 
@@ -88,21 +88,31 @@ void func_8023E0E8(void){
 }
 
 static int _rarezip_inflate(u8 * src, u8 * dst, struct huft * arg2){
-    D_8027BF10 = src;
-    D_8027BF14 = dst;
-    D_8027BF20 = arg2;
-    D_8027BF10 += COMP_HEADER_SIZE;
-    D_8027BF1C = 0;
-    D_8027BF18 = 0;
-    inflate();
-    return D_8027BF1C;
+    u8 *in  = src;
+    u8 *out = dst;
+    u32 result;
+
+    result = func_80000618(&in, &out, arg2);
+
+    /* in has been advanced past the consumed data (including the 6‑byte header),
+       out points to the end of the decompressed output. */
+    D_8027BF1C = result;                /* wp  (decompressed bytes written) */
+    D_8027BF18 = (u32)(in - src);       /* total bytes consumed from src, header included */
+    D_8027BF10 = in;
+    D_8027BF14 = out;
+
+    return result;
 }
 
 static int _rarezip_uncompress(u8 **srcPtr, u8 **dstPtr, struct huft * arg2){
     int result;
     result = _rarezip_inflate(*srcPtr, *dstPtr, arg2);
+
+    /* Advance the caller’s pointers. D_8027BF18 already includes the header,
+       so do not add COMP_HEADER_SIZE again. The output pointer is a host
+       address; skip the old N64 alignment logic to avoid truncation. */
     *dstPtr = *dstPtr + D_8027BF1C;
-    *dstPtr = ((u32)*dstPtr & 0xF) ? (u8 *) ((u32)*dstPtr & -0x10) + 0x10: *dstPtr;
-    *srcPtr = *srcPtr + D_8027BF18 + COMP_HEADER_SIZE;
+    *srcPtr = *srcPtr + D_8027BF18;
+
     return result;
 }

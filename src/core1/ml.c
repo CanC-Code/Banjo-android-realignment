@@ -4,8 +4,13 @@
 #include "variables.h"
 #include "version.h"
 
-s32 D_80276CB0 = VER_SELECT(0xD22FFFD8, 0x90FA97CB, 0, 0); // TTC_DATA_CRC2
-s32 D_80276CB4 = VER_SELECT(0xDEFEF692, 0x8D96D002, 0, 0); // RBB_DATA_CRC2
+#if VERSION == VERSION_USA_1_0
+u32 D_80276CB0 = 0xD22FFFD8; //WHAT IS THIS?
+u32 D_80276CB4 = 0xDEFEF692; //WHAT IS THIS?
+#elif VERSION == VERSION_PAL
+u32 D_80276CB0 = 0x90FA97CB; //WHAT IS THIS?
+u32 D_80276CB4 = 0x8D96D002; //WHAT IS THIS?
+#endif
 
 u16 *D_80276CB8 = NULL; //! ml_acosPrecValTblPtr
 
@@ -113,39 +118,37 @@ f32 ml_vec3f_distance(f32 vec1[3], f32 vec2[3]) {
     return LENGTH_VEC3F(diff);
 }
 
-f32 ml_vec3f_distance_to_point(f32 line_start_position[3], f32 line_end_position[3], f32 point_position[3]) {
-    f32 closestPointOnLine[3];
-    f32 pad48; // unused
-    f32 pointOffsetFromLineStart[3];
-    f32 pointDistanceFromLineStart;
-    f32 projectionFactor;
-    f32 projectionDistance;
-    f32 lineDirection[3];
-    f32 lineLength;
-    f32 pad58; // unused
+f32 ml_func_802560D0(f32 arg0[3], f32 arg1[3], f32 arg2[3]) {
+    f32 sp4C[3];
+    f32 pad48;
+    f32 sp3C[3];
+    f32 sp38;
+    f32 sp34;
+    f32 sp30;
+    f32 sp24[3];
+    f32 sp20;
+    f32 pad58;
 
-    TUPLE_DIFF_COPY(lineDirection, line_end_position, line_start_position)
-    lineLength = LENGTH_VEC3F(lineDirection);
+    TUPLE_DIFF_COPY(sp24, arg1, arg0)
+    sp20 = LENGTH_VEC3F(sp24);
 
-    if (lineLength < 0.01) {
-        return ml_vec3f_distance(line_start_position, point_position);
+    if (sp20 < 0.01) {
+        return ml_vec3f_distance(arg0, arg2);
     }
 
-    TUPLE_DIFF_COPY(pointOffsetFromLineStart, point_position, line_start_position)
-    pointDistanceFromLineStart = LENGTH_VEC3F(pointOffsetFromLineStart);
+    TUPLE_DIFF_COPY(sp3C, arg2, arg0)
+    sp38 = LENGTH_VEC3F(sp3C);
 
-    if (pointDistanceFromLineStart < 0.01) {
-        return pointDistanceFromLineStart;
+    if (sp38 < 0.01) {
+        return sp38;
     }
 
-    projectionFactor = ((lineDirection[0] * pointOffsetFromLineStart[0]
-            + lineDirection[1] * pointOffsetFromLineStart[1]
-            + lineDirection[2] * pointOffsetFromLineStart[2]) / (lineLength * pointDistanceFromLineStart));
-    projectionDistance = (projectionFactor * pointDistanceFromLineStart) / lineLength;
-    closestPointOnLine[0] = line_start_position[0] + (lineDirection[0] * projectionDistance);
-    closestPointOnLine[1] = line_start_position[1] + (lineDirection[1] * projectionDistance);
-    closestPointOnLine[2] = line_start_position[2] + (lineDirection[2] * projectionDistance);
-    return ml_vec3f_distance(closestPointOnLine, point_position);
+    sp34 = ((sp24[0]*sp3C[0] + sp24[1]*sp3C[1] + sp24[2]*sp3C[2]) / (sp20 * sp38));
+    sp30 = (sp34 *sp38) / sp20;
+    sp4C[0] = arg0[0] + (sp24[0] * sp30);
+    sp4C[1] = arg0[1] + (sp24[1] * sp30);
+    sp4C[2] = arg0[2] + (sp24[2] * sp30);
+    return ml_vec3f_distance(sp4C, arg2);
 }
 
 f32 ml_distanceSquared_vec3f(f32 vec1[3], f32 vec2[3])
@@ -178,7 +181,7 @@ void ml_vec3f_normalize_copy(f32 arg0[3], f32 arg1[3])
 
     if (length_squared != 0)
     {
-        inverse = 1.0 / sqrtf(length_squared);
+        inverse = 1.0 / gu_sqrtf(length_squared);
         ml_vec3f_scale_copy(arg0, arg1, inverse);
     }
     else
@@ -193,14 +196,14 @@ void ml_vec3f_normalize(f32 vec[3])
 
     if (length_squared != 0)
     {
-        f32 inverse = 1.0 / sqrtf(length_squared);
+        f32 inverse = 1.0 / gu_sqrtf(length_squared);
         TUPLE_SCALE(vec, inverse)
     }
 }
 
 void ml_vec2f_normalize(f32 vec[2])
 {
-    f32 length = sqrtf(_SQ2(vec[0], vec[1]));
+    f32 length = gu_sqrtf(_SQ2(vec[0], vec[1]));
 
     if (length != 0)
     {
@@ -211,7 +214,7 @@ void ml_vec2f_normalize(f32 vec[2])
 
 void ml_3f_normalize(f32 *x, f32 *y, f32 *z)
 {
-    f32 length = sqrtf(_SQ3(*x, *y, *z));
+    f32 length = gu_sqrtf(_SQ3(*x, *y, *z));
 
     if (length != 0)
     {
@@ -231,14 +234,16 @@ void ml_vec3f_set_length_copy(f32 dst[3], f32 src[3], f32 len)
         ml_vec3f_copy(dst, src);
 }
 
-void ml_vec3f_clamp_deg360(f32 ptr[3]) {
-    int i;
+void func_80256664(f32 ptr[3])
+{
+    u32 i;
 
-    for (i = 0; i < 3; i++) {
+    for (i = 0; i < 3; i++)
+    {
         if (ptr[i] >= 0)
-            ptr[i] = (s32) ptr[i] % 360;
+            ptr[i] = (s32)ptr[i] % 360;
         else
-            ptr[i] += ((360 - (s32) ptr[i]) / 360) * 360;
+            ptr[i] += ((360 - (s32)ptr[i]) / 360) * 360;
     }
 }
 
@@ -267,51 +272,51 @@ void func_80256740(f32 vec[3])
 
 void ml_vec3f_pitch_rotate_copy(f32 dst[3], f32 src[3], f32 pitch)
 {
-    f32 cos, sin;
+    f32 n64_cos, n64_sin;
     f32 val;
 
     pitch *= BAD_DTOR; // M_DTOR
 
-    cos = cosf(pitch);
-    sin = sinf(pitch);
+    n64_cos = cosf(pitch);
+    n64_sin = sinf(pitch);
 
     // weird temp needed for match
     dst[0] =  src[0];
-    val    = (src[1] * cos) - (src[2] * sin);
-    dst[2] = (src[1] * sin) + (src[2] * cos);
+    val    = (src[1] * n64_cos) - (src[2] * n64_sin);
+    dst[2] = (src[1] * n64_sin) + (src[2] * n64_cos);
     dst[1] = val;
 }
 
 void ml_vec3f_yaw_rotate_copy(f32 dst[3], f32 src[3], f32 yaw)
 {
-    f32 cos, sin;
+    f32 n64_cos, n64_sin;
     f32 val;
 
     yaw *= BAD_DTOR; // M_DTOR
 
-    cos = cosf(yaw);
-    sin = sinf(yaw);
+    n64_cos = cosf(yaw);
+    n64_sin = sinf(yaw);
 
     // weird temp needed for match
-    val    = (src[2] * sin) + (src[0] * cos);
+    val    = (src[2] * n64_sin) + (src[0] * n64_cos);
     dst[1] =  src[1];
-    dst[2] = (src[2] * cos) - (src[0] * sin);
+    dst[2] = (src[2] * n64_cos) - (src[0] * n64_sin);
     dst[0] = val;
 }
 
 void ml_vec3f_roll_rotate_copy(f32 dst[3], f32 src[3], f32 roll)
 {
-    f32 cos, sin;
+    f32 n64_cos, n64_sin;
     f32 val;
 
     roll *= BAD_DTOR; // M_DTOR
 
-    cos = cosf(roll);
-    sin = sinf(roll);
+    n64_cos = cosf(roll);
+    n64_sin = sinf(roll);
 
     // weird temp needed for match
-    val = (src[0] * cos) - (src[1] * sin);
-    dst[1] = (src[0] * sin) + (src[1] * cos);
+    val = (src[0] * n64_cos) - (src[1] * n64_sin);
+    dst[1] = (src[0] * n64_sin) + (src[1] * n64_cos);
     dst[2] = src[2];
     dst[0] = val;
 }
@@ -328,7 +333,7 @@ void ml_vec3f_set_length(f32 vec[3], f32 length) {
 //ml_f_sin_of_angle_between_points_2D
 f32 func_80256AB4(f32 x1, f32 y1, f32 x2, f32 y2)
 {
-    f32 val = sqrtf(y1 * y1 + x1 * x1) * sqrtf(x2 * x2 + y2 * y2);
+    f32 val = gu_sqrtf(y1 * y1 + x1 * x1) * gu_sqrtf(x2 * x2 + y2 * y2);
 
     if (val)
         return (y1 * x2 - x1 * y2) / val;
@@ -452,7 +457,7 @@ f32 func_80257248(f32 vec1[3], f32 vec2[3])
     return func_8025715C(vec2[0] - vec1[0], vec2[2] - vec1[2]);
 }
 
-void ml_horizontal_and_vertical_angles(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, f32 *o1, f32 *o2)
+void func_8025727C(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f32 z2, f32 *o1, f32 *o2)
 {
     f32 dz;
     f32 dy; // unused
@@ -466,7 +471,7 @@ void ml_horizontal_and_vertical_angles(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f
     dz = z2 - z1;
     ft2 = (dx * dx) + (dz * dz);
 
-    horz_dist = sqrtf(ft2);
+    horz_dist = gu_sqrtf(ft2);
 
     if (horz_dist > 0.01)
     {
@@ -484,7 +489,7 @@ void ml_horizontal_and_vertical_angles(f32 x1, f32 y1, f32 z1, f32 x2, f32 y2, f
     }
 
 
-    dist = sqrtf((dy * dy) + ft2);
+    dist = gu_sqrtf((dy * dy) + ft2);
 
     if (dist > 0.01)
     {
@@ -508,7 +513,7 @@ void ml_init(void)
     u16 i;
 
     // Allocate table
-    D_80276CB8 = (u16 *)malloc(10001 * sizeof(u16));
+    D_80276CB8 = (u16 *)n64_malloc(10001 * sizeof(u16));
 
     // Generate all entries in the table
     for (i = 0; i < 10001; i++)
@@ -524,7 +529,7 @@ void ml_init(void)
 //ml_free
 void ml_free(void)
 {
-    free(D_80276CB8);
+    n64_free(D_80276CB8);
     D_80276CB8 = NULL;
 }
 
@@ -567,7 +572,7 @@ void ml_defrag(void)
 
 //ml_timer_update
 //decrement a counter and returns True if timer reaches 0
-bool ml_timer_update(f32 *timer, f32 delta) {
+n64_bool ml_timer_update(f32 *timer, f32 delta) {
     if (*timer > 0) {
         *timer -= delta;
 
@@ -636,7 +641,7 @@ void func_80257918(f32 arg0[3], f32 arg1[3], f32 arg2[3], f32 arg3[3]){
     ml_vec3f_diff_copy(arg0, arg1, sp2C);
 }
 
-bool func_802579B0(f32 vec[3], f32 x1, f32 z1, f32 x2, f32 z2)
+n64_bool func_802579B0(f32 vec[3], f32 x1, f32 z1, f32 x2, f32 z2)
 {
     return x1 <= vec[0]
         && x2 >= vec[0]
@@ -783,7 +788,7 @@ int func_80257F18(f32 src[3], f32 target[3], f32 *yaw)
     *yaw = 0;
 
     TUPLE_DIFF_COPY(diff, target, src)
-    h = sqrtf(_SQ2(diff[2], diff[0]));
+    h = gu_sqrtf(_SQ2(diff[2], diff[0]));
 
     if (h < 0.01) // (f64) 0.01
         return 0;
@@ -808,7 +813,7 @@ int func_8025801C(f32 target[3], f32 *yaw)
     *yaw = 0;
 
     TUPLE_COPY(diff, target)
-    h = sqrtf(_SQ2(diff[2], diff[0]));
+    h = gu_sqrtf(_SQ2(diff[2], diff[0]));
 
     if (h < 0.01) // (f64) 0.01
         return 0;
@@ -831,7 +836,7 @@ int func_80258108(f32 vec[3], f32 *arg1, f32 *arg2)
     *arg1 = 0;
     *arg2 = 0;
 
-    horz_len = sqrtf(_SQ2(vec[2], vec[0]));
+    horz_len = gu_sqrtf(_SQ2(vec[2], vec[0]));
 
     if (horz_len < 0.01)
         return 0;
@@ -855,7 +860,7 @@ int func_80258210(f32 x, f32 y, f32 *dst)
 
     *dst = 0;
 
-    tmp = sqrtf(_SQ2(y, x));
+    tmp = gu_sqrtf(_SQ2(y, x));
 
     if (tmp < 0.01)
         return FALSE;
@@ -871,36 +876,36 @@ int func_80258210(f32 x, f32 y, f32 *dst)
     return TRUE;
 }
 
-bool ml_isZero_vec3f(f32 vec[3])
+n64_bool ml_isZero_vec3f(f32 vec[3])
 {
     return !(vec[0] != 0 || vec[1] != 0 || vec[2] != 0);
 }
 
-bool ml_isNonzero_vec3f(f32 vec[3])
+n64_bool ml_isNonzero_vec3f(f32 vec[3])
 {
     return vec[0] != 0 || vec[1] != 0 || vec[2] != 0;
 }
 
-bool ml_vec3f_not_on_vertical_axis(f32 vec[3])
+n64_bool ml_vec3f_not_on_vertical_axis(f32 vec[3])
 {
     return vec[0] != 0 && vec[2] != 0;
 }
 
-bool ml_vec3f_inside_box_f(f32 vec[3], f32 minX, f32 minY, f32 minZ, f32 maxX, f32 maxY, f32 maxZ)
+n64_bool ml_vec3f_inside_box_f(f32 vec[3], f32 minX, f32 minY, f32 minZ, f32 maxX, f32 maxY, f32 maxZ)
 {
     return vec[0] > minX && vec[0] < maxX
         && vec[1] > minY && vec[1] < maxY
         && vec[2] > minZ && vec[2] < maxZ;
 }
 
-bool ml_vec3f_inside_box_vec3f(f32 vec[3], f32 min[3], f32 max[3])
+n64_bool ml_vec3f_inside_box_vec3f(f32 vec[3], f32 min[3], f32 max[3])
 {
     return vec[0] > min[0] && vec[0] < max[0]
         && vec[1] > min[1] && vec[1] < max[1]
         && vec[2] > min[2] && vec[2] < max[2];
 }
 
-bool ml_vec3w_inside_box_w(s32 vec[3], s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s32 maxZ) {
+n64_bool ml_vec3w_inside_box_w(s32 vec[3], s32 minX, s32 minY, s32 minZ, s32 maxX, s32 maxY, s32 maxZ) {
     return vec[0] > minX && vec[0] < maxX
         && vec[1] > minY && vec[1] < maxY
         && vec[2] > minZ && vec[2] < maxZ;
@@ -911,7 +916,7 @@ f32 ml_vec3f_horizontal_distance_zero_likely(f32 vec1[3], f32 vec2[3]) {
     f32 dZ = vec1[2] - vec2[2];
 
     if (dX != 0 || dZ != 0) {
-        return sqrtf(_SQ2(dX, dZ));
+        return gu_sqrtf(_SQ2(dX, dZ));
     }
 
     return 0;
@@ -937,7 +942,7 @@ f32 ml_vec3f_length(f32 vec1[3], f32 vec2[3])
     val = _SQ3(val, dY, dZ);
 
     if (val != 0)
-        return sqrtf(val);
+        return gu_sqrtf(val);
 
     return 0;
 }
@@ -1027,30 +1032,27 @@ void func_802589E4(f32 dst[3], f32 yaw, f32 length)
     dst[2] = cosf(yaw) * length;
 }
 
-void func_80258A4C(
-    f32 this_position[3], f32 this_yaw, f32 target_position[3],
-    f32 *horizontal_distance, f32 *distance_in_front, f32 *side_angle_radian)
+void func_80258A4C(f32 vec1[3], f32 arg1, f32 vec2[3], f32 *arg3, f32 *arg4, f32 *arg5)
 {
-    f32 dst[3];
-    f32 direction[3];
+    f32 t1[3];
+    f32 t2[3];
 
-    TUPLE_DIFF_COPY(dst, target_position, this_position)
-    dst[1] = 0;
+    TUPLE_DIFF_COPY(t1, vec2, vec1)
+    t1[1] = 0;
 
-    *horizontal_distance = sqrtf(_SQ3(dst[0], dst[1], dst[2]));
+    *arg3 = gu_sqrtf(_SQ3(t1[0], t1[1], t1[2]));
 
-    direction[2] = 0;
-    direction[1] = 0;
-    direction[0] = 100;
+    t2[2] = 0;
+    t2[1] = 0;
+    t2[0] = 100;
 
-    ml_vec3f_yaw_rotate_copy(direction, direction, this_yaw);
+    ml_vec3f_yaw_rotate_copy(t2, t2, arg1);
 
-    *distance_in_front = TUPLE_DOT_PRODUCT(dst, direction);
+    *arg4 = TUPLE_DOT_PRODUCT(t1, t2);
+    *arg5 = func_80256AB4(t2[0], t2[2], t1[0], t1[2]);
 
-    *side_angle_radian = func_80256AB4(direction[0], direction[2], dst[0], dst[2]);
-
-    if (*distance_in_front < 0)
-        *side_angle_radian = *side_angle_radian < 0 ? -1 : 1;
+    if (*arg4 < 0)
+        *arg5 = *arg5 < 0 ? -1 : 1;
 }
 
 void ml_vec3f_clear(f32 dst[3])
@@ -1186,15 +1188,15 @@ void func_8025901C(f32 arg0, f32 arg1[3], f32 arg2[3], f32 arg3){
     }//L80259184
 }
 
-f32 ml_clamp_abs_f(f32 value, f32 max_abs_value)
+f32 func_80259198(f32 arg0, f32 arg1)
 {
-    if (value > max_abs_value)
-        return max_abs_value;
+    if (arg0 > arg1)
+        return arg1;
 
-    if (value < -max_abs_value)
-        return -max_abs_value;
+    if (arg0 < -arg1)
+        return -arg1;
 
-    return value;
+    return arg0;
 }
 
 f32 mlDiffDegF(f32 arg0, f32 arg1)
@@ -1210,7 +1212,7 @@ f32 mlDiffDegF(f32 arg0, f32 arg1)
     return diff;
 }
 
-bool ml_vec3f_point_within_horizontal_distance(f32 vec[3], f32 x, f32 z, f32 distance)
+n64_bool ml_vec3f_point_within_horizontal_distance(f32 vec[3], f32 x, f32 z, f32 distance)
 {
     f32 diff[3];
 
@@ -1221,7 +1223,7 @@ bool ml_vec3f_point_within_horizontal_distance(f32 vec[3], f32 x, f32 z, f32 dis
     return _SQ3(diff[0], 0, diff[2]) <= distance * distance;
 }
 
-bool ml_vec3f_within_horizontal_distance(f32 vec1[3], f32 vec2[3], f32 distance)
+n64_bool ml_vec3f_within_horizontal_distance(f32 vec1[3], f32 vec2[3], f32 distance)
 {
     f32 diff[3];
 
@@ -1231,7 +1233,7 @@ bool ml_vec3f_within_horizontal_distance(f32 vec1[3], f32 vec2[3], f32 distance)
     return _SQ3(diff[0], 0, diff[2]) < distance * distance;
 }
 
-bool ml_vec3w_within_horizontal_distance(s32 vec1[3], s32 vec2[3], s32 distance)
+n64_bool ml_vec3w_within_horizontal_distance(s32 vec1[3], s32 vec2[3], s32 distance)
 {
     s32 diff[3];
 
@@ -1241,7 +1243,7 @@ bool ml_vec3w_within_horizontal_distance(s32 vec1[3], s32 vec2[3], s32 distance)
     return _SQ3(diff[0], 0, diff[2]) < distance * distance;
 }
 
-bool ml_vec3f_within_distance(f32 vec1[3], f32 vec2[3], f32 distance)
+n64_bool ml_vec3f_within_distance(f32 vec1[3], f32 vec2[3], f32 distance)
 {
     f32 t[3];
 
@@ -1249,7 +1251,7 @@ bool ml_vec3f_within_distance(f32 vec1[3], f32 vec2[3], f32 distance)
     return LENGTH_SQ_VEC3F(t) <= distance * distance;
 }
 
-bool ml_stub_80259400(f32 x) {
+n64_bool ml_stub_80259400(f32 x) {
     // wtf?
     return *(u32 *)&x == 0x80 || *(u32 *)&x == 0x2A8800;
 }
@@ -1261,51 +1263,48 @@ void ml_sub_delta_time(f32 *x) {
         *x = 0;
 }
 
-// Perpendicular projection of point onto line using xz coordinates
-void ml_project_point_onto_vecf3(
-    f32 closest_point_on_line[3], f32 line_start_position[3],
-    f32 line_end_position[3], f32 point_to_project[3])
+void func_8025947C(f32 a0[3], f32 a1[3], f32 a2[3], f32 a3[3])
 {
-    f32 line_dx_xz;
-    f32 line_dz_xz;
-    f32 line_slope_xz;
-    f32 intersection_x_xz;
-    f32 line_intercept_xz;
-    f32 perpendicular_intercept_xz;
+    f32 f0;
+    f32 f12;
+    f32 f16;
+    f32 f8;
+    f32 f18;
+    f32 f4;
 
-    closest_point_on_line[1] = line_start_position[1];
+    a0[1] = a1[1];
 
-    line_dx_xz = line_end_position[0] - line_start_position[0];
+    f0 = a2[0] - a1[0];
 
-    if (line_dx_xz == 0)
+    if (f0 == 0)
     {
-        closest_point_on_line[0] = line_start_position[0];
-        closest_point_on_line[2] = point_to_project[2];
+        a0[0] = a1[0];
+        a0[2] = a3[2];
 
         return;
     }
 
-    line_dz_xz = line_end_position[2] - line_start_position[2];
+    f12 = a2[2] - a1[2];
 
-    if (line_dz_xz == 0)
+    if (f12 == 0)
     {
-        closest_point_on_line[0] = point_to_project[0];
-        closest_point_on_line[2] = line_start_position[2];
+        a0[0] = a3[0];
+        a0[2] = a1[2];
 
         return;
     }
 
-    line_slope_xz = line_dz_xz / line_dx_xz;
-    line_intercept_xz = line_start_position[2] - (line_start_position[0] * line_slope_xz);
+    f16 = f12 / f0;
+    f18 = a1[2] - (a1[0] * f16);
 
-    intersection_x_xz = -1.0 / line_slope_xz;
+    f8 = -1.0 / f16;
 
-    perpendicular_intercept_xz = point_to_project[2] - (point_to_project[0] * intersection_x_xz);
+    f4 = a3[2] - (a3[0] * f8);
 
-    intersection_x_xz = (perpendicular_intercept_xz - line_intercept_xz) / (line_slope_xz - intersection_x_xz);
+    f8 = (f4 - f18) / (f16 - f8);
 
-    closest_point_on_line[0] = intersection_x_xz;
-    closest_point_on_line[2] = intersection_x_xz * line_slope_xz + line_intercept_xz;
+    a0[0] = f8;
+    a0[2] = f8 * f16 + f18;
 }
 
 
@@ -1371,7 +1370,7 @@ s32 ml_getViewportYawWithOffset(f32 x) {
     return val;
 }
 
-bool ml_isViewportYawWithOffsetNormalized(f32 x) {
+n64_bool ml_isViewportYawWithOffsetNormalized(f32 x) {
     return ml_getViewportYawWithOffset(x) < 180;
 }
 

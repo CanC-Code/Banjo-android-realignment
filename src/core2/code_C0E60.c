@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include "bka_safe_base.h"
 #include "functions.h"
 #include "variables.h"
 
@@ -97,7 +98,7 @@ void func_80347E60(Struct81s *arg0) {
         } else {
             var_f12 = temp_f0;
         }
-        temp_f26 = sqrtf(var_f12);
+        temp_f26 = gu_sqrtf(var_f12);
         for(var_s0 = 0; var_s0 != 2; var_s0++){
             if (((randf() * 3.0f) / 2) < temp_f26) {
                 func_80355C60(actor->position, 1.0f);
@@ -150,7 +151,7 @@ void func_80348044(Gfx **gfx, BKSprite* sprite, s32 frame, s32 tmem, s32 rtile, 
         spriteRenderHasPalette = TRUE;
         spriteRender1PrimMode = FALSE;
         D_80386074 = 0; 
-        texture_block = (BKSpriteTextureBlock *)(palette_addr + 0x20);
+        texture_block = (BKSpriteTextureBlock *)BKA_TRANSLATE_ADDR((palette_addr + 0x20));
         D_80386098 = D_8038607C = 0;
     } else if (sprite->type & SPRITE_TYPE_CI8) {
         gDPPipelineMode((*gfx)++, G_PM_1PRIMITIVE);
@@ -158,7 +159,7 @@ void func_80348044(Gfx **gfx, BKSprite* sprite, s32 frame, s32 tmem, s32 rtile, 
         spriteRender1PrimMode = spriteRenderHasPalette = TRUE;
         D_80386074 = NULL;
         D_8038607C = 0;
-        texture_block = (BKSpriteTextureBlock *)(palette_addr + 0x200);
+        texture_block = (BKSpriteTextureBlock *)BKA_TRANSLATE_ADDR((palette_addr + 0x200));
         D_80386098 = 0;
         for(var_a0 = 0; var_a0 < chunk_count; var_a0++) {
             texture_block = (s32)texture_block + (texture_block->w * texture_block->h) + sizeof(BKSpriteTextureBlock);

@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include "bka_safe_base.h"
 #include "core1/core1.h"
 #include "functions.h"
 #include "variables.h"
@@ -45,7 +46,7 @@ void snspayload_calc_checksum(struct SnsPayload *payload)
     glcrc_calc_checksum(payload, &payload->checksum, payload->checksum);
 }
 
-bool snspayload_validate(struct SnsPayload *payload)
+n64_bool snspayload_validate(struct SnsPayload *payload)
 {
     u32 checksum[2];
 
@@ -61,7 +62,7 @@ struct SnsPayload *snspayload_find_payload_in_ram(void)
 {
     struct SnsPayload *payload;
 
-    for (payload = (struct SnsPayload *)0x80000000; payload < (struct SnsPayload *)0x80400080; payload++)
+    for (payload = (struct SnsPayload *)BKA_TRANSLATE_ADDR(0x80000000); payload < (struct SnsPayload *)BKA_TRANSLATE_ADDR(0x80400080); payload++)
         if (payload->magic == SNS_HEADER_MAGIC && snspayload_validate(payload))
             return payload;
 

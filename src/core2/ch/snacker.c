@@ -62,6 +62,12 @@ f32 s_chSnacker_respawnDelay_s;
 s32 s_chSnacker_inRbb;
 s32 D_8037E630;
 
+
+/* Automated Forward Decls */
+static void __chsnacker_start_dialog(Actor *this);
+static void __chsnacker_die(ActorMarker *marker, ActorMarker *other);
+static void __chsnacker_ow(ActorMarker *marker, ActorMarker *other);
+
 /* .code */
 void func_802E0CD0(Actor *this){
     this->actor_specific_1_f = 4.0f;
@@ -80,7 +86,7 @@ static void __chsnacker_start_dialog(Actor *this) {
             text_index = mapSpecificFlags_getN(8, 3);
             if( !this->has_met_before ) {
                 if(text_index < 4) {
-                    if(gcdialog_showDialog(VER_SELECT(ASSET_A1B_DIALOG_SNACKER_SPAWNED_1, 0x91B, 0, 0) + text_index, 0, NULL, NULL, NULL, NULL)){
+                    if(gcdialog_showDialog(ASSET_A1B_DIALOG_SNACKER_SPAWNED_1 + text_index, 0, NULL, NULL, NULL, NULL)){
                         text_index++;
                         mapSpecificFlags_setN(8, text_index, 3);
                         this->has_met_before = TRUE;
@@ -92,7 +98,7 @@ static void __chsnacker_start_dialog(Actor *this) {
     }
 }
 
-bool func_802E0DC0(f32 snacker_position[3]){
+n64_bool func_802E0DC0(f32 snacker_position[3]){
     f32 player_position[3];
     f32 pad0;
 
@@ -137,7 +143,7 @@ static void __chsnacker_die(ActorMarker *marker, ActorMarker *other){
 void func_802E0FC4(Actor *this){
     s_chSnacker_marker = NULL;
     D_8037E630 = this->unk166;
-    if(comusic_isTrackQueued(COMUSIC_34_SNACKER_DANGER)){
+    if(func_8025AD7C(COMUSIC_34_SNACKER_DANGER)){
         func_8025AABC(COMUSIC_34_SNACKER_DANGER);
         func_8025A7DC(COMUSIC_34_SNACKER_DANGER);
     }

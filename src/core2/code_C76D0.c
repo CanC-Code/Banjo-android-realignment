@@ -3,7 +3,7 @@
 #include "variables.h"
 
 /* .code */
-void func_8034E660(s32 arg0, BKModelVtxRef *src, Vtx *dst, Struct73s *arg3) {
+void func_8034E660(s32 arg0, BKVtxRef *src, Vtx *dst, Struct73s *arg3) {
     dst->v.ob[1] = src->v.v.ob[1] + arg3->dy;
     dst->v.tc[0] = src->v.v.tc[0] + arg3->d_tc[0];
     dst->v.tc[1] = src->v.v.tc[1] + arg3->d_tc[1];
@@ -39,7 +39,7 @@ void func_8034E71C(Struct73s *arg0, s32 arg1, f32 arg2) {
     if (arg2 == 0.0f) {
         arg0->dy = arg1;
         sp18 = func_8034C4F0(arg0);
-        model_transformMesh(sp18, func_8034C50C(arg0), func_8034E660, (s32) arg0);
+        BKModel_transformMesh(sp18, func_8034C50C(arg0), func_8034E660, (s32) arg0);
     }
 }
 
@@ -71,28 +71,28 @@ void func_8034E8E4(Struct73s *arg0, BKModel *arg1, s32 arg2) {
     f32 sp3C;
     f32 sp38;
     f32 sp30[2];
-    f32 sin;
-    f32 cos;
+    f32 n64_sin;
+    f32 n64_cos;
     f32 sp2C;
     f32 sp28;
 
     sp38 = time_getDelta();
     arg0->unk4 += sp38;
-    cos = cosf(arg0->unk4 * 0.2 * BAD_PI);
-    sin = sinf(arg0->unk4 * 0.08 * BAD_PI);
-    sp30[0] = (sin*100.0f + 150.0f*cos)*0.8;
+    n64_cos = cosf(arg0->unk4 * 0.2 * BAD_PI);
+    n64_sin = sinf(arg0->unk4 * 0.08 * BAD_PI);
+    sp30[0] = (n64_sin*100.0f + 150.0f*n64_cos)*0.8;
 
     
-    cos = sinf(arg0->unk4 * 0.5 * BAD_PI);
-    sin = cosf(arg0->unk4 * 0.22 * BAD_PI);
-    sp30[1] = (sin* 100.0f + 50.0f*cos)*0.8;
+    n64_cos = sinf(arg0->unk4 * 0.5 * BAD_PI);
+    n64_sin = cosf(arg0->unk4 * 0.22 * BAD_PI);
+    sp30[1] = (n64_sin* 100.0f + 50.0f*n64_cos)*0.8;
 
     arg0->d_tc[0] = (sp30[0] >= 0.0) ? sp30[0] + 0.5 : sp30[0] - 0.5;
     arg0->d_tc[1] = (sp30[1] >= 0.0) ? sp30[1] + 0.5 : sp30[1] - 0.5;
 
-    cos = cosf(arg0->unk4 * 0.5 * BAD_PI);
-    sin = sinf(arg0->unk4 * 0.11 * BAD_PI);
-    sp2C = sin*(arg0->unk8 * 0.25) + (arg0->unk8* 0.75)*cos;
+    n64_cos = cosf(arg0->unk4 * 0.5 * BAD_PI);
+    n64_sin = sinf(arg0->unk4 * 0.11 * BAD_PI);
+    sp2C = n64_sin*(arg0->unk8 * 0.25) + (arg0->unk8* 0.75)*n64_cos;
     
     if (arg0->unk14 < arg0->unk1C) {
         arg0->unk18 = arg0->unk14;
@@ -104,5 +104,5 @@ void func_8034E8E4(Struct73s *arg0, BKModel *arg1, s32 arg2) {
     sp28 = ((arg0->unk14 < arg0->unk1C) ? arg0->unkC + ((arg0->unk14 / arg0->unk1C) * (arg0->unkE - arg0->unkC)) : arg0->unkE);
     sp28 += sp2C;
     arg0->dy = (sp28 >= 0.0) ? sp28 + 0.5 : sp28 - 0.5;
-    model_transformMesh(arg1, arg2, func_8034E660, (s32) arg0);
+    BKModel_transformMesh(arg1, arg2, func_8034E660, (s32) arg0);
 }

@@ -3,7 +3,6 @@
 #include "variables.h"
 
 #include "core2/ba/physics.h"
-#include "core2/yaw.h"
 
 void func_802B3A50(void) {
     f32 sp34;
@@ -23,7 +22,7 @@ void func_802B3AAC(enum asset_e anim_id, f32 anim_duration) {
 
     anim_ctrl = baanim_getAnimCtrlPtr();
     if (anim_id == ASSET_14A_ANIM_BSREST_LISTEN) {
-        modelAppendages_setKazooiesUpperHalfVisibility(TRUE);
+        func_8029E070(1);
         switch (anctrl_getIndex(baanim_getAnimCtrlPtr())) {
         case ASSET_14A_ANIM_BSREST_LISTEN:
             baanim_playForDuration_loopSmooth(anim_id, anim_duration);
@@ -42,15 +41,15 @@ void func_802B3AAC(enum asset_e anim_id, f32 anim_duration) {
     } else {
         baanim_playForDuration_loopSmooth(anim_id, anim_duration);
     }
-    code_14420_setUpdateTypes(1, YAW_STATE_1_DEFAULT, 3, BA_PHYSICS_NORMAL);
+    func_8029C7F4(1, 1, 3, BA_PHYSICS_NORMAL);
     baphysics_set_target_horizontal_velocity(0.0f);
     func_802B3A50();
 }
 
 
-bool func_802B3BB0(void) {
+n64_bool func_802B3BB0(void) {
     AnimCtrl *anim_ctrl;
-    bool sp20;
+    n64_bool sp20;
 
     anim_ctrl = baanim_getAnimCtrlPtr();
     func_802B3A50();
@@ -86,10 +85,10 @@ bool func_802B3BB0(void) {
 }
 
 void func_802B3CCC(void){ 
-    modelAppendages_setKazooiesUpperHalfVisibility(FALSE);
+    func_8029E070(0);
 }
 
-void bsrest_bs73unknown_init(void){ 
+void func_802B3CEC(void){ 
     enum asset_e anim_id;
     f32 anim_duration;
     
@@ -97,7 +96,7 @@ void bsrest_bs73unknown_init(void){
     func_802B3AAC(anim_id, anim_duration);
 }
 
-void bsrest_bs73unknown_update(void) {
+void func_802B3D1C(void) {
     enum bs_e next_state;
 
     next_state = 0;
@@ -110,11 +109,11 @@ void bsrest_bs73unknown_update(void) {
     bs_setState(next_state);
 }
 
-void bsrest_bs73unknown_end(void){ 
+void func_802B3D6C(void){ 
     func_802B3CCC();
 }
 
-void bsrest_bs75unknown_init(void){ 
+void func_802B3D8C(void){ 
     enum asset_e anim_id;
     f32 anim_duration;
     
@@ -123,7 +122,7 @@ void bsrest_bs75unknown_init(void){
 }
 
 
-void bsrest_bs75unknown_update(void) {
+void func_802B3DBC(void) {
     enum bs_e next_state;
 
     next_state = 0;
@@ -137,11 +136,11 @@ void bsrest_bs75unknown_update(void) {
 }
 
 
-void bsrest_bs75unknown_end(void){ 
+void func_802B3E0C(void){ 
     func_802B3CCC();
 }
 
-void bsrest_bs74unknown_init(void){ 
+void func_802B3E2C(void){ 
     enum asset_e anim_id;
     f32 anim_duration;
     
@@ -150,7 +149,7 @@ void bsrest_bs74unknown_init(void){
     func_8029C674();
 }
 
-void bsrest_bs74unknown_update(void) {
+void func_802B3E64(void) {
     s32 next_state;
 
     next_state = 0;
@@ -161,14 +160,14 @@ void bsrest_bs74unknown_update(void) {
     if (func_802B3BB0()) {
         next_state = bs_getIdleState();
     }
-    if (gsworld_getMap() == MAP_27_FP_FREEZEEZY_PEAK && baflag_isTrue(BA_FLAG_14_LOSE_BOGGY_RACE)) {
+    if (gsworld_get_map() == MAP_27_FP_FREEZEEZY_PEAK && baflag_isTrue(BA_FLAG_14_LOSE_BOGGY_RACE)) {
         next_state = func_8029CA94(next_state);
     }
     bs_setState(next_state);
 }
 
 
-void bsrest_bs74unknown_end(void){
+void func_802B3EF4(void){
     func_802B3CCC();
     func_8029C748();
 }

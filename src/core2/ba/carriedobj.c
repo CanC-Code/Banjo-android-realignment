@@ -3,13 +3,13 @@
 #include "variables.h"
 #include "core2/ba/carry.h"
 
-bool player_setCarryObjectPose(enum actor_e actor_id, Actor **arg1){
+n64_bool player_setCarryObjectPose(enum actor_e actor_id, Actor **arg1){
     ActorMarker *m1;
     ActorMarker *m2;
     Actor *actor;
     
     m1 = (*arg1)->marker;
-    m2 = bacarry_getMarker();
+    m2 = bacarry_get_marker();
     if(m2){
         actor = marker_getActor(m2);
     }
@@ -40,7 +40,7 @@ void bacarriedobj_spawn(enum actor_e actor_id){
     ActorMarker *marker;
     Actor *actor;
     
-    marker = bacarry_getMarker();
+    marker = bacarry_get_marker();
     if(marker){
         actor = marker_getActor(marker);
     }
@@ -68,7 +68,7 @@ void bacarriedobj_dec(enum actor_e actor_id){
     ActorMarker *marker;
     Actor* actor;
 
-    marker = bacarry_getMarker();
+    marker = bacarry_get_marker();
     if(marker)
         actor = marker_getActor(marker);
 

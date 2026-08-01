@@ -56,6 +56,6 @@ void bsStoredState_setTurboTimer(f32 arg0){
     bsStoredState.turbo_timer = arg0;
 }
 
-void bsStoredState_setTrot(bool arg0){
+void bsStoredState_setTrot(n64_bool arg0){
     bsStoredStateInTrot = arg0;
 }

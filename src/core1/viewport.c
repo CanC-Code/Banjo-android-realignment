@@ -93,12 +93,10 @@ void viewport_setRenderPerspectiveMatrix(Gfx **gfx, Mtx **mtx, f32 near, f32 far
     near = MAX(sViewportNear, near);
     far = MIN(sViewportFar, far);
 
-#if ANTI_TAMPER
-    if ((*(u32*) OS_PHYSICAL_TO_K1(0x000001D8)) + 0x53D4FFF0) {
+    if(*(u32*)OS_PHYSICAL_TO_K1(0x1D8) + 0x53D4FFF0) { // what's this?
         near = 750.0f; 
         far = 1250.0f;
     }
-#endif
     
     guPerspective(*mtx, &perspNorm, sViewportFOVy, sViewportAspect, near, far, 0.5f);
     gSPPerspNormalize((*gfx)++, perspNorm);
@@ -267,7 +265,7 @@ void viewport_setFrustumPlanes(f32 arg0[4], f32 arg1[4], f32 arg2[4], f32 arg3[4
     }
 }
 
-bool viewport_isBoundingBoxInFrustum(f32 min[3], f32 max[3]) {
+n64_bool viewport_isBoundingBoxInFrustum(f32 min[3], f32 max[3]) {
     
     if (((sViewportFrustumPlanes[0][0] * min[0] + sViewportFrustumPlanes[0][1] * min[1] + sViewportFrustumPlanes[0][2] * min[2] + sViewportFrustumPlanes[0][3]) >= 0.0f) &&
         ((sViewportFrustumPlanes[0][0] * min[0] + sViewportFrustumPlanes[0][1] * min[1] + sViewportFrustumPlanes[0][2] * max[2] + sViewportFrustumPlanes[0][3]) >= 0.0f) &&
@@ -312,7 +310,7 @@ bool viewport_isBoundingBoxInFrustum(f32 min[3], f32 max[3]) {
     return TRUE;
 }
 
-bool viewport_cube_isInFrustum(Cube *cube) {
+n64_bool viewport_cube_isInFrustum(Cube *cube) {
     f32 min[3];
     f32 max[3];
 
@@ -327,7 +325,7 @@ bool viewport_cube_isInFrustum(Cube *cube) {
     return viewport_isBoundingBoxInFrustum(min, max);
 }
 
-bool viewport_cube_isInFrustum2(Cube *cube) {
+n64_bool viewport_cube_isInFrustum2(Cube *cube) {
     f32 min[3];
     f32 max[3];
     f32 rel_pos[3];
@@ -356,7 +354,7 @@ bool viewport_cube_isInFrustum2(Cube *cube) {
 }
 
 // viewport_distanceFromPlane ?
-bool viewport_func_8024DB50(f32 pos[3], f32 distance) {
+n64_bool viewport_func_8024DB50(f32 pos[3], f32 distance) {
     f32 delta[3];
     s32 i;
 
@@ -373,7 +371,7 @@ bool viewport_func_8024DB50(f32 pos[3], f32 distance) {
     return TRUE;
 }
 
-bool viewport_isPointOutsideFrustum_3f(f32 x, f32 y, f32 z) {
+n64_bool viewport_isPointOutsideFrustum_3f(f32 x, f32 y, f32 z) {
     if ((sViewportFrustumPlanes[0][0] * x + sViewportFrustumPlanes[0][1] * y + sViewportFrustumPlanes[0][2] * z + sViewportFrustumPlanes[0][3] <= 0.0f) &&
         (sViewportFrustumPlanes[1][0] * x + sViewportFrustumPlanes[1][1] * y + sViewportFrustumPlanes[1][2] * z + sViewportFrustumPlanes[1][3] <= 0.0f) &&
         (sViewportFrustumPlanes[2][0] * x + sViewportFrustumPlanes[2][1] * y + sViewportFrustumPlanes[2][2] * z + sViewportFrustumPlanes[2][3] <= 0.0f) &&
@@ -383,12 +381,12 @@ bool viewport_isPointOutsideFrustum_3f(f32 x, f32 y, f32 z) {
     return FALSE;
 }
 
-bool viewport_isPointOutsideFrustum_vec3f(f32 arg0[3]) {
+n64_bool viewport_isPointOutsideFrustum_vec3f(f32 arg0[3]) {
     return viewport_isPointOutsideFrustum_3f(arg0[0], arg0[1], arg0[2]);
 }
 
 // need to figure out, what plane 2 is (neg/pos x/y ?)
-bool viewport_isPointPlane_3f(f32 arg0, f32 arg1, f32 arg2) {
+n64_bool viewport_isPointPlane_3f(f32 arg0, f32 arg1, f32 arg2) {
     return ((sViewportFrustumPlanes[2][0]*arg0 + sViewportFrustumPlanes[2][1]*arg1 + sViewportFrustumPlanes[2][2]*arg2 + sViewportFrustumPlanes[2][3]) <= 0.0f);
 }
 
@@ -461,7 +459,7 @@ f32 sViewportBackupLookVector[3];
 MtxF sViewportBackupMatrix;
 
 // ??
-bool viewport_func_8024E030(f32 pos[3], f32 *arg1)
+n64_bool viewport_func_8024E030(f32 pos[3], f32 *arg1)
 {
     f32 delta[3];
     f32 temp_f2_2;
@@ -481,7 +479,7 @@ bool viewport_func_8024E030(f32 pos[3], f32 *arg1)
         return FALSE;
     }
 
-    temp_f2 = sqrtf((delta[1] * delta[1]) + (delta[2] * delta[2])) * sinf(fovy_radians);
+    temp_f2 = gu_sqrtf((delta[1] * delta[1]) + (delta[2] * delta[2])) * sinf(fovy_radians);
     temp_f2_2 = (((f32) gFramebufferWidth) / ((f32) gFramebufferHeight)) * temp_f2;
 
     arg1[0] = (f32) (((delta[0] / temp_f2_2) + 1) * (((f32) gFramebufferWidth) / 2));

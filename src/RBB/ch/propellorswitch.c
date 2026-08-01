@@ -27,32 +27,26 @@ Struct_RBB_3CB0 D_80390720[2] = {
     {{0xF9C0, 0x324, 0xF6A0}, 0x405, 4, 0x28}
 };
 
-ActorInfo chRBBGreenPropellerSwitch = {
-    MARKER_186_RBB_GREEN_PROPELLER_SWITCH, ACTOR_176_RBB_GREEN_PROPELLOR_SWITCH, ASSET_404_MODEL_RBB_GREEN_PROPELLER_SWITCH,
+ActorInfo D_80390738 = {
+    MARKER_186_RBB_GREEN_PROPELLER_SWITCH, 0x176, ASSET_404_MODEL_RBB_GREEN_PROPELLER_SWITCH,
     0x0, NULL,
     chPropellorSwitch_update, NULL, chPropellorSwitch_draw,
     0, 0, 0.0f, 0
 };
 
-enum chrbbgreenpropellerswitch_state_e {
-    CH_RBB_GREEN_PROPELLER_SWITCH_STATE_0_NOT_INIT,
-    CH_RBB_GREEN_PROPELLER_SWITCH_STATE_1_NOT_PRESSED,
-    CH_RBB_GREEN_PROPELLER_SWITCH_STATE_2_PRESSED
-};
-
 /* .code */
-void __chPropellorSwitch_setState(Actor *this, s32 next_state){
+void __chPropellorSwitch_setState(Actor *this, s32 arg1){
     ActorLocal_RBB_3CB0 *local = (ActorLocal_RBB_3CB0 *)&this->local;
 
-    if(next_state == CH_RBB_GREEN_PROPELLER_SWITCH_STATE_1_NOT_PRESSED)
-        if(this->state == CH_RBB_GREEN_PROPELLER_SWITCH_STATE_2_PRESSED)
+    if(arg1 == 1)
+        if(this->state == 2)
             this->position_y += 40.0f;
     
-    if(next_state == CH_RBB_GREEN_PROPELLER_SWITCH_STATE_2_PRESSED){
-        if(this->state == CH_RBB_GREEN_PROPELLER_SWITCH_STATE_1_NOT_PRESSED)
+    if(arg1 == 2){ 
+        if(this->state == 1)
             func_8030E6D4(SFX_90_SWITCH_PRESS);
         this->position_y -= 40.0f;
-        if(this->state == CH_RBB_GREEN_PROPELLER_SWITCH_STATE_1_NOT_PRESSED){
+        if(this->state == 1){
             levelSpecificFlags_set(local->unk0->unk8, 1);
             musicKeepsPlaying();
             timedFunc_set_1(1.1f, (GenFunction_1)func_8028F9DC, 2);
@@ -62,13 +56,13 @@ void __chPropellorSwitch_setState(Actor *this, s32 next_state){
         }
     }//L8038A1A0
 
-    this->state = next_state;
+    this->state = arg1;
 }
 
 void func_8038A1C8(ActorMarker *marker, ActorMarker *arg1){
     Actor *actor = marker_getActor(marker);
     if(actor->state == 1){
-        __chPropellorSwitch_setState(actor, CH_RBB_GREEN_PROPELLER_SWITCH_STATE_2_PRESSED);
+        __chPropellorSwitch_setState(actor, 2);
     }
     else if(actor->state == 2){
         rbb_propellorCtrl_start();
@@ -83,7 +77,7 @@ Actor *chPropellorSwitch_draw(ActorMarker *marker, Gfx **gdl, Mtx **mptr, Vtx **
         return actor;
     }
 
-    modelRender_setPreDrawCallback((GenFunction_1)actor_predrawMethod, (s32)actor);
+    modelRender_preDraw((GenFunction_1)actor_predrawMethod, (s32)actor);
     if(local->unk4){
         modelRender_draw(gdl, mptr, actor->position, NULL, 1.0f, NULL, local->unk4);
     }
@@ -115,16 +109,16 @@ void chPropellorSwitch_update(Actor *this){
         this->position_y = (f32)local->unk0->unk0[1];
         this->position_z = (f32)local->unk0->unk0[2];
         if(levelSpecificFlags_get(local->unk0->unkA))
-            __chPropellorSwitch_setState(this, CH_RBB_GREEN_PROPELLER_SWITCH_STATE_2_PRESSED);
+            __chPropellorSwitch_setState(this, 2);
         else
-            __chPropellorSwitch_setState(this, CH_RBB_GREEN_PROPELLER_SWITCH_STATE_1_NOT_PRESSED);
+            __chPropellorSwitch_setState(this, 1);
     }//L8038A47C
-    if(this->state == CH_RBB_GREEN_PROPELLER_SWITCH_STATE_2_PRESSED){
+    if(this->state == 2){
         if( !levelSpecificFlags_get(local->unk0->unkA)
             && !levelSpecificFlags_get(LEVEL_FLAG_3_RBB_UNKNOWN)
             && !levelSpecificFlags_get(LEVEL_FLAG_4_RBB_UNKNOWN)
         ){
-            __chPropellorSwitch_setState(this, CH_RBB_GREEN_PROPELLER_SWITCH_STATE_1_NOT_PRESSED);
+            __chPropellorSwitch_setState(this, 1);
         }
     }
 }

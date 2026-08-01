@@ -19,7 +19,7 @@ struct {
 void func_803216D0(enum map_e map){
     s32 prev_lvl = D_80383300.level;
     D_80383300.level = map_getLevel(map);
-    overlayManager_load(leveloverlay_getOverlayFromLevel(D_80383300.level));
+    overlayManagerload(level_to_overlay(D_80383300.level));
     D_80383300.unk0 = 0;
     if(func_802E4A8C()){
         func_802E4A80();
@@ -78,7 +78,7 @@ void func_80321854(void){
         }
         bsStoredState_8029A924(); //null
         func_803465BC(); //null
-        mapSavestate_clearAll();
+        mapSavestate_free_all();
         func_8032196C();
     }
 }

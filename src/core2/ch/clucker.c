@@ -2,7 +2,7 @@
 #include "functions.h"
 #include "variables.h"
 
-extern void modelRender_setAppendageVisibility(s32, s32);
+extern void func_8033A45C(s32, s32);
 
 typedef struct{
     u8 unk0;
@@ -10,26 +10,14 @@ typedef struct{
     f32 unk4;
 } ActorLocal_Clucker;
 
-Actor *chClucker_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
-void chClucker_update(Actor *this);
+Actor *func_803575B8(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
+void func_8035765C(Actor *this);
 
 /* .data */
-
-enum clucker_states
-{
-    CLUCKER_STATE_UNK_0 = 0,
-    CLUCKER_STATE_1_IDLE,
-    CLUCKER_STATE_UNK_2,
-    CLUCKER_STATE_UNK_3,
-    CLUCKER_STATE_4_ATTACK,
-    CLUCKER_STATE_5_DIE,
-    CLUCKER_STATE_6_DEAD
-};
-
-extern ActorInfo chClucker = {
+extern ActorInfo D_80372870 = { 
     MARKER_1B2_CLUCKER_A, ACTOR_29F_CLUCKER, ASSET_482_MODEL_CLUCKER, 
     0, NULL, 
-    chClucker_update, NULL, chClucker_draw,
+    func_8035765C, NULL, func_803575B8,
     0, 0, 0.0f, 0
 };
 
@@ -59,18 +47,18 @@ void __clucker_setDeathCutsceneCamera(Actor *this){
     ncStaticCamera_setPositionAndRotation(sp34, sp28);
 }
 
-void chClucker_setNextState(Actor *this, s32 next_state){
+void func_80357264(Actor *this, s32 next_state){
     ActorLocal_Clucker *local  = (ActorLocal_Clucker *)&this->local;
     f32 sp38;
     s32 pad34;
 
     this->marker->id = MARKER_1D0_CLUCKER_B;
     actor_collisionOff(this);
-    if(next_state == CLUCKER_STATE_1_IDLE || next_state == CLUCKER_STATE_UNK_2){
+    if(next_state == 1 || next_state == 2){
         skeletalAnim_set(this->unk148, ASSET_184_ANIM_CLUCKER_ATTACK_SHORT, 0.0f, 2.5f);
         skeletalAnim_setProgress(this->unk148, 0.99f);
         skeletalAnim_setBehavior(this->unk148, SKELETAL_ANIM_4_STOPPED);
-        if(this->state == CLUCKER_STATE_4_ATTACK){
+        if(this->state == 4){
             if(local->unk0 == 2){
                 local->unk4 = randf2(0.5f, 0.75f);
             }
@@ -83,13 +71,13 @@ void chClucker_setNextState(Actor *this, s32 next_state){
         }
     }//L80357368
 
-    if(this->state == CLUCKER_STATE_1_IDLE && next_state == CLUCKER_STATE_UNK_2)
+    if(this->state == 1 && next_state == 2)
         local->unk0 = -1;
 
-    if(next_state == CLUCKER_STATE_UNK_3)
+    if(next_state == 3)
         local->unk4 = 0.2f;
 
-    if(next_state == CLUCKER_STATE_4_ATTACK){
+    if(next_state == 4){
         this->marker->id = MARKER_1B2_CLUCKER_A;
         actor_collisionOn(this);
         local->unk0 = (local->unk0 + 1) % 3; 
@@ -101,7 +89,7 @@ void chClucker_setNextState(Actor *this, s32 next_state){
         gcsfx_playWithPitch(SFX_4A_CLUCKER_AHH, randf2(0.85f, 0.95f), 32000);
     }
 
-    if(next_state == CLUCKER_STATE_5_DIE){
+    if(next_state == 5){
         if(!levelSpecificFlags_get(LEVEL_FLAG_14_TTC_UNKNOWN)
             && !( actorArray_findClosestActorFromActorId(this->position, 0x318, -1, &sp38) && ( sp38 < 250.0f))
         ){
@@ -118,26 +106,26 @@ void chClucker_setNextState(Actor *this, s32 next_state){
     this->state = next_state;
 }
 
-void chClucker_ow(ActorMarker *this_marker, ActorMarker *other_marker){
+void func_80357564(ActorMarker *this_marker, ActorMarker *other_marker){
     func_8030E6D4(SFX_1E_HITTING_AN_ENEMY_2);
 }
 
-void chClucker_die(ActorMarker *this_marker, ActorMarker *other_marker){
+void func_8035758C(ActorMarker *this_marker, ActorMarker *other_marker){
     Actor *this = marker_getActor(this_marker);
-    chClucker_setNextState(this, CLUCKER_STATE_5_DIE);
+    func_80357264(this, 5);
 }
 
-Actor *chClucker_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx){
+Actor *func_803575B8(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx){
     Actor *this = marker_getActor(marker);
 
-    modelRender_setAppendageVisibility(3, (this->state == CLUCKER_STATE_5_DIE)? 1 : 0);
-    modelRender_setAppendageVisibility(4, (this->state == CLUCKER_STATE_UNK_0 || this->state == CLUCKER_STATE_1_IDLE || this->state == CLUCKER_STATE_6_DEAD)? 0 : 1);
+    func_8033A45C(3, (this->state == 5)? 1 : 0);
+    func_8033A45C(4, (this->state == 0 || this->state == 1 || this->state == 6)? 0 : 1);
     return actor_draw(marker, gfx, mtx, vtx);
 }
 
-void chClucker_update(Actor *this){
-    f32 player_pos[3];
-    f32 player_dist;
+void func_8035765C(Actor *this){
+    f32 sp5C[3];
+    f32 sp58;
     ActorLocal_Clucker *local  = (ActorLocal_Clucker *)&this->local;
     f32 sp50;
     f32 sp4C;
@@ -149,45 +137,45 @@ void chClucker_update(Actor *this){
     if( !this->volatile_initialized){
         this->volatile_initialized = TRUE;
         this->unk16C_0 = TRUE;
-        if(this->state != CLUCKER_STATE_6_DEAD){
-            marker_setCollisionScripts(this->marker, NULL, chClucker_ow, chClucker_die);
+        if(this->state != 6){
+            marker_setCollisionScripts(this->marker, NULL, func_80357564, func_8035758C);
             local->unk0 = 0xff;
-            chClucker_setNextState(this, CLUCKER_STATE_1_IDLE);
+            func_80357264(this, 1);
         }
         else{//L803576E0
-            chClucker_setNextState(this, CLUCKER_STATE_6_DEAD);
+            func_80357264(this, 6);
         }
     }//L803576EC
 
-    player_getPosition(player_pos);
-    player_dist = ml_vec3f_distance(this->position, player_pos);
-    if(this->state == CLUCKER_STATE_1_IDLE){
-        if(player_dist < this->scale * 800.0f){
-            chClucker_setNextState(this, CLUCKER_STATE_UNK_2);
+    player_getPosition(sp5C);
+    sp58 = ml_vec3f_distance(this->position, sp5C);
+    if(this->state == 1){
+        if(sp58 < this->scale*800.0f){
+            func_80357264(this, 2);
         }
     }//L80357758
 
-    if(this->state == CLUCKER_STATE_UNK_2){
+    if(this->state == 2){
         if(0.0f < local->unk4){
             local->unk4 -= sp50;
         }
-        else if(player_dist < this->scale * 600.0f){
-            chClucker_setNextState(this, CLUCKER_STATE_UNK_3);
+        else if(sp58 < this->scale*600.0f){
+            func_80357264(this, 3);
         }
-        else if(this->scale * 1000.0f < player_dist){//L803577DC
-            chClucker_setNextState(this, CLUCKER_STATE_1_IDLE);
+        else if(this->scale*1000.0f < sp58){//L803577DC
+            func_80357264(this, 1);
         }
     }//L80357808
 
-    if(this->state == CLUCKER_STATE_UNK_3){
+    if(this->state == 3){
         if(ml_timer_update(&local->unk4, sp50)){
-            chClucker_setNextState(this, CLUCKER_STATE_4_ATTACK);
+            func_80357264(this, 4);
         }
     }
 
-    if(this->state == CLUCKER_STATE_4_ATTACK){
+    if(this->state == 4){
         skeletalAnim_getProgressRange(this->unk148, &sp4C, &sp48);
-        if(skeletalAnim_getAnimId(this->unk148) == ASSET_185_ANIM_CLUCKER_ATTACK_LONG){
+        if(skeletalAnim_getAnimId(this->unk148) == 0x185){
             if(sp4C < 0.58 && 0.58 <= sp48){
                 this->marker->id = MARKER_1D0_CLUCKER_B;
             }
@@ -219,11 +207,11 @@ void chClucker_update(Actor *this){
             }
         }//L80357B30
         if(skeletalAnim_getLoopCount(this->unk148) > 0){
-            chClucker_setNextState(this, CLUCKER_STATE_UNK_2);
+            func_80357264(this, 2);
         }
     }//L80357B48
 
-    if(this->state == CLUCKER_STATE_5_DIE){
+    if(this->state == 5){
         skeletalAnim_getProgressRange(this->unk148, &sp44, &sp40);
         if(sp44 < 0.1 && 0.1 <= sp40){
             gcsfx_playWithPitch(SFX_68_CLUCKER_AAEEGHH, randf2(1.0f, 1.1f), 32000);
@@ -233,7 +221,7 @@ void chClucker_update(Actor *this){
             func_8030E6D4(SFX_61_CARTOONY_FALL);
         }
         if(skeletalAnim_getLoopCount(this->unk148) > 0){
-            chClucker_setNextState(this, CLUCKER_STATE_6_DEAD);
+            func_80357264(this, 6);
         }
     }
 }

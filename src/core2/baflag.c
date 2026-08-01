@@ -14,11 +14,11 @@ void baflag_clearAll(void){
     }
 }
 
-bool baflag_isTrue(enum misc_flag_e arg0){
+n64_bool baflag_isTrue(enum misc_flag_e arg0){
     return BaFlags[arg0];
 }
 
-bool baflag_isFalse(enum misc_flag_e arg0){
+n64_bool baflag_isFalse(enum misc_flag_e arg0){
     return !BaFlags[arg0];
 }
 

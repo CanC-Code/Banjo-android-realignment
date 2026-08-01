@@ -23,7 +23,7 @@ f32 func_8029CED0(void) {
     return func_8033DE30(temp_v0);
 }
 
-bool func_8029CF20(s32 arg0) {
+n64_bool func_8029CF20(s32 arg0) {
     return func_802944F4() == arg0;
 }
 

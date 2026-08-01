@@ -40,6 +40,11 @@ s16 animBinCache_persistantList[] = {
 /* .bss */
 AnimationFileCache animBinCache[0x2CA];
 
+
+/* Automated Forward Decls */
+static void __animBinCache_initPersistent(void);
+static void __animBinCache_loadAll(void);
+
 /* .code */
 static void __animBinCache_initPersistent(void){
     s16 *phi_v0;

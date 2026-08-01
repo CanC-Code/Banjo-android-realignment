@@ -5,9 +5,7 @@
 void func_80363500(Actor *this);
 
 /* .data */
-// Next To SM Bridge Bottles
-// Gets removed when player learns all SM Moves
-ActorInfo D_80373DC0 = {
+ActorInfo D_80373DC0= {
     0x1EE, ACTOR_3BA_UNKNOWN, 0,
     0, NULL, 
     func_80363500, actor_update_func_80326224, func_80325340,

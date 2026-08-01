@@ -32,7 +32,7 @@ Actor *chtrainers_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx){
 }
 
 
-void _chtrainers_802CA378(Actor *this, bool arg1){
+void _chtrainers_802CA378(Actor *this, n64_bool arg1){
     f32 sp24[3];
     if(ability_isUnlocked(ABILITY_11_TURBO_TALON))
         actor_setOpacity(this, 0xff);
@@ -82,7 +82,7 @@ void chtrainers_update(Actor *this){
                     && !volatileFlag_get(VOLATILE_FLAG_F_HAS_MEET_TURBO_SHOES)
                     && player_getTransformation() == TRANSFORM_1_BANJO
                 ){
-                    if(gcdialog_showDialog(VER_SELECT(0xda4, 0xA22, 0, 0), 0, NULL, NULL, NULL, NULL)){
+                    if(gcdialog_showDialog(0xda4, 0, NULL, NULL, NULL, NULL)){
                         volatileFlag_set(VOLATILE_FLAG_F_HAS_MEET_TURBO_SHOES, TRUE);
                     }
                 }//L802CA620
@@ -114,7 +114,7 @@ void chtrainers_update(Actor *this){
     }//L802CA6F8
 }
 
-bool chtrainers_canUse(Actor *this){
+n64_bool chtrainers_canUse(Actor *this){
     return this->unk10_12 && ability_isUnlocked(ABILITY_11_TURBO_TALON);
 }
 

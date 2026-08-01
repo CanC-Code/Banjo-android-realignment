@@ -21,7 +21,7 @@ typedef struct {
     f32 unk28;
 }ActorLocal_RBB_2E90;
 
-void chEngineRoomPropeller_update(Actor *this);
+void func_8038944C(Actor *this);
 
 
 /* .data */
@@ -56,33 +56,22 @@ Struct_RBB_2E90_0 D_80390530[] = {
     {0}
 };
 
-ActorInfo chEngineRoomPropeller1 = {
-    MARKER_191_ENGINE_ROOM_PROPELLOR_1, ACTOR_1BB_ENGINE_ROOM_PROPELLOR_1, ASSET_40F_MODEL_ENGINE_ROOM_PROPELLER_1,
-    0x0, NULL,
-    chEngineRoomPropeller_update, NULL, actor_draw,
+ActorInfo D_80390640 = {
+    MARKER_191_ENGINE_ROOM_PROPELLOR_1, ACTOR_1BB_ENGINE_ROOM_PROPELLOR_1, ASSET_40F_MODEL_ENGINE_ROOM_PROPELLER_1, 0x0, NULL,
+    func_8038944C, NULL, actor_draw,
     0, 0, 0.0f, 0
 };
 
-ActorInfo chEngineRoomPropeller2 = {
-    MARKER_192_ENGINE_ROOM_PROPELLOR_2, ACTOR_1BC_ENGINE_ROOM_PROPELLOR_2, ASSET_410_MODEL_ENGINE_ROOM_PROPELLER_2,
-    0x0, NULL,
-    chEngineRoomPropeller_update, NULL, actor_draw,
+ActorInfo D_80390664 = {
+    MARKER_192_ENGINE_ROOM_PROPELLOR_2, ACTOR_1BC_ENGINE_ROOM_PROPELLOR_2, ASSET_410_MODEL_ENGINE_ROOM_PROPELLER_2, 0x0, NULL,
+    func_8038944C, NULL, actor_draw,
     0, 0, 0.0f, 0
 };
 
-ActorInfo chEngineRoomPropeller3 = {
-    MARKER_193_ENGINE_ROOM_PROPELLOR_3, ACTOR_1BD_ENGINE_ROOM_PROPELLOR_3, ASSET_411_MODEL_ENGINE_ROOM_PROPELLER_3,
-    0x0, NULL,
-    chEngineRoomPropeller_update, NULL, actor_draw,
+ActorInfo D_80390688 = {
+    MARKER_193_ENGINE_ROOM_PROPELLOR_3, ACTOR_1BD_ENGINE_ROOM_PROPELLOR_3, ASSET_411_MODEL_ENGINE_ROOM_PROPELLER_3, 0x0, NULL,
+    func_8038944C, NULL, actor_draw,
     0, 0, 0.0f, 0
-};
-
-enum chengineroompropeller_state_e {
-    CH_ENGINE_ROOM_PROPELLER_STATE_0_NOT_INIT,
-    CH_ENGINE_ROOM_PROPELLER_STATE_1_UNK,
-    CH_ENGINE_ROOM_PROPELLER_STATE_2_UNK,
-    CH_ENGINE_ROOM_PROPELLER_STATE_3_UNK,
-    CH_ENGINE_ROOM_PROPELLER_STATE_4_UNK
 };
 
 /* .code */
@@ -95,13 +84,13 @@ Struct_RBB_2E90_0 * func_80389280(Actor *this){
     return NULL;
 }
 
-void chEngineRoomPropeller_setState(Actor *this, s32 next_state){
+void func_803892D8(Actor *this, s32 arg1){
     f32 pad;
     ActorLocal_RBB_2E90 *local = (ActorLocal_RBB_2E90 *)&this->local;
-    this->state = next_state;
+    this->state = arg1;
 
     local->unk28 = 0.0f;
-    if(this->state == CH_ENGINE_ROOM_PROPELLER_STATE_1_UNK){
+    if(this->state == 1){
         local->unk0[2] = 0.0f;
         local->unk0[1] = 0.0f;
         local->unk0[0] = 0.0f;
@@ -109,19 +98,19 @@ void chEngineRoomPropeller_setState(Actor *this, s32 next_state){
         ml_vec3f_copy(local->unk1C, local->unkC->unk1C);
     }//L8038935C
 
-    if(this->state == CH_ENGINE_ROOM_PROPELLER_STATE_2_UNK){
+    if(this->state == 2){
         ml_vec3f_copy(local->unk0, local->unkC->unk28);
         ml_vec3f_copy(local->unk1C, local->unkC->unk10);
         local->unk28 = local->unkC->unk40;
     }//L803893A8
 
-    if(this->state == CH_ENGINE_ROOM_PROPELLER_STATE_3_UNK){
+    if(this->state == 3){
         ml_vec3f_copy(local->unk0, local->unkC->unk28);
         ml_vec3f_copy(local->unk1C, local->unkC->unk1C);
         local->unk28 = local->unkC->unk40;
     }//L803893F4
 
-    if(this->state == CH_ENGINE_ROOM_PROPELLER_STATE_4_UNK){
+    if(this->state == 4){
         ml_vec3f_copy(local->unk0, local->unkC->unk34);
         ml_vec3f_copy(local->unk10, local->unkC->unk1C);
         local->unk1C[2] = 0.0f;
@@ -130,12 +119,12 @@ void chEngineRoomPropeller_setState(Actor *this, s32 next_state){
     }
 }
 
-void chEngineRoomPropeller_update(Actor *this){
+void func_8038944C(Actor *this){
     ActorLocal_RBB_2E90 *local = (ActorLocal_RBB_2E90 *)&this->local;
     f32 tick;
     int i;
-    f32 current_rotation[3];
-    f32 next_rotation[3];
+    f32 sp50[3];
+    f32 sp44[3];
 
     tick = time_getDelta();
 
@@ -143,72 +132,69 @@ void chEngineRoomPropeller_update(Actor *this){
         this->marker->propPtr->unk8_3 = 1;
         this->volatile_initialized = TRUE;
         local->unkC = func_80389280(this);
-        if(this->state == CH_ENGINE_ROOM_PROPELLER_STATE_0_NOT_INIT){
+        if(this->state == 0){
             ml_vec3f_copy(this->position, local->unkC->unk4);
             local->unk0[0]  = local->unk0[1]  = local->unk0[2]  = 0.0f;
             local->unk10[0] = local->unk10[1] = local->unk10[2] = 0.0f;
             local->unk1C[0] = local->unk1C[1] = local->unk1C[2] = 0.0f;
 
             local->unk28 = 0.0f;
-            chEngineRoomPropeller_setState(this, CH_ENGINE_ROOM_PROPELLER_STATE_1_UNK);
+            func_803892D8(this, 1);
         }
     }//L80389508
 
     if(ml_timer_update(&local->unk28, tick)){
-        if(this->state == CH_ENGINE_ROOM_PROPELLER_STATE_2_UNK)
-            chEngineRoomPropeller_setState(this, CH_ENGINE_ROOM_PROPELLER_STATE_3_UNK);
-        else if(this->state == CH_ENGINE_ROOM_PROPELLER_STATE_3_UNK)
-            chEngineRoomPropeller_setState(this, CH_ENGINE_ROOM_PROPELLER_STATE_2_UNK);
+        if(this->state == 2)
+            func_803892D8(this, 3);
+        else if(this->state == 3)
+            func_803892D8(this, 2);
     }//L80389568
 
     switch (this->state)
     {
-        case CH_ENGINE_ROOM_PROPELLER_STATE_1_UNK:
-        case CH_ENGINE_ROOM_PROPELLER_STATE_2_UNK:
-        case CH_ENGINE_ROOM_PROPELLER_STATE_3_UNK:
-        case CH_ENGINE_ROOM_PROPELLER_STATE_4_UNK:
-            current_rotation[0] = this->pitch;
-            current_rotation[1] = this->yaw;
-            current_rotation[2] = this->roll;
+    case 1:
+    case 2:
+    case 3:
+    case 4:
+        sp50[0] = this->pitch;
+        sp50[1] = this->yaw;
+        sp50[2] = this->roll;
+        this->pitch += local->unk10[0]*tick ;
+        this->yaw   += local->unk10[1]*tick ;
+        this->roll  += local->unk10[2]*tick ;
 
-            this->pitch += local->unk10[0] * tick;
-            this->yaw   += local->unk10[1] * tick;
-            this->roll  += local->unk10[2] * tick;
+        sp44[0] = this->pitch;
+        sp44[1] = this->yaw;
+        sp44[2] = this->roll;
 
-            next_rotation[0] = this->pitch;
-            next_rotation[1] = this->yaw;
-            next_rotation[2] = this->roll;
-
-            for(i = 0; i < 3; i++){
-                if( (current_rotation[i] < 90.0f && 90.0f <= next_rotation[i])
-                    || (current_rotation[i] < 270.0f && 270.0f <= next_rotation[i])
-                    || (current_rotation[i] < 180.0f && 180.0f <= next_rotation[i])
-                    || (current_rotation[i] < 360.0f && 360.0f <= next_rotation[i])
-                ){
-                    sfx_playFadeShorthandDefault(SFX_2_CLAW_SWIPE, 0.4f, 23000, this->position, 50, 1000);
-                }
+        for(i = 0; i < 3; i++){
+            if( (sp50[i] < 90.0f && 90.0f <= sp44[i])
+                || (sp50[i] < 270.0f && 270.0f <= sp44[i])
+                || (sp50[i] < 180.0f && 180.0f <= sp44[i])
+                || (sp50[i] < 360.0f && 360.0f <= sp44[i])
+            ){
+                sfx_playFadeShorthandDefault(SFX_2_CLAW_SWIPE, 0.4f, 23000, this->position, 50, 1000);
             }
-            this->pitch += (360.0f <= this->pitch)? -360 : 0;
-            this->yaw   += (360.0f <= this->yaw)? -360 : 0;
-            this->roll  += (360.0f <= this->roll)? -360 : 0;
+        }
+        this->pitch += (360.0f <= this->pitch)? -360 : 0;
+        this->yaw   += (360.0f <= this->yaw)? -360 : 0;
+        this->roll  += (360.0f <= this->roll)? -360 : 0;
 
-            for(i = 0; i < 3; i++){//L803897B8
-                if( local->unk10[i] < local->unk1C[i] ){
-                    local->unk10[i] += local->unk0[i] * tick;
-                    local->unk10[i] = MIN(local->unk1C[i] , local->unk10[i]);
-                }
-                else if( local->unk1C[i] < local->unk10[i]){
-                    local->unk10[i] -= local->unk0[i] * tick;
-                    local->unk10[i] = MAX(local->unk1C[i] , local->unk10[i]);
-                }
+        for(i = 0; i < 3; i++){//L803897B8
+            if( local->unk10[i] < local->unk1C[i] ){
+                local->unk10[i] += local->unk0[i]*tick;
+                local->unk10[i] = MIN(local->unk1C[i] , local->unk10[i]);
             }
-            break;
+            else if( local->unk1C[i] < local->unk10[i]){
+                local->unk10[i] -= local->unk0[i]*tick;
+                local->unk10[i] = MAX(local->unk1C[i] , local->unk10[i]);
+            }
+        }
+        break;
     }//L80389860
 
-    if(this->state == CH_ENGINE_ROOM_PROPELLER_STATE_1_UNK
-        && mapSpecificFlags_get(RBB_MAIN_SPECIFIC_FLAG_0_PROPELLER))
-    {
-        chEngineRoomPropeller_setState(this, CH_ENGINE_ROOM_PROPELLER_STATE_2_UNK);
+    if(this->state == 1 && mapSpecificFlags_get(0)){
+        func_803892D8(this, 2);
     }
     if(tick);
 }

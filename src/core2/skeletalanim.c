@@ -9,6 +9,11 @@ extern void boneTransformList_interpolate(BoneTransformList *, BoneTransformList
 extern BoneTransformList *boneTransformList_new(void);
 
 
+
+/* Automated Forward Decls */
+static void skeletalAnim_clearTransition(SkeletalAnimation *self);
+static void __perform_callback(SkeletalAnimationCallback* arg0);
+
 /* .code */
 static void skeletalAnim_clearTransition(SkeletalAnimation *self){
     if(self->bone_transform != NULL){
@@ -129,13 +134,13 @@ void skeletalAnim_free(SkeletalAnimation *self){
     if(temp_a0 != NULL){
         vector_free(temp_a0);
     }
-    free(self);
+    n64_free(self);
 }
 
 SkeletalAnimation *skeletalAnim_new(void){
     SkeletalAnimation *self;
 
-    self = (SkeletalAnimation *)malloc(sizeof(SkeletalAnimation));
+    self = (SkeletalAnimation *)n64_malloc(sizeof(SkeletalAnimation));
     self->bone_transform = NULL;
     self->animation_bin = NULL;
     self->callback_list = 0;

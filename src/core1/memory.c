@@ -13,6 +13,7 @@
  *  next empty chunks. This forms a link list over all the empty
  *  chunks (EmptyHeapBlock)
  */
+extern void func_80253010(void *dest, void *src, s32 size);
 
 #define chunkSize(s) ((u32)(s)->next - (u32)(s) - sizeof(HeapHeader))
 #if VERSION == VERSION_USA_1_0
@@ -43,7 +44,7 @@ typedef struct empty_heap_block{
     u8 pad18[0x8];
 } EmptyHeapBlock;
 
-extern EmptyHeapBlock gHeapBase[LAST_HEAP_BLOCK + 1];
+extern EmptyHeapBlock D_8002D500[LAST_HEAP_BLOCK + 1];
 extern EmptyHeapBlock D_8023DA00;
 
 /* .data */
@@ -56,7 +57,7 @@ s32 D_802765A4 = 0;
 void *D_802765A8 = NULL;
 s32 D_802765AC = 0;
 struct{
-    bool unk0;
+    n64_bool unk0;
 }D_802765B0 = {0};
 UNK_TYPE(void *) D_802765B4 = NULL;
 
@@ -77,6 +78,10 @@ struct {
 EmptyHeapBlock *func_802549BC(s32 size);
 void _heap_sortEmptyBlock(EmptyHeapBlock * arg0);
 void func_80255ACC(void);
+
+
+/* Automated Forward Decls */
+static u32 _heap_get_occupied_size(void);
 
 /* .code */
 s32 __heap_align(s32 size){
@@ -119,22 +124,22 @@ void func_8025456C(EmptyHeapBlock * arg0){
     arg0->hdr.unkC_7 = HEAP_BLOCK_EMPTY;
     arg0->hdr.unusedBytes_C_31 = 0;
     if((u8*)arg0->hdr.next - (u8*)arg0 < 10000){
-        arg0->prev_free = &gHeapBase;
-        arg0->next_free = gHeapBase->next_free;
-        gHeapBase->next_free->prev_free = arg0;
-        gHeapBase->next_free = arg0;
+        arg0->prev_free = &D_8002D500;
+        arg0->next_free = D_8002D500->next_free;
+        D_8002D500->next_free->prev_free = arg0;
+        D_8002D500->next_free = arg0;
     }else{
-        arg0->prev_free = gHeapBase[LAST_HEAP_BLOCK].prev_free;
-        arg0->next_free = & gHeapBase[LAST_HEAP_BLOCK];
+        arg0->prev_free = D_8002D500[LAST_HEAP_BLOCK].prev_free;
+        arg0->next_free = & D_8002D500[LAST_HEAP_BLOCK];
         
-        gHeapBase[LAST_HEAP_BLOCK].prev_free->next_free = arg0;
-        gHeapBase[LAST_HEAP_BLOCK].prev_free = arg0;
+        D_8002D500[LAST_HEAP_BLOCK].prev_free->next_free = arg0;
+        D_8002D500[LAST_HEAP_BLOCK].prev_free = arg0;
 
     }
     _heap_defragEmptyBlock(arg0);
 }
 
-void memcpy(void * dst, void *src, int size){
+void n64_memcpy(void * dst, void *src, int size){
     while(size > 0){
         *(u8*)dst = *(u8*)src;
         size--;
@@ -152,7 +157,7 @@ void wmemcpy(void * dst, void *src, int size){
     }
 }
 
-void memmove(u8* dst, u8* src, s32 n) {
+void n64_memmove(u8* dst, u8* src, s32 n) {
     if(dst < src){ //copy
         while(n--){
             *(dst++) = *(src++);
@@ -181,7 +186,7 @@ void func_802546FC(void){
 }
 
 void heap_init(void){
-    bzero(gHeapBase, HEAP_SIZE);
+    bzero(D_8002D500, HEAP_SIZE);
     func_802546FC();
     D_80283238.unk40 = &D_80283238.unk0[0];
     heap_occupiedBytes = 0;
@@ -191,51 +196,51 @@ void heap_init(void){
     D_802765A8 = 0;
     D_802765AC = 0;
     D_802765B0.unk0 = FALSE;
-    gHeapBase[0].hdr.prev = NULL;
-    gHeapBase[0].hdr.next = &gHeapBase[1];
-    gHeapBase[0].hdr.unkC_7 = 2;
-    gHeapBase[0].hdr.unusedBytes_C_31 = 0;
-    gHeapBase[0].prev_free = NULL;
-    gHeapBase[0].next_free = &gHeapBase[1];
+    D_8002D500[0].hdr.prev = NULL;
+    D_8002D500[0].hdr.next = &D_8002D500[1];
+    D_8002D500[0].hdr.unkC_7 = 2;
+    D_8002D500[0].hdr.unusedBytes_C_31 = 0;
+    D_8002D500[0].prev_free = NULL;
+    D_8002D500[0].next_free = &D_8002D500[1];
 
-    gHeapBase[1].hdr.prev = &gHeapBase[0];
-    gHeapBase[1].hdr.next = &gHeapBase[LAST_HEAP_BLOCK];
-    gHeapBase[1].hdr.unkC_7 = 0;
-    gHeapBase[1].hdr.unusedBytes_C_31 = 0;
-    gHeapBase[1].prev_free = &gHeapBase[0];
-    gHeapBase[1].next_free = &gHeapBase[LAST_HEAP_BLOCK];
+    D_8002D500[1].hdr.prev = &D_8002D500[0];
+    D_8002D500[1].hdr.next = &D_8002D500[LAST_HEAP_BLOCK];
+    D_8002D500[1].hdr.unkC_7 = 0;
+    D_8002D500[1].hdr.unusedBytes_C_31 = 0;
+    D_8002D500[1].prev_free = &D_8002D500[0];
+    D_8002D500[1].next_free = &D_8002D500[LAST_HEAP_BLOCK];
 
-    gHeapBase[LAST_HEAP_BLOCK].hdr.prev = &gHeapBase[1];
-    gHeapBase[LAST_HEAP_BLOCK].hdr.next = &gHeapBase[LAST_HEAP_BLOCK + 1];
-    gHeapBase[LAST_HEAP_BLOCK].hdr.unkC_7 = 2;
-    gHeapBase[LAST_HEAP_BLOCK].hdr.unusedBytes_C_31 = 0;
-    gHeapBase[LAST_HEAP_BLOCK].prev_free = &gHeapBase[1];
-    gHeapBase[LAST_HEAP_BLOCK].next_free = NULL;
+    D_8002D500[LAST_HEAP_BLOCK].hdr.prev = &D_8002D500[1];
+    D_8002D500[LAST_HEAP_BLOCK].hdr.next = &D_8002D500[LAST_HEAP_BLOCK + 1];
+    D_8002D500[LAST_HEAP_BLOCK].hdr.unkC_7 = 2;
+    D_8002D500[LAST_HEAP_BLOCK].hdr.unusedBytes_C_31 = 0;
+    D_8002D500[LAST_HEAP_BLOCK].prev_free = &D_8002D500[1];
+    D_8002D500[LAST_HEAP_BLOCK].next_free = NULL;
     sns_init_base_payloads();
 }
 
 void *func_8025484C(s32 size){
-    D_802765B4 = malloc(ALIGN((u32)&gHeapBase[1] + 0x100, 0x100)  - (u32)&gHeapBase[1] - sizeof(EmptyHeapBlock));
-    return malloc(0x80);
+    D_802765B4 = n64_malloc(ALIGN((u32)&D_8002D500[1] + 0x100, 0x100)  - (u32)&D_8002D500[1] - sizeof(EmptyHeapBlock));
+    return n64_malloc(0x80);
 }
 
 void *func_80254898(s32 arg0){
-    void * sp1C = malloc(ALIGN(((u32)&gHeapBase[LAST_HEAP_BLOCK] - (u32)gHeapBase[LAST_HEAP_BLOCK].prev_free) - 0x2FF, 0x100) + - sizeof(EmptyHeapBlock));
-    void * sp18 = malloc(0x80);
-    free(sp1C);
-    free(D_802765B4);
+    void * sp1C = n64_malloc(ALIGN(((u32)&D_8002D500[LAST_HEAP_BLOCK] - (u32)D_8002D500[LAST_HEAP_BLOCK].prev_free) - 0x2FF, 0x100) + - sizeof(EmptyHeapBlock));
+    void * sp18 = n64_malloc(0x80);
+    n64_free(sp1C);
+    n64_free(D_802765B4);
     D_802765B4 =  NULL;
     return sp18;
 }
 
 void func_80254908(void){
     if(D_802765A0){
-        free(D_802765A0);
+        n64_free(D_802765A0);
         D_802765A0 = NULL;
     }
 
     if(D_802765A8){
-        free(D_802765A8);
+        n64_free(D_802765A8);
         D_802765A8 = NULL;
     }
 }
@@ -248,7 +253,7 @@ u32 heap_get_occupied_size(void){
     return _heap_get_occupied_size();
 }
 
-bool func_8025498C(s32 size){
+n64_bool func_8025498C(s32 size){
     s32 v0 = func_802549BC(size);
     return BOOL(v0);
 }
@@ -258,21 +263,21 @@ EmptyHeapBlock *func_802549BC(s32 size){
     s32 aligned_size;
     u32 block_size;
 
-    a1 = gHeapBase->next_free;
+    a1 = D_8002D500->next_free;
     aligned_size = __heap_align(size > 0 ? size : 1);
-    while( chunkSize(&a1->hdr) < aligned_size && a1->next_free != &gHeapBase[LAST_HEAP_BLOCK] ){
+    while( chunkSize(&a1->hdr) < aligned_size && a1->next_free != &D_8002D500[LAST_HEAP_BLOCK] ){
         a1 = a1->next_free;
     }
    return (chunkSize(&a1->hdr) < aligned_size)? 0 : a1;
 }
 
-EmptyHeapBlock *func_80254A60(bool arg0){
+EmptyHeapBlock *func_80254A60(n64_bool arg0){
         EmptyHeapBlock *v1;
         EmptyHeapBlock *v0;
     if(!arg0){
         //from start
-        v1 = gHeapBase->next_free;
-        while( chunkSize(&v1->hdr) < heap_requested_size && v1->next_free != &gHeapBase[LAST_HEAP_BLOCK] ){
+        v1 = D_8002D500->next_free;
+        while( chunkSize(&v1->hdr) < heap_requested_size && v1->next_free != &D_8002D500[LAST_HEAP_BLOCK] ){
             v1 = v1->next_free;
         }
         
@@ -282,8 +287,8 @@ EmptyHeapBlock *func_80254A60(bool arg0){
     }else{
         //from back
         v1 = NULL;
-        v0 = gHeapBase->next_free;
-        while(v0 != &gHeapBase[LAST_HEAP_BLOCK]){
+        v0 = D_8002D500->next_free;
+        while(v0 != &D_8002D500[LAST_HEAP_BLOCK]){
             if(chunkSize(&v0->hdr) >= heap_requested_size && v1 < v0)
                 v1 = v0;
             v0 = v0->next_free;
@@ -317,7 +322,7 @@ void *func_80254BD0(s32 *size, u32 arg1) {
     var_v1 = &D_8023DA00;
     while(arg1 != 0){
         var_v1 = var_v1->prev_free;
-        if (var_v1 == &gHeapBase[0]) {
+        if (var_v1 == &D_8002D500[0]) {
             //less than n blocks
             return NULL;
         }
@@ -331,14 +336,14 @@ void func_80254C98(void){
     D_802765B0.unk0 = TRUE;
 }
 
-void *malloc(s32 size){
+void *n64_malloc(s32 size){
     u32 capacity;
     EmptyHeapBlock *v1;
     EmptyHeapBlock *a0;
 
     D_80283234 = D_802765B0.unk0;
     D_802765B0.unk0 = FALSE;
-    if(gHeapBase->next_free == &gHeapBase[LAST_HEAP_BLOCK])
+    if(D_8002D500->next_free == &D_8002D500[LAST_HEAP_BLOCK])
         return NULL;
 
     heap_requested_size = __heap_align((size > 0 )? size : 1); 
@@ -431,10 +436,10 @@ void func_80254F90(void){
 void _heap_sortEmptyBlock(EmptyHeapBlock * arg0){
     EmptyHeapBlock *v0 = arg0;
     EmptyHeapBlock *v1;
-    EmptyHeapBlock *a2 = &gHeapBase[LAST_HEAP_BLOCK];
+    EmptyHeapBlock *a2 = &D_8002D500[LAST_HEAP_BLOCK];
 
     //move arg0 back while larger than next
-    while( arg0->next_free < &gHeapBase[LAST_HEAP_BLOCK]
+    while( arg0->next_free < &D_8002D500[LAST_HEAP_BLOCK]
         && (s32)chunkSize(&v0->next_free->hdr) + 0x10 < (s32)chunkSize(&v0->hdr) + 0x10
     ){  
         v1 = arg0->next_free;
@@ -447,7 +452,7 @@ void _heap_sortEmptyBlock(EmptyHeapBlock * arg0){
     }
     
     //move arg0 foward while smaller prev
-    while( ( (v1 = arg0->prev_free) > &gHeapBase[0])
+    while( ( (v1 = arg0->prev_free) > &D_8002D500[0])
         && (s32)chunkSize(&v0->hdr) + 0x10 < (s32)chunkSize(&v0->prev_free->hdr) + 0x10
     ){
         a2 = arg0->prev_free;
@@ -461,7 +466,7 @@ void _heap_sortEmptyBlock(EmptyHeapBlock * arg0){
     }
 }
 
-void free(void * ptr) {
+void n64_free(void * ptr) {
     HeapHeader *sPtr; //stack_ptr
     
     if(ptr){
@@ -488,7 +493,7 @@ void func_80255170(void **arg0){
 void func_80255198(void){
     while(D_80283238.unk40 > &D_80283238.unk0[0]){
         D_80283238.unk40--;
-        free(*D_80283238.unk40);
+        n64_free(*D_80283238.unk40);
     }
 }
 
@@ -540,7 +545,7 @@ void *func_8025534C(void){
     return D_80283228;
 }
 
-void *realloc(void *ptr, s32 size){
+void *n64_realloc(void *ptr, s32 size){
     
     HeapHeader *sPtr;
     void *newSeg;
@@ -572,12 +577,12 @@ void *realloc(void *ptr, s32 size){
         return ptr;
     }//L80255430
 
-    if(!(newSeg = malloc(size))){
+    if(!(newSeg = n64_malloc(size))){
         return 0;
     }
 
-    bkmemcpy64(newSeg, ptr, __heap_align(size));
-    free(ptr);
+    func_80253010(newSeg, ptr, __heap_align(size));
+    n64_free(ptr);
     ptr = newSeg;
     D_8027659C = 0;
     D_80283228 = newSeg;
@@ -596,10 +601,10 @@ s32 heap_findLargestEmptyBlock(s32 *size_ptr){
     s32 i;
     s32 size;
 
-    v0 = gHeapBase->next_free;
+    v0 = D_8002D500->next_free;
     *size_ptr = 0;
     i = 0;
-    while(v0 != &gHeapBase[LAST_HEAP_BLOCK]){
+    while(v0 != &D_8002D500[LAST_HEAP_BLOCK]){
         size = (s32)v0->hdr.next - (s32)v0;
         *size_ptr = (size < *size_ptr) ? *size_ptr : size;
         v0 = v0->next_free;
@@ -612,11 +617,11 @@ void func_80255524(void){
     D_80283220 = (D_80276598)? -6000000 : 0;
 
     if(D_802765A0 && D_802765A4 + 1 < D_802765AC){
-        free(D_802765A0);
+        n64_free(D_802765A0);
         D_802765A0 = NULL;
 
         if(D_802765A8){
-            free(D_802765A8);
+            n64_free(D_802765A8);
             D_802765A8 = NULL;
         }
     }
@@ -626,7 +631,7 @@ void func_802555C4(void){
     D_8028322C = FALSE;
 }
 
-bool func_802555D0(void){
+n64_bool func_802555D0(void){
     return D_8028322C;
 }
 
@@ -662,7 +667,7 @@ void *defrag(void *this){
     next_empty = ((EmptyHeapBlock *)new_block)->next_free;
     prev_empty = ((EmptyHeapBlock *)new_block)->prev_free;
     prev_block = new_block->prev;
-    bkmemcpy64(new_block, this_block, size);
+    func_80253010(new_block, this_block, size);
     //create new empty block at end of new_block;
     new_empty = (EmptyHeapBlock *)((s32)new_block + size);
     new_empty->hdr.prev = new_block;
@@ -720,8 +725,8 @@ void *func_80255774(void *this){
         return this;
     }
 
-    sp24 = malloc(size - sizeof(HeapHeader));
-    bkmemcpy64(sp24, this, size - sizeof(HeapHeader));
+    sp24 = n64_malloc(size - sizeof(HeapHeader));
+    func_80253010(sp24, this, size - sizeof(HeapHeader));
     osWritebackDCache(sp24, size - sizeof(HeapHeader));
     D_80283220 += size  - sizeof(HeapHeader);
     D_802765A0 = this;
@@ -753,7 +758,7 @@ void *func_802558D8(void *arg0, void *arg1){
     }
 }
 
-bool func_80255920(void *arg0) {
+n64_bool func_80255920(void *arg0) {
     HeapHeader *block;
 
     if ((arg0 == NULL) || (arg0 == D_8027659C) || (D_802765A0 != NULL)) {
@@ -773,7 +778,7 @@ void func_80255980(void *arg0, int arg1){
     D_802765A4 = D_802765AC;
 }
 
-bool func_802559A0(void) {
+n64_bool func_802559A0(void) {
     return (D_80276598 == 0) ? (D_80283220 >= 0xF4240) || ((D_80276594 == 1) ? 0 : 1) : 0;
 }
 
@@ -815,7 +820,7 @@ void func_80255ACC(void){
     D_802765AC++;
 }
 
-bool func_80255AE4(void){
+n64_bool func_80255AE4(void){
     return (D_802765A0) ? 1 : 0; 
 }
 

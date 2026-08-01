@@ -24,7 +24,7 @@ void bsturn_init(void){
     func_8029957C(2);
     baphysics_set_type(BA_PHYSICS_LOCKED_ROTATION);
     baphysics_get_velocity(sp28);
-    bsturn_starting_horizontal_velocity = sqrtf(sp28[0]*sp28[0] + sp28[2]*sp28[2]);
+    bsturn_starting_horizontal_velocity = gu_sqrtf(sp28[0]*sp28[0] + sp28[2]*sp28[2]);
     func_8030EBC8(SFX_19_BANJO_LANDING_08, 0.95f, 1.05f, 0x7530, 0x7d00);
     D_8037D594 = 0;
 }
@@ -54,10 +54,10 @@ void bsturn_update(void){
         sp2C = BS_4_WALK_FAST;
 
     if(bakey_held(BUTTON_Z))
-        sp2C = BS_7_CROUCH;
+        sp2C = BS_CROUCH;
 
     if(bakey_pressed(BUTTON_B))
-        sp2C = BS_6_CLAW;
+        sp2C = BS_CLAW;
 
     if(bakey_pressed(BUTTON_A))
         sp2C = bs_getTypeOfJump();

@@ -4,7 +4,7 @@
 
 extern void func_80329904(ActorMarker *, s32, f32 *);
 extern f32 func_8033229C(ActorMarker *);
-extern BKCollisionTriangle *func_80320C94(f32[3], f32[3], f32, f32[3], s32, u32);
+extern BKCollisionTri *func_80320C94(f32[3], f32[3], f32, f32[3], s32, u32);
 
 
 typedef struct{
@@ -57,7 +57,7 @@ void __chSnowball_spawnPieces(f32 position[3]) {
     particleEmitter_emitN(pCtrl, 8);
 }
 
-void __chSnowball_collisionCallback(Actor *this, bool water_collision) {
+void __chSnowball_collisionCallback(Actor *this, n64_bool water_collision) {
     static f32 D_803687A4[4] = {0.2f, 0.3f, 1.0f, 1.2f};
     if (water_collision) {
         D_8037E640[0] = this->position[0];
@@ -93,7 +93,7 @@ void chSnowball_update(Actor *this) {
     f32 sp64[3];
     f32 sp58[3];
     ActorLocal_chSnowball *local = (ActorLocal_chSnowball *)&this->local; 
-    BKCollisionTriangle *temp_v0_3;
+    BKCollisionTri *temp_v0_3;
     s32 phi_a1;
     s32 i;
 
@@ -161,7 +161,7 @@ void chSnowball_update(Actor *this) {
         }
         break;
     case 2:
-        this->marker->unk40_22 = NOT(player_isInFirstPersonView());
+        this->marker->unk40_22 = NOT(func_8028F170());
         this->velocity[0] *= 0.7;
         this->velocity[1] *= 0.7;
         this->velocity[2] *= 0.7;

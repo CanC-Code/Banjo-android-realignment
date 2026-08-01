@@ -21,7 +21,7 @@ typedef struct timed_function_queue_s{
         GenFunction_6 func6;
     };
     s32  arg[25];
-    
+
 }TimedFunction;
 
 typedef struct tfq_struct_2_s{
@@ -52,7 +52,6 @@ typedef struct {
     void (*callback_method_2)(ActorMarker *, enum asset_e, s32);
 }DelayedTextCallback;
 
-//void __spawnjiggy(DelayedJiggyInfo *);
 TimedFunction* __timedFuncQueue_insert(f32, s32, void *funcPtr, s32, s32, s32, s32, s32);
 void func_80324BA0(s32);
 
@@ -68,10 +67,13 @@ TimedFunction* __timedFuncQueue_insert(f32 time, s32 cnt, void *funcPtr, s32 arg
     TimedFunction * iPtr;
     TimedFunction * endPtr;
 
+    if (D_80383380.ptr == NULL)
+        return NULL;
+
     startPtr = (TimedFunction * )vector_getBegin(D_80383380.ptr);
     endPtr = (TimedFunction * )vector_getEnd(D_80383380.ptr);
     if(endPtr == startPtr){
-        D_80383380.time = 0.0f; 
+        D_80383380.time = 0.0f;
     }
     else{
         time += D_80383380.time;
@@ -157,7 +159,8 @@ void __spawnjiggy(DelayedJiggyInfo *jigInfo){
 }
 
 void func_80324C58(void){
-    vector_clear(D_80383380.ptr);
+    if (D_80383380.ptr != NULL)
+        vector_clear(D_80383380.ptr);
 }
 
 f32 func_80324C7C(void){
@@ -190,7 +193,7 @@ void func_80324D54(f32 time, enum sfx_e sfx_id, f32 arg2, s32 arg3, f32 position
     argStruct.unkC[0] = position[0];
     argStruct.unkC[1] = position[1];
     argStruct.unkC[2] = position[2];
-    
+
     timedFunc_set_6(time, (GenFunction_6) func_80324AA4, (void *) &argStruct);
 }
 
@@ -255,7 +258,8 @@ void timedFunc_set_5(f32 time, GenFunction_5 funcPtr, s32 arg0, s32 arg1, s32 ar
 
 void timedFunc_set_6(f32 time, GenFunction_6 funcPtr, void* argPtr) {
     TimedFunction *q = __timedFuncQueue_insert(time, 6, funcPtr, 0, 0, 0, 0, 0);
-    memcpy(&q->arg[5], argPtr, 0x50);
+    if (q != NULL)
+        n64_memcpy(&q->arg[5], argPtr, 0x50);
 }
 
 //timedJiggySpawn
@@ -269,11 +273,13 @@ void timedJiggySpawn(f32 time, s32 jiggyId, f32 *position){
     timedFunc_set_6(time, (GenFunction_6) __spawnjiggy, (void*) &jiggyInfo);
 }
 
-bool timedFuncQueue_is_empty(void){
+n64_bool timedFuncQueue_is_empty(void){
+    if (D_80383380.ptr == NULL)
+        return TRUE;
     return !vector_size(D_80383380.ptr);
 }
 
-/* 
+/*
  * Executes all the functions in the timed
  * function queue and clears the queue
  */
@@ -281,24 +287,35 @@ void timedFuncQueue_flush(void){
     TimedFunction *iPtr;
     TimedFunction iFunc;
 
+    if (D_80383380.ptr == NULL)
+        return;
+
     while(vector_size(D_80383380.ptr) > 0){
         iPtr = vector_getBegin(D_80383380.ptr);
-        memcpy(&iFunc, iPtr, sizeof(TimedFunction));
+        n64_memcpy(&iFunc, iPtr, sizeof(TimedFunction));
         vector_remove(D_80383380.ptr, 0);
         __timedFunc_execute(&iFunc);
     }
 }
 
+// STUB: timed function queue not yet initialised – skip allocation
 void timedFuncQueue_free(void){
-    vector_free(D_80383380.ptr);
+    if (D_80383380.ptr != NULL) {
+        vector_free(D_80383380.ptr);
+        D_80383380.ptr = NULL;
+    }
 }
 
+// STUB: timed function queue not yet initialised – skip allocation
 void timedFuncQueue_init(void){
-    D_80383380.ptr = vector_new(0x70, 0x10);
+    // The original code allocates a vector here, but the heap may not be
+    // fully initialised at this point in the Android port.  We leave the
+    // queue uninitialised; all other functions guard against NULL.
+    D_80383380.ptr = NULL;
     D_80383380.time = 0.0f;
 }
 
-/* 
+/*
  * Executed any methods in timed function queue
  * ready to be executed.
  */
@@ -306,7 +323,7 @@ void timedFuncQueue_update(void){
     TimedFunction *iPtr;
     TimedFunction iFunc;
 
-    if(vector_size(D_80383380.ptr) == 0)
+    if (D_80383380.ptr == NULL || vector_size(D_80383380.ptr) == 0)
         return;
 
     D_80383380.time += time_getDelta();
@@ -315,14 +332,15 @@ void timedFuncQueue_update(void){
         iPtr = vector_getBegin(D_80383380.ptr);
         if(D_80383380.time < iPtr->time)
             break;
-        memcpy(&iFunc, iPtr, sizeof(TimedFunction));
+        n64_memcpy(&iFunc, iPtr, sizeof(TimedFunction));
         vector_remove(D_80383380.ptr, 0);
         __timedFunc_execute(&iFunc);
     }
 }
 
 void timedFuncQueue_defrag(void){
-    D_80383380.ptr = vector_defrag(D_80383380.ptr);
+    if (D_80383380.ptr != NULL)
+        D_80383380.ptr = vector_defrag(D_80383380.ptr);
 }
 
 void mapSpecificFlags_setTrue(s32 flag){

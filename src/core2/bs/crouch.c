@@ -68,7 +68,7 @@ void bscrouch_init(void){
     batimer_set(0, 0.7f);
     batimer_set(1, 0.2f);
     baphysics_get_velocity(sp28);
-    D_8037D400 = sqrtf(sp28[0]*sp28[0] + sp28[2]*sp28[2]);
+    D_8037D400 = gu_sqrtf(sp28[0]*sp28[0] + sp28[2]*sp28[2]);
     if(140.0f < D_8037D400)
         basfx_80299AAC();
 
@@ -159,7 +159,7 @@ void bscrouch_update(void){
     }//L802ADC50
 
     if(player_isSliding())
-        sp34 = BS_32_SLIDE;
+        sp34 = BS_SLIDE;
 
     if(player_shouldFall())
         sp34 = BS_2F_FALL;
@@ -181,7 +181,7 @@ enum bs_e func_802ADCD4(enum bs_e arg0){
         arg0 = BS_1_IDLE;
         
         if(bakey_pressed(BUTTON_B) && can_claw())
-            arg0 = BS_6_CLAW;
+            arg0 = BS_CLAW;
 
         if(bakey_pressed(BUTTON_A))
             arg0 = bs_getTypeOfJump();
@@ -203,7 +203,7 @@ enum bs_e func_802ADCD4(enum bs_e arg0){
             arg0 = BS_12_BFLIP;
 
         if(bainput_should_beak_barge())
-            arg0 = BS_13_BBARGE;
+            arg0 = BS_BBARGE;
 
 
     }

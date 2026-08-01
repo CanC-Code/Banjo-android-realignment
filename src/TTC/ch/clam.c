@@ -8,14 +8,6 @@ extern ActorProp * func_80320EB0(ActorMarker *, f32, s32);
 static void __chClam_updateFunc(Actor *this);
 
 /* .data */
-
-enum clam_states
-{
-    CLAM_STATE_1_IDLE = 1,
-    CLAM_STATE_2_HOP,
-    CLAM_STATE_3_EAT,
-};
-
 ActorAnimationInfo gChClamAnimations[4] = {
     {NULL, NULL},
     {ASSET_AA_ANIM_CLAM_IDLE, 2.0f},
@@ -30,6 +22,21 @@ ActorInfo gChClam = {
     4500, 0x366, 1.6f, 0
 };
 
+
+/* Automated Forward Decls */
+static void __chClam_playSfx(enum sfx_e sfx_id, f32 volume, s32 sampleRate, f32 position[3], f32 minFadeDistance, f32 maxFadeDistance);
+static void __chClam_func_80386454(Actor *this);
+static n64_bool __chClam_updateFuncTarget(Actor *this, f32 arg1);
+static n64_bool __chClam_rotateTowardTarget(Actor *this, s32 arg1);
+static void __chClam_particalEmitterInit(ParticleEmitter *pCtrl, f32 position[3]);
+static void __chClam_emitLargeShellParticles(f32 position[3], s32 count);
+static void __chClam_emitEyeParticles(f32 position[3], s32 count);
+static void __chClam_emitSmallShellParticles(f32 position[3], s32 count);
+static void __chClam_emitEatencollectibleParticles(f32 position[3], enum asset_e sprite_id, s32 count);
+static void __chClam_takeDamage(ActorMarker *this_marker, ActorMarker *other_marker);
+static void __chClam_playerDropsItem(enum bundle_e bundle_id, enum item_e item_id);
+static void __chClam_attackOther(ActorMarker *this_marker, ActorMarker *other_marker);
+
 /* .code */
 static void __chClam_playSfx(enum sfx_e sfx_id, f32 volume, s32 sampleRate, f32 position[3], f32 minFadeDistance, f32 maxFadeDistance){
     if(gcdialog_hasCurrentTextId()){
@@ -42,12 +49,12 @@ static void __chClam_playSfx(enum sfx_e sfx_id, f32 volume, s32 sampleRate, f32 
 }
 
 static void __chClam_func_80386454(Actor *this){
-    subaddie_set_state_with_direction(this, CLAM_STATE_1_IDLE, 0.01f, 1);
+    subaddie_set_state_with_direction(this, 1, 0.01f, 1);
     actor_loopAnimation(this);
     anctrl_setDuration(this->anctrl, randf2(1.9f, 2.1f));
 }
 
-static bool __chClam_updateFuncTarget(Actor *this, f32 arg1) {
+static n64_bool __chClam_updateFuncTarget(Actor *this, f32 arg1) {
     f32 egg_dist;
     f32 red_feather_dist;
     f32 pad;
@@ -78,7 +85,7 @@ static bool __chClam_updateFuncTarget(Actor *this, f32 arg1) {
             phi_f2 = egg_dist;
     }
     else if ((subaddie_playerIsWithinSphereAndActive(this, 1200) != 0) && (func_803292E0(this) != 0)) {
-        phi_f2 = sqrtf((f32) func_8032970C(this));
+        phi_f2 = gu_sqrtf((f32) func_8032970C(this));
         player_getPosition(target_position);
         sp38 = 1;
     }
@@ -97,7 +104,7 @@ static bool __chClam_updateFuncTarget(Actor *this, f32 arg1) {
 
 }
 
-static bool __chClam_rotateTowardTarget(Actor *this, s32 arg1) {
+static n64_bool __chClam_rotateTowardTarget(Actor *this, s32 arg1) {
     f32 temp_f0_2;
     s32 position;
     s32 sp2C;
@@ -106,7 +113,7 @@ static bool __chClam_rotateTowardTarget(Actor *this, s32 arg1) {
 
 
     anctrl_setDuration(this->anctrl, 1.0f);
-    sp2C = (s32) ((f64) ((float)FRAMERATE / (f32) time_getDeltaReal_frames()) * 0.5);
+    sp2C = (s32) ((f64) (60.0f / (f32) time_getDeltaReal_frames()) * 0.5);
     if ((this->unk1C[0] != 0.0f) || !__chClam_updateFuncTarget(this, sp2C)) {
         if (((f64) anctrl_getAnimTimer(this->anctrl) < 0.1) && ((f64) randf() < 0.5)) {
             if (this->unk1C[0] != 0.0f) {
@@ -235,7 +242,7 @@ static void __chClam_takeDamage(ActorMarker *this_marker, ActorMarker *other_mar
     __chClam_emitLargeShellParticles(this->position, 2);
     __chClam_emitEyeParticles(this->position, 2);
     __chClam_emitSmallShellParticles(this->position, 0xC);
-    func_803115C4(VER_SELECT(ASSET_A14_DIALOG_CLAM_TAUNT, 0x914, 0, 0));
+    func_803115C4(0xa14);
     marker_despawn(this->marker);
 }
 
@@ -252,7 +259,7 @@ static void __chClam_attackOther(ActorMarker *this_marker, ActorMarker *other_ma
     
     if(baiFrame_getState() == 3) return;
 
-    if( !mapSpecificFlags_get(TTC_SPECIFIC_FLAG_5_CLAM_FIRST_MEET_TEXT_SHOWN) && gcdialog_showDialog(VER_SELECT(ASSET_A14_DIALOG_CLAM_TAUNT, 0x914, 0, 0), 0, NULL, NULL, NULL, NULL)){
+    if( !mapSpecificFlags_get(TTC_SPECIFIC_FLAG_5_CLAM_FIRST_MEET_TEXT_SHOWN) && gcdialog_showDialog(ASSET_A14_DIALOG_CLAM_TAUNT, 0, NULL, NULL, NULL, NULL)){
         mapSpecificFlags_set(TTC_SPECIFIC_FLAG_5_CLAM_FIRST_MEET_TEXT_SHOWN, TRUE);
     }
 
@@ -281,7 +288,7 @@ static void __chClam_updateFunc(Actor *this){
         marker_setCollisionScripts(this->marker, NULL, __chClam_attackOther, __chClam_takeDamage);
     }
 
-    if(this->state != CLAM_STATE_3_EAT){
+    if(this->state != 3){
         sp48 = mapModel_getFloorY(this->position);
         if(sp4C != NULL){
             sp44 = sp4C->marker->id;
@@ -291,7 +298,7 @@ static void __chClam_updateFunc(Actor *this){
             if(this->position_y <= sp48 + 15.0f && sp48 - 15.0f <= this->position_y){
                 this->position_y = sp48;
                 this->unk38_31 = sp44;
-                subaddie_set_state_with_direction(this, CLAM_STATE_3_EAT, 0.01f, 1);
+                subaddie_set_state_with_direction(this, 3, 0.01f, 1);
                 actor_loopAnimation(this);
                 this->velocity_x = 0.0f;
                 anctrl_setDuration(this->anctrl, 0.6f);
@@ -301,9 +308,9 @@ static void __chClam_updateFunc(Actor *this){
     }
 
     switch(this->state){
-        case CLAM_STATE_1_IDLE://L80387170
+        case 1://L80387170
             if(__chClam_rotateTowardTarget(this, 140)){
-                subaddie_set_state_with_direction(this, CLAM_STATE_2_HOP, 0.01f, 1);
+                subaddie_set_state_with_direction(this, 2, 0.01f, 1);
                 actor_playAnimationOnce(this);
                 anctrl_setDuration(this->anctrl, 1.0f);
                 __chClam_playSfx(SFX_3F2_BOING, randf2(1.0f, 1.1f), 22000, this->position, 1500.0f, 2000.0f);
@@ -313,7 +320,7 @@ static void __chClam_updateFunc(Actor *this){
             }
             break;
             
-        case CLAM_STATE_2_HOP://L8038720C
+        case 2://L8038720C
             this->position_y += this->velocity_y;
             this->velocity_y += -5.0f;
             if(actor_animationIsAt(this, 0.63f)){
@@ -333,7 +340,7 @@ static void __chClam_updateFunc(Actor *this){
             }
             break;
 
-        case CLAM_STATE_3_EAT://L803872F0
+        case 3://L803872F0
             if(actor_animationIsAt(this, 0.99f)){
                 this->velocity_x += 1.0f;
             }
@@ -353,7 +360,7 @@ static void __chClam_updateFunc(Actor *this){
             if(!this->marker->unk14_21) break;
 
             __chClam_playSfx(SFX_4C_LIP_SMACK, 1.0f, 20000, this->position, 500.0f, 2000.0f);
-            vec3fArray_get_vec3f(this->marker->unk44, 5, sp38);
+            func_8034A174(this->marker->unk44, 5, sp38);
 
             switch(this->unk38_31){
                 case MARKER_60_BLUE_EGG_COLLECTIBLE:

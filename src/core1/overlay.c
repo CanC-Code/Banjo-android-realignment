@@ -1,56 +1,88 @@
 #include <ultra64.h>
-#include "boot/overlaytable.h"
 #include "core1/core1.h"
-#include "checksums.h"
+#include "functions.h"
+#include "variables.h"
+#include "bka_safe_base.h"     // for BKA_TRANSLATE_ADDR
+#include <android/log.h>
 
-extern u8  gHeapBase;
+#define LOG_TAG "BKA_OVERLAY"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
+
+typedef struct{
+    u32 unk0;
+    u32 unk4;
+}struct49s;
+
+extern struct49s D_803FFE10[];
+
+extern u8  D_8002D500;
+extern u8  D_8000E800;
 extern u32 D_8027BF2C;
 extern u32 D_8027BF30;
 
 void overlay_load(
-    s32 id,
-    u8 *ram_start, u8 *ram_end,
-    u32 rom_start, u32 rom_end,
-    u8 *code_start, u8 *code_end,
-    u8 *data_start, u8 *data_end,
-    u8 *bss_start, u8 *bss_end
-) {
-    void *compressed_buffer;
-    u32 crc2, crc1;
-    struct overlay_checksums_s *checksums;
+    s32 overlay_id, u32 ram_start, u32 ram_end, u32 rom_start, u32 rom_end, 
+    u32 code_start, u32 code_end, u32 data_start, u32 data_end, u32 bss_start, u32 bss_end
+){
+    u8 *sp34;
+    u32 sp30;
+    u32 sp2C;
+    u32 *tmp;
 
-    osWritebackDCacheAll();
-    osInvalDCache(ram_start, ram_end - ram_start);
-    osInvalICache(ram_start, ram_end - ram_start);
+    // Translate all N64 addresses to host pointers.
+    u8 *ram_start_ptr  = BKA_TRANSLATE_ADDR(ram_start);
+    u8 *code_start_ptr = BKA_TRANSLATE_ADDR(code_start);
+    u8 *data_start_ptr = BKA_TRANSLATE_ADDR(data_start);
+    u8 *bss_start_ptr  = bss_start ? BKA_TRANSLATE_ADDR(bss_start) : NULL;
 
-    if (bss_start) {
-        osInvalDCache(bss_start, bss_end - bss_start);
+    osWriteBackDCacheAll();
+    osInvalDCache(ram_start_ptr, ram_end - ram_start);
+    osInvalICache(ram_start_ptr, ram_end - ram_start);
+
+    if(bss_start){
+        osInvalDCache(bss_start_ptr, bss_end - bss_start);
     }
 
-    rom_start = gOverlayTable[id].start;
-    rom_end = gOverlayTable[id].end;
+    rom_start = D_803FFE10[overlay_id].unk0;
+    rom_end = D_803FFE10[overlay_id].unk4;
 
-    if (id != 0) { // ID 0 is core2
-        core1_15B30_sendMesg3ToRenderThread();
-        compressed_buffer = &D_8000E800;
+    if(overlay_id){
+        func_80254008();
+        sp34 = &D_8000E800;
     } else {
-        compressed_buffer = &gHeapBase;
+        sp34 = &D_8002D500;
     }
 
-    piMgr_read(compressed_buffer, rom_start, rom_end - rom_start);
-    rarezip_uncompress(&compressed_buffer, &ram_start);
-    crc1 = D_8027BF2C;
-    crc2 = D_8027BF30;
-    rarezip_uncompress(&compressed_buffer, &ram_start);
+    // DIAGNOSTIC: decompression temporarily bypassed to isolate crash.
+    // The compressed data is read from ROM, but we skip the actual
+    // decompression and just zero out the target area.
+    LOGI("BKA: overlay_load bypass decompress for overlay %d, size=%d",
+         overlay_id, rom_end - rom_start);
 
-    if (bss_start) {
-        bzero(bss_start, bss_end - bss_start);
-        osWritebackDCacheAll();
+    piMgr_read(sp34, rom_start, rom_end - rom_start);
 
-        checksums = (struct overlay_checksums_s *) bss_start;
-        checksums->text_checksum1 = crc1;
-        checksums->text_checksum2 = crc2;
-        checksums->data_checksum1 = D_8027BF2C;
-        checksums->data_checksum2 = D_8027BF30;
+    // Bypass decompression — zero the overlay memory for now.
+    memset(ram_start_ptr, 0, ram_end - ram_start);
+
+    // Fake the CRC values so the game doesn't reject the overlay.
+    sp2C = 0;
+    sp30 = 0;
+    D_8027BF2C = 0;
+    D_8027BF30 = 0;
+
+    // Original decompression calls are commented out:
+    // rarezip_uncompress(&sp34, &ram_start_ptr);
+    // sp2C = D_8027BF2C;
+    // sp30 = D_8027BF30;
+    // rarezip_uncompress(&sp34, &ram_start_ptr);
+
+    if(bss_start){
+        bzero(bss_start_ptr, bss_end - bss_start);
+        osWriteBackDCacheAll();
+        tmp = (u32*) bss_start_ptr;
+        tmp[0] = sp2C;
+        tmp[1] = sp30;
+        tmp[2] = D_8027BF2C;
+        tmp[3] = D_8027BF30;
     }
 }

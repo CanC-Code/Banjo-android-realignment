@@ -39,10 +39,17 @@ ActorInfo chLockupFast = {
 static s32 SMOKE_COLOR[4] = { 120, 120, 120, 120 };
 static s32 SMOKE_VELOCITY[3] = { 0, 0, 0 };
 
+
+/* Automated Forward Decls */
+static Actor *chLockup_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
+static void close(Actor *this);
+static void open(Actor *this);
+static void chLockup_update(Actor *this);
+
 static Actor *chLockup_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx) {
     Actor *actor = marker_getActor(marker);
-    modelRender_setAppendageVisibility(3, actor->unk38_31);
-    modelRender_setAppendageVisibility(4, actor->unk38_31);
+    func_8033A45C(3, actor->unk38_31);
+    func_8033A45C(4, actor->unk38_31);
     actor_draw(marker, gfx, mtx, vtx);
 }
 
@@ -54,7 +61,7 @@ static void close(Actor *this) {
 }
 
 static void open(Actor *this) {
-    code3040_checkTTCChecksums();
+    code3040_func_80389468();
     subaddie_set_state_with_direction(this, CH_LOCKUP_STATE_OPENING, 0.2f, 1);
     this->unk38_31 = 1;
     sfx_playFadeShorthandDefault(SFX_6B_LOCKUP_OPENING, 1.0f, 32000, this->position, 1250, 2500);
@@ -72,7 +79,7 @@ static void chLockup_update(Actor *this) {
         && subaddie_playerIsWithinSphereAndActive(this, 320)
         && !subaddie_playerIsWithinSphereAndActive(this, 160)
         && !player_movementGroup()
-        && gcdialog_showDialog(VER_SELECT(ASSET_A15_DIALOG_LOCKUP_SPAWNED, 0x915, 0, 0), 0, NULL, NULL, NULL, NULL)) {
+        && gcdialog_showDialog(ASSET_A15_DIALOG_LOCKUP_SPAWNED, 0, NULL, NULL, NULL, NULL)) {
 
         this->has_met_before = TRUE;
     }
@@ -141,7 +148,7 @@ static void chLockup_update(Actor *this) {
 
                 // Spawn smoke particles
                 for (i = 5; i < 0xE; i++) {
-                    vec3fArray_get_vec3f(this->marker->unk44, i, this->unk1C);
+                    func_8034A174(this->marker->unk44, i, this->unk1C);
                     dustEmitter_emit(this->unk1C, SMOKE_VELOCITY, SMOKE_COLOR, TRUE, 0.4f, 50.0f, 0xB4, 0xA0, DUST_EMITTER_TYPE_DUST);
                 }
             }

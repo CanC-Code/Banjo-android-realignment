@@ -2,7 +2,7 @@
 #include "functions.h"
 #include "variables.h"
 
-s32 func_802E0970(enum sfx_e sfxId, f32 arg1, f32 arg2, f32 arg3, s32 sampleRate, bool arg5, f32 position[3]) {
+s32 func_802E0970(enum sfx_e sfxId, f32 arg1, f32 arg2, f32 arg3, s32 sampleRate, n64_bool arg5, f32 position[3]) {
     f32 temp_f0;
     f32 phi_f2;
 

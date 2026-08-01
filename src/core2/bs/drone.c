@@ -22,6 +22,10 @@ struct_drone D_80364B30[] = {
 
 
 
+
+/* Automated Forward Decls */
+static int __bsdrone_getIndex(void);
+
 static int __bsdrone_getIndex(void){
     int i;
     int val = badrone_get_type();

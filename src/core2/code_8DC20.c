@@ -57,14 +57,14 @@ void func_80314BB0(Gfx **gfx, Mtx **mtx, Vtx **vtx, void * frame_buffer_1, void 
 }
 
 void func_80315084(Gfx **gfx, Mtx **mtx, Vtx **vtx){
-    gsworld_setEnableDraw(FALSE);
+    func_80335128(0);
     D_803830A0 = 2;
-    func_80314BB0(gfx, mtx, vtx, depthbuffer_getDataPtr(), gFramebuffers[getActiveFramebuffer()]);
+    func_80314BB0(gfx, mtx, vtx, zBuffer_get(), gFramebuffers[getActiveFramebuffer()]);
 }
 
 void func_80315110(Gfx **gfx, Mtx **mtx, Vtx **vtx){
     if(!D_803830A0){
-        if(gsworld_getMap() != MAP_90_GL_BATTLEMENTS){
+        if(gsworld_get_map() != MAP_90_GL_BATTLEMENTS){
             func_803306C8(2);
             func_8032AD7C(2);
         }
@@ -72,9 +72,9 @@ void func_80315110(Gfx **gfx, Mtx **mtx, Vtx **vtx){
     else{
         D_803830A0--;
     }
-    func_80314BB0(gfx, mtx, vtx, gFramebuffers[getActiveFramebuffer()], depthbuffer_getDataPtr());
+    func_80314BB0(gfx, mtx, vtx, gFramebuffers[getActiveFramebuffer()], zBuffer_get());
 }
 
 void func_803151D0(Gfx **gfx, Mtx **mtx, Vtx **vtx){
-    gsworld_setEnableDraw(TRUE);
+    func_80335128(1);
 }

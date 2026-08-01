@@ -4,7 +4,6 @@
 #include "bsint.h"
 #include "core2/statetimer.h"
 #include "core2/ba/physics.h"
-#include "core2/yaw.h"
 
 extern f32 bastick_distance(void);
 void yaw_setVelocityBounded(f32, f32);
@@ -53,23 +52,23 @@ s32 func_802B488C(s32 arg0){
     s32 retVal = arg0;
     switch(bastick_getZone()){
         case 1:
-            retVal = BS_1F_WALK_CREEP;
+            retVal = BS_WALK_CREEP;
             break;
         case 2:
             retVal = BS_2_WALK_SLOW;
             break;
         case 3:
-            retVal = BS_3_WALK;
+            retVal = BS_WALK;
             break;
         case 4:
             retVal = BS_4_WALK_FAST;
             break;
     }
     if(bakey_held(BUTTON_Z))
-        retVal = BS_7_CROUCH;
+        retVal = BS_CROUCH;
 
     if(bakey_pressed(BUTTON_B) && can_claw())
-        retVal = BS_6_CLAW;
+        retVal = BS_CLAW;
 
     if(bakey_pressed(BUTTON_A))
         retVal = bs_getTypeOfJump();
@@ -78,7 +77,7 @@ s32 func_802B488C(s32 arg0){
         retVal = badrone_look();
 
     if(player_isSliding())
-        retVal = BS_32_SLIDE;
+        retVal = BS_SLIDE;
 
     retVal = func_8029CA94(retVal);
 
@@ -90,10 +89,10 @@ s32 func_802B488C(s32 arg0){
 
 void bsstand_init(void){
     if(bsclimb_inSet(bs_getPrevState()))
-        climb_release();
+        climbRelease();
 
     baanim_playForDuration_once(ASSET_6F_ANIM_BSSTAND_IDLE, 5.5f);
-    code_14420_setUpdateTypes(1, YAW_STATE_1_DEFAULT, 1, BA_PHYSICS_NORMAL);
+    func_8029C7F4(1,1,1, BA_PHYSICS_NORMAL);
     baphysics_set_target_horizontal_velocity(0.0f);
     func_802900B4();
     D_8037D540 = 0;
@@ -206,12 +205,12 @@ void bsstand_update(void) {
     if (sp18 & 8) {
         if (sp18 & 4) {
             if (anctrl_isAt(anim_ctrl, 0.0909f)) basfx_80299BD4();
-            if (anctrl_isAt(anim_ctrl, 0.0909f)) modelAppendages_setKazooiesUpperHalfVisibility(TRUE);
-            if (anctrl_isAt(anim_ctrl, 0.6818f)) modelAppendages_setKazooiesUpperHalfVisibility(FALSE);
+            if (anctrl_isAt(anim_ctrl, 0.0909f)) func_8029E070(1);
+            if (anctrl_isAt(anim_ctrl, 0.6818f)) func_8029E070(0);
         }//L802B4E70
         if (sp18 & 2) {
-            if (anctrl_isAt(anim_ctrl, 0.7727f)) modelAppendages_setKazooiesUpperHalfVisibility(TRUE);
-            if (anctrl_isAt(anim_ctrl, 0.9999f)) modelAppendages_setKazooiesUpperHalfVisibility(FALSE);
+            if (anctrl_isAt(anim_ctrl, 0.7727f)) func_8029E070(1);
+            if (anctrl_isAt(anim_ctrl, 0.9999f)) func_8029E070(0);
         }//L802B50E4
     } else if (sp18 & 0x20) {
         if (anctrl_getIndex(anim_ctrl) == ASSET_95_ANIM_BSSTAND_KAZOOIE_PECK) {
@@ -245,11 +244,11 @@ void bsstand_update(void) {
         if (sp18 & 0x10) {
             baanim_playForDuration_once(ASSET_95_ANIM_BSSTAND_KAZOOIE_PECK, 5.5f);
             anctrl_start(anim_ctrl, "bsstand.c", 0x1AB);
-            modelAppendages_setKazooiesUpperHalfVisibility(TRUE);
+            func_8029E070(1);
             func_802900FC();
         } else if (sp18 & 0x20) {
             baanim_playForDuration_once(ASSET_95_ANIM_BSSTAND_KAZOOIE_PECK, 5.5f);
-            modelAppendages_setKazooiesUpperHalfVisibility(TRUE);
+            func_8029E070(1);
             func_802900FC();
         } else if (sp18 & 8) {
             if (anctrl_getIndex(anim_ctrl) == ASSET_6F_ANIM_BSSTAND_IDLE) {
@@ -264,7 +263,7 @@ void bsstand_update(void) {
             anctrl_setPlaybackType(anim_ctrl, ANIMCTRL_LOOP);
             anctrl_setStart(anim_ctrl, sp1C);
             anctrl_start(anim_ctrl, "bsstand.c", 0x1C3);
-            modelAppendages_setKazooiesUpperHalfVisibility(FALSE);
+            func_8029E070(0);
         }
     }
     if (player_shouldFall() != 0) {
@@ -274,13 +273,13 @@ void bsstand_update(void) {
 }
 
 void bsstand_end(void){
-    modelAppendages_setKazooiesUpperHalfVisibility(FALSE);
+    func_8029E070(0);
     func_802900FC();
     baeyes_open();
 }
 
 void bsstand_landing_init(void){
-    code_14420_setUpdateTypes(1, YAW_STATE_1_DEFAULT, 1, BA_PHYSICS_NORMAL);
+    func_8029C7F4(1,1,1, BA_PHYSICS_NORMAL);
     baphysics_set_target_horizontal_velocity(0.0f);
 }
 
@@ -308,11 +307,11 @@ void bsstand_landing_update(void){
 
 ///BREAK???
 void func_802B5350(void){
-    s32 interrupt_type = bs_getInterruptType();
-    if(interrupt_type == BS_INTR_D_SURF){
+    s32 sp1C = bs_getInterruptType();
+    if(sp1C == BS_INTR_D_SURF){
         bs_setState(0x52);
     }
-    if(interrupt_type == BS_INTR_7){
+    if(sp1C == 0x7){
         if(bsStoredState_getTransformation() != TRANSFORM_1_BANJO)
             bs_setInterruptResponse(1);
         else{
@@ -320,14 +319,14 @@ void func_802B5350(void){
             bs_setState(BS_3A_CARRY_IDLE);
         }
     }
-    else if(interrupt_type == BS_INTR_12){//L802B53D0
+    else if(sp1C == 0x12){//L802B53D0
         bs_setInterruptResponse(1);
         if( bsStoredState_getTransformation() == TRANSFORM_1_BANJO && !baflag_isTrue(BA_FLAG_F) && stateTimer_isDone(STATE_TIMER_0_UNKNOWN)){
             bacarriedobj_spawn(baMarker_getCarriedObjectActorId());
             bs_setInterruptResponse(2);
         }
     }
-    else if(interrupt_type == BS_INTR_8){//L802B5438
+    else if(sp1C == 0x8){//L802B5438
         bs_setInterruptResponse(2);
         bs_setState(BS_3C_TALK);
     }else{

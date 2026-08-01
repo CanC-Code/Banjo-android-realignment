@@ -2,8 +2,8 @@
 #include "core1/core1.h"
 #include "functions.h"
 #include "variables.h"
-#include "n_libaudio.h"
-#include "n_audio/n_synth.h"
+#include "PR/n_libaudio.h"
+#include "n_synth.h"
 
 void  func_802444C0(N_AL_Struct81s *arg0);
 void  func_80244050(ALEventQueue *arg0, N_AL_Struct81s *arg1, u16 arg2);
@@ -43,18 +43,18 @@ void func_80243070(Struct87s *arg0) {
     ALEvent sp40;
     u32 var_s0;
 
-    D_802758CC->maxSounds = arg0->max_sounds;
+    D_802758CC->maxSounds = (s32) arg0->unk8;
     D_802758CC->target = NULL;
     D_802758CC->frameTime = 33000;
-    D_802758CC->sndState = alHeapAlloc(arg0->heap, 1, arg0->unk0 * sizeof(N_AL_Struct81s));
-    alEvtqNew(&D_802758CC->evtq, alHeapAlloc(arg0->heap, 1, arg0->unk4 * 0x1C), arg0->unk4);
+    D_802758CC->sndState = alHeapDBAlloc(NULL, 0, arg0->unkC, 1, arg0->unk0 * sizeof(N_AL_Struct81s));
+    alEvtqNew(&D_802758CC->evtq, alHeapDBAlloc(NULL, 0, arg0->unkC, 1, arg0->unk4 * 0x1C), arg0->unk4);
     D_802758C0.unk8 = D_802758CC->sndState;
     for(var_s0 = 1; var_s0 < arg0->unk0; var_s0++){
         var_v0 =  (N_AL_Struct81s *)D_802758CC->sndState;
         temp_a0 = var_s0 + var_v0;
         alLink((ALLink *)temp_a0, (ALLink*)(temp_a0 - 1));
     }
-    D_8027EF14 = alHeapAlloc(arg0->heap, 2, (s32) arg0->unk10);
+    D_8027EF14 = alHeapDBAlloc(NULL, 0, arg0->unkC, 2, (s32) arg0->unk10);
     for(var_s0 = 0; var_s0 < arg0->unk10; var_s0++){
         D_8027EF14[var_s0] = 0x7FFF;
     }
@@ -104,7 +104,7 @@ void func_802432F8(N_ALSndPlayer *sndp, N_ALEvent *event) {
     s32 spA4;
     s32 temp_t6;
     s32 var_v0;
-    bool var_s2;
+    n64_bool var_s2;
     s32 sp94;
     s32 sp90;
     N_ALVoice *voice;
@@ -562,7 +562,7 @@ s32 func_802445AC(N_AL_Struct81s *arg0){
     return 0;
 }
 
-bool func_802445C4(ALBank *bank, s16 arg1){
+n64_bool func_802445C4(ALBank *bank, s16 arg1){
     ALSound *snd = bank->instArray[0]->soundArray[arg1-1];
     if (snd->envelope->decayTime == -1)
         return TRUE;

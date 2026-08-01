@@ -10,7 +10,11 @@ f32 yawIdeal_deg; //yaw_ideal
 s32 yawUpdateState; //yaw_update_type
 f32 D_8037C69C; //yaw_update2_angular_velocity
 f32 D_8037C6A0; //yaw_update3_angular_velocity_limit
-f32 D_8037C6A4; //yaw_update3_angular_velocity_percentage
+f32 D_8037C6A4; 
+/* Automated Forward Decls */
+static void __yaw_update_limited(f32 limit_degPerSec, f32 step_percent);
+
+//yaw_update3_angular_velocity_percentage
 
 
 void __yaw_update_limitless(f32 arg0) {

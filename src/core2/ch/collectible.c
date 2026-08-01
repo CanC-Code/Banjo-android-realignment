@@ -6,26 +6,26 @@
 extern void actor_setOpacity(Actor*,s32);
 extern void progressDialog_showDialogMaskZero(u32);
 
-bool chCollectible_collectItem(Actor*, enum file_progress_e, enum asset_e, enum comusic_e, enum item_e, f32);
+n64_bool chCollectible_collectItem(Actor*, enum file_progress_e, enum asset_e, enum comusic_e, enum item_e, f32);
 Actor *chCollectible_draw(ActorMarker *this, Gfx **gdl, Mtx **mptr, Vtx **arg3);
 void chCollectible_update(Actor *this);
 
 /* .data */
-extern ActorInfo chBlueEgg = {
+extern ActorInfo D_80367D00 = {
     MARKER_60_BLUE_EGG_COLLECTIBLE, ACTOR_52_BLUE_EGG, ASSET_36D_SPRITE_BLUE_EGG,
     0, NULL, 
     chCollectible_update, actor_update_func_80326224, chCollectible_draw, 
     0, 0, 0.7f, 0
 };
 
-extern ActorInfo chRedFeather = {
+extern ActorInfo D_80367D24 = {
     MARKER_B5_RED_FEATHER_COLLECTIBLE, ACTOR_129_RED_FEATHER, ASSET_580_SPRITE_RED_FEATHER,
     0, NULL, 
     chCollectible_update, actor_update_func_80326224, chCollectible_draw, 
     0, 0, 0.5f, 0
 };
 
-extern ActorInfo chGoldFeather = {
+extern ActorInfo D_80367D48 = {
     MARKER_1E5_GOLD_FEATHER_COLLECTIBLE, ACTOR_370_GOLD_FEATHER, ASSET_6D1_SPRITE_GOLDFEATHER,
     0, NULL, 
     chCollectible_update, actor_update_func_80326224, chCollectible_draw, 
@@ -76,7 +76,7 @@ void func_802D8C98(Actor *this, s32 arg1) {
     chCollectible_setState(this, (phi_v0 ) ? 2 : 3);
 }
 
-bool chCollectible_collectItem(Actor* actor, enum file_progress_e arg1, enum asset_e dialogId, enum comusic_e sfxId, enum item_e itemId, f32 arg5){
+n64_bool chCollectible_collectItem(Actor* actor, enum file_progress_e arg1, enum asset_e dialogId, enum comusic_e sfxId, enum item_e itemId, f32 arg5){
     coMusicPlayer_playMusic(sfxId,32000);
     timedFunc_set_1(0.75f, (GenFunction_1)progressDialog_showDialogMaskZero, arg1);
     if(!func_802FADD4(0x1b)){
@@ -100,7 +100,7 @@ s32 chCollectible_collectEgg(ActorProp *arg0){
         if(arg0->isActorProp)
             actPtr = marker_getActor(arg0->marker);
     }
-    chCollectible_collectItem(actPtr, FILEPROG_5_BLUE_EGG_TEXT, VER_SELECT(0xD9E, 0xA1C, 0, 0), COMUSIC_C_EGG_COLLECTED, 0xD, 2.0f);
+    chCollectible_collectItem(actPtr, FILEPROG_5_BLUE_EGG_TEXT, 0xD9E, COMUSIC_C_EGG_COLLECTED, 0xD, 2.0f);
 }
 
 void chCollectible_collectRedFeather(ActorProp *arg0){
@@ -108,7 +108,7 @@ void chCollectible_collectRedFeather(ActorProp *arg0){
     fxSparkle_redFeather(&arg0->position_x);
     if(arg0->isActorProp)
         actPtr = marker_getActor(arg0->marker);
-    chCollectible_collectItem(actPtr, FILEPROG_6_RED_FEATHER_TEXT, VER_SELECT(0xD9F, 0xA1D, 0, 0), COMUSIC_B_RED_FEATHER_COLLECTED, 0xF, 4.0f);
+    chCollectible_collectItem(actPtr, FILEPROG_6_RED_FEATHER_TEXT, 0xD9F, COMUSIC_B_RED_FEATHER_COLLECTED, 0xF, 4.0f);
 }
 
 void chCollectible_collectGoldFeather(ActorProp *arg0){
@@ -116,7 +116,7 @@ void chCollectible_collectGoldFeather(ActorProp *arg0){
     fxSparkle_goldFeather(&arg0->position_x);
     if(arg0->isActorProp)
         actPtr = marker_getActor(arg0->marker);
-    chCollectible_collectItem(actPtr, FILEPROG_7_GOLD_FEATHER_TEXT, VER_SELECT(0xDA0, 0xA1E, 0, 0), COMUSIC_14_GOLD_FEATHER_COLLECTED, ITEM_10_GOLD_FEATHER, 6.0f);
+    chCollectible_collectItem(actPtr, FILEPROG_7_GOLD_FEATHER_TEXT, 0xDA0, COMUSIC_14_GOLD_FEATHER_COLLECTED, ITEM_10_GOLD_FEATHER, 6.0f);
 }
 
 Actor *chCollectible_draw(ActorMarker *this, Gfx **gdl, Mtx **mptr, Vtx **arg3){
@@ -147,7 +147,7 @@ void chCollectible_update(Actor *this) {
             suSetSpriteScale(this, 0.56f);
         }
         this->unk10_12 = -1;
-        this->unk38_0 = (gsworld_getMap() == MAP_90_GL_BATTLEMENTS);
+        this->unk38_0 = (gsworld_get_map() == MAP_90_GL_BATTLEMENTS);
         this->actor_specific_1_f = this->unk38_0 ? 0.0f : 255.0f;
         this->initialized = TRUE;
     }

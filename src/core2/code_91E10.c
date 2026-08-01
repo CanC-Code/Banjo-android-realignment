@@ -121,11 +121,26 @@ static u8 sPortraits[SELECTABLE_PORTAIT_COUNT+1] = {
 /* .bss */
 Struct_Core2_91E10 *sD_803830E0;
 
+
+/* Automated Forward Decls */
+static void __gcquiz_uniquelyRandomizeValuesInPointer(s8 *ptr, u8 min_index, u8 max_index, s32 min_value, s32 max_value);
+static void __gcquiz_randomizePortaitIds(void);
+static enum asset_e __gcquiz_get_type_start_id(enum ff_question_type_e question_type);
+static enum asset_e __gcquiz_get_type_end_id(enum ff_question_type_e question_type);
+static s32 __gcquiz_func_80318F60(enum ff_question_type_e question_type, s32 q_index, s32 arg2);
+static n64_bool __gcquiz_isSoundQuestion(enum ff_question_type_e question_type);
+static s32 __gcquiz_getZoomboxY(s32 arg0);
+static s32 __gcquiz_func_80319004(s32 arg0);
+static s32 __gcquiz_return0(s32 arg0);
+static n64_bool __gcquiz_isZero(s32 arg0);
+static f32 __gcquiz_animation_duration(s32 arg0);
+static n64_bool __gcquiz_func_803192A4(enum ff_question_type_e q_type, s32 q_index, s32 arg2);
+
 /* .code */
 static void __gcquiz_uniquelyRandomizeValuesInPointer(s8 *ptr, u8 min_index, u8 max_index, s32 min_value, s32 max_value){
     s32 i;
     s32 j;
-    bool is_unique;
+    n64_bool is_unique;
 
     for (i = min_index; i <= max_index; i++){
         /* assign is_unique random value*/
@@ -188,7 +203,7 @@ static s32 __gcquiz_func_80318F60(enum ff_question_type_e question_type, s32 q_i
     return phi_v1;
 }
 
-static bool __gcquiz_isSoundQuestion(enum ff_question_type_e question_type){
+static n64_bool __gcquiz_isSoundQuestion(enum ff_question_type_e question_type){
     return question_type == FFQT_2_SOUND;
 }
 
@@ -210,7 +225,7 @@ static s32 __gcquiz_return0(s32 arg0){
     return 0;
 }
 
-static bool __gcquiz_isZero(s32 arg0){
+static n64_bool __gcquiz_isZero(s32 arg0){
     return arg0 != 0 ? FALSE : TRUE;
 }
 
@@ -221,8 +236,8 @@ static f32 __gcquiz_animation_duration(s32 arg0){
 void gcquiz_init() {
     s32 i;
 
-    sD_803830E0 = malloc(sizeof(Struct_Core2_91E10));
-    sD_803830E0->unkC = malloc(0x400);
+    sD_803830E0 = n64_malloc(sizeof(Struct_Core2_91E10));
+    sD_803830E0->unkC = n64_malloc(0x400);
     sD_803830E0->unk16 = 0x14U;
     sD_803830E0->unk17 = 0x1E;
     sD_803830E0->portait_ids[0] = 0;
@@ -239,13 +254,13 @@ void gcquiz_free() {
     s32 i;
 
     if (sD_803830E0 != NULL) {
-        free(sD_803830E0->unkC);
+        n64_free(sD_803830E0->unkC);
         sD_803830E0->unkC = NULL;
         for(i = 0; i < 4; i++){
             gczoombox_free(sD_803830E0->zoomboxes[i]);
             sD_803830E0->zoomboxes[i] = NULL;
         }
-        free(sD_803830E0);
+        n64_free(sD_803830E0);
         sD_803830E0 = NULL;
     }
 }
@@ -261,7 +276,7 @@ void gcquiz_draw(Gfx **gfx, Mtx **mtx, Vtx **vtx) {
 }
 
 // randomize quiz question?
-static bool __gcquiz_func_803192A4(enum ff_question_type_e q_type, s32 q_index, s32 arg2) {
+static n64_bool __gcquiz_func_803192A4(enum ff_question_type_e q_type, s32 q_index, s32 arg2) {
     char *char_iter;
     enum asset_e quiz_question_index;
     s32 temp_s2;
@@ -285,7 +300,7 @@ static bool __gcquiz_func_803192A4(enum ff_question_type_e q_type, s32 q_index, 
 
     // not in asset cache?
     if (code_B3A80_func_8033BDAC(quiz_question_index, sD_803830E0->unkC, 0x400) == 0) {
-        free(sD_803830E0->unkC);
+        n64_free(sD_803830E0->unkC);
         sD_803830E0->unkC = (QuizQuestionBin *) assetcache_get(quiz_question_index);
     }
 
@@ -356,7 +371,7 @@ void __gcquiz_openZoomboxAndMaximizeWithStringsAt(s32 zoombox_index) {
     );
 }
 
-void __gcquiz_set_box_highlight(s32 index, bool arg1){
+void __gcquiz_set_box_highlight(s32 index, n64_bool arg1){
     gczoombox_highlight(sD_803830E0->zoomboxes[index], arg1);
     gczoombox_func_80318C48(sD_803830E0->zoomboxes[index], arg1);
 }
@@ -562,7 +577,7 @@ void gcquiz_func_80319EA4(void) {
     }
 }
 
-bool gcquiz_showQuestion(enum ff_question_type_e q_type, s32 q_index, s32 arg2, s32 arg3, s32 arg4, void (*arg5)(s32, s8)) {
+n64_bool gcquiz_func_8031A154(enum ff_question_type_e q_type, s32 q_index, s32 arg2, s32 arg3, s32 arg4, void (*arg5)(s32, s8)) {
     if (__gcquiz_func_803192A4(q_type, q_index, arg2) != FALSE) {
         sD_803830E0->question_type = q_type;
         sD_803830E0->question_index = q_index;
@@ -581,7 +596,7 @@ bool gcquiz_showQuestion(enum ff_question_type_e q_type, s32 q_index, s32 arg2, 
 }
 
 // unused but making this static differs checksum
-bool __gcquiz_unused(u8 *arg0, s8 *arg1, QuizQuestionStruct *arg2, s32 arg3, void (*arg4)(s32, s8)) {
+n64_bool __gcquiz_unused(u8 *arg0, s8 *arg1, QuizQuestionStruct *arg2, s32 arg3, void (*arg4)(s32, s8)) {
     s32 temp_v0;
     s8 *temp_a2;
     s8 *temp_s0;
@@ -629,7 +644,7 @@ void __gcquiz_unused2(u8 arg0, u8 arg1) {
     }
 }
 
-bool gcquiz_isNotInInitialState(){
+n64_bool gcquiz_isNotInInitialState(){
     return (sD_803830E0 != NULL) ? sD_803830E0->state != GCQUIZ_STATE_0_INITIAL: FALSE;
 }
 

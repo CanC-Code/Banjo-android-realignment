@@ -3,7 +3,7 @@
 #include "functions.h"
 #include "variables.h"
 
-#include "time.h"
+/* Redirected */ #include <n64_time.h>
 
 #define _76D90_MAX(s,t) ((s < t)? t : s)
 #define _76D90_MIN(s,t) ((s > t)? t : s)
@@ -239,7 +239,7 @@ void fxhoneycarrierscore_update(s32 arg0, struct8s *arg1){
                     }
                     break;
                 case 2://L802FECD4
-                    D_803815E0 *= sqrtf(D_803815E0);
+                    D_803815E0 *= gu_sqrtf(D_803815E0);
                     D_803815DC *= 1.1;
                     D_803815E4 = _76D90_MIN((D_803815E4 + (400.0*sp24)), 255.0);
                     if(D_803815E0 < 0.1){

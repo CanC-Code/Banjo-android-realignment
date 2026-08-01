@@ -2,7 +2,7 @@
 #include "functions.h"
 #include "variables.h"
 
-#include "math.h" // for SQ()
+/* Redirected */ #include <n64_math.h> // for SQ()
 
 void chVacationTextTrigger_update(Actor* this);
 
@@ -15,13 +15,17 @@ ActorInfo gChVacationTextTrigger = {
     0, 0, 0.0f, 0
 };
 
+
+/* Automated Forward Decls */
+static n64_bool __playerIsWithinTrigger(s32 x, s32 z, s32 distance);
+
 /* .code */
 
 /**
  * @brief Returns if player is within a specified horizontal radius of the 
  * supplied x,z positions.
  */
-static bool __playerIsWithinTrigger(s32 x, s32 z, s32 distance) {
+static n64_bool __playerIsWithinTrigger(s32 x, s32 z, s32 distance) {
     s32 player_position[3];
 
     player_getPosition_s32(player_position);
@@ -37,7 +41,7 @@ void chVacationTextTrigger_update(Actor* this) {
 
     // Start dialog if player is within trigger
     if (__playerIsWithinTrigger(0, -107, 188) != 0) {
-        gcdialog_showDialog(VER_SELECT(ASSET_DA9_DIALOG_MUMBO_CCW_VACATION, 0x0A27, 0, 0), 4, NULL, NULL, NULL, NULL);
+        gcdialog_showDialog(0xDA9, 4, NULL, NULL, NULL, NULL);
         volatileFlag_set(VOLATILE_FLAG_13_HAS_TRIGGERED_MUMBO_VACATION_TEXT, 1);
     }
 }

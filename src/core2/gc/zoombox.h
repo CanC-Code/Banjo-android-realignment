@@ -1,9 +1,19 @@
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #ifndef __BANJO_KAZOOIE_CORE2_GC_ZOOMBOX_H__
 #define __BANJO_KAZOOIE_CORE2_GC_ZOOMBOX_H__
 
+#ifdef __cplusplus
+}
+#endif
 #include <ultra64.h>
 #include "structs.h"
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #define ZOOMBOX_MAX_STRING_COUNT 8
 
 typedef enum talk_pic_e {
@@ -218,8 +228,8 @@ void func_80316E84(GcZoombox *this, s32 arg1);
 s32 gczoombox_strlen(u8 *arg0);
 void gczoombox_update(GcZoombox *this);
 GcZoombox *gczoombox_new(s32 arg0, GcZoomboxSprite portrait_id, s32 arg2, s32 arg3, void (*arg4)(s32, s32));
-bool gczoombox_setStrings(GcZoombox *this, s32 str_cnt, char **str_ptrs);
-bool func_803183A4(GcZoombox *this, char *arg1);
+n64_bool gczoombox_setStrings(GcZoombox *this, s32 str_cnt, char **str_ptrs);
+n64_bool func_803183A4(GcZoombox *this, char *arg1);
 void gczoombox_open(GcZoombox *this);
 void gczoombox_close(GcZoombox *this);
 void gczoombox_maximize(GcZoombox *this);
@@ -231,22 +241,27 @@ void func_80318488(GcZoombox *this);
 void func_80318498(GcZoombox *this);
 void gczoombox_resolve_minimize(GcZoombox *this);
 void func_803184B8(GcZoombox *this);
-void gczoombox_func_803184C8(GcZoombox *this, f32 arg1, s32 arg2, s32 arg3, f32 arg4, bool arg5, bool arg6);
-bool func_8031857C(GcZoombox *this, u8 *str);
-void gczoombox_highlight(GcZoombox *this, bool arg1);
-bool gczoombox_is_highlighted(GcZoombox *this);
+void gczoombox_func_803184C8(GcZoombox *this, f32 arg1, s32 arg2, s32 arg3, f32 arg4, n64_bool arg5, n64_bool arg6);
+n64_bool func_8031857C(GcZoombox *this, u8 *str);
+void gczoombox_highlight(GcZoombox *this, n64_bool arg1);
+n64_bool gczoombox_is_highlighted(GcZoombox *this);
 void func_80318614(GcZoombox *this, int arg1);
 void func_80318640(GcZoombox *this, s32 arg1, f32 arg2, f32 arg3, s32 arg4);
 void func_80318734(GcZoombox *this, f32 arg1);
 void func_80318760(GcZoombox *this, s32 arg1);
 void gczoombox_setUnk13ATo0(GcZoombox *this);
-bool func_8031877C(GcZoombox *this);
-bool func_803188B4(GcZoombox *this);
-bool func_80318964(GcZoombox *this);
-bool gczoombox_loadSprite(GcZoombox *this, GcZoomboxSprite arg1);
+n64_bool func_8031877C(GcZoombox *this);
+n64_bool func_803188B4(GcZoombox *this);
+n64_bool func_80318964(GcZoombox *this);
+n64_bool gczoombox_loadSprite(GcZoombox *this, GcZoomboxSprite arg1);
 void func_80318B7C(GcZoombox *this, s32 arg1);
-bool func_80318BEC(GcZoombox *this);
+n64_bool func_80318BEC(GcZoombox *this);
 void gczoombox_defrag(GcZoombox *this);
-void gczoombox_func_80318C48(GcZoombox *this, bool arg1);
+void gczoombox_func_80318C48(GcZoombox *this, n64_bool arg1);
 
 #endif // __BANJO_KAZOOIE_CORE2_GC_ZOOMBOX_H__
+
+
+#ifdef __cplusplus
+}
+#endif

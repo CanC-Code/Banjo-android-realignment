@@ -35,15 +35,15 @@ void func_803877B0(Struct_CC_13C0_1* arg0, void* arg1, f32 position[3], f32 rota
         return;
 
     if (temp_v0 == 0) {
-        modelRender_setAppendageVisibility(1, 1);
+        func_8033A45C(1, 1);
     } else if (temp_v0 == 1) {
-        modelRender_setAppendageVisibility(1, 2);
+        func_8033A45C(1, 2);
     } else if (temp_v0 == 2) {
-        modelRender_setAppendageVisibility(1, 2);
+        func_8033A45C(1, 2);
         rotation[2] += (arg0->unkC * 20.0f);
         arg4 = arg4*(1.0f - arg0->unkC);
     }
-    modelRender_setAppendageVisibility(2, 0);
+    func_8033A45C(2, 0);
     modelRender_setDepthMode(MODEL_RENDER_DEPTH_FULL);
     modelRender_draw(gfx, mtx, position, rotation, arg4, NULL, modeL_ptr);
 }
@@ -61,7 +61,7 @@ void func_803878F0(Struct_CC_13C0_1 *arg0, Struct68s *arg1, s32 arg2) {
     arg0->unk4 = 0;
     arg0->unk8 = 0;
     arg0 = arg0;
-    func_80351A14(arg1, (Struct68DrawMethod) func_803877B0);
+    func_80351A14(arg1, (s32) func_803877B0);
     func_803878AC(arg0, arg1, 0);
 }
 
@@ -99,14 +99,14 @@ void CC_func_80387A20(Struct_CC_13C0_1 *arg0, Struct68s *arg1) {
 
 void CC_func_80387A40(Struct_CC_13C0_1* arg0, Struct68s* arg1, f32 arg2) {
     s32 temp_v0;
-    f32 player_position[3];
+    f32 sp50[3];
     f32 sp44[3];
     f32 sp38[3];
     f32 sp2C[3];
     s32 sp28;
 
     arg0->unkC += arg2;
-    temp_v0 = maClankerRings_isMinigameActive();
+    temp_v0 = func_80388010();
     if (temp_v0 == 0) {
         func_803878AC(arg0, arg1, 3);
     } else {
@@ -129,49 +129,47 @@ void CC_func_80387A40(Struct_CC_13C0_1* arg0, Struct68s* arg1, f32 arg2) {
         mlMtxIdent();
         func_80252C08(NULL, sp2C, 1.0f, NULL);
         mlMtx_apply_vec3f(sp44, sp44);
-        player_getPosition(player_position);
-        player_position[1] += 50.0f;
-        player_position[0] -= sp38[0];
-        player_position[1] -= sp38[1];
-        player_position[2] -= sp38[2];
-        sp28 = ((player_position[0] * sp44[0] + player_position[1] * sp44[1] + player_position[2] * sp44[2]) >= 0.0f) ? 1 : -1;
+        player_getPosition(sp50);
+        sp50[1] += 50.0f;
+        sp50[0] -= sp38[0];
+        sp50[1] -= sp38[1];
+        sp50[2] -= sp38[2];
+        sp28 = ((sp50[0]*sp44[0] + sp50[1]*sp44[1] + sp50[2]*sp44[2]) >= 0.0f) ? 1 : -1;
         if (sp28 == -arg0->unk8) {
-            if (LENGTH_VEC3F(player_position) < (func_80351830(arg1) * 250.0f)) {
-                maClankerRings_passRing(arg0->unk0);
+            if (LENGTH_VEC3F(sp50) < (func_80351830(arg1) * 250.0f)) {
+                func_8038803C(arg0->unk0);
             }
         }
         arg0->unk8 = sp28;
     }
 }
 
-#if ANTI_TAMPER
-void code13C0_makeCameraFlipAndTilt(void){
-    f32 rotation[3];
-    s32 timer;
+void func_80387CC0(void){
+    f32 sp1C[3];
+    s32 tmp_v0;
     if(getGameMode() == GAME_MODE_7_ATTRACT_DEMO)
         return;
 
-    viewport_getRotation_vec3f(rotation);
-    timer = globalTimer_getTimeMasked(0x7F);
-    if(timer >= 0x40){
-        timer = 0x7F - timer;
+    viewport_getRotation_vec3f(sp1C);
+    tmp_v0 = globalTimer_getTimeMasked(0x7F);
+    if(tmp_v0 >= 0x40){
+        tmp_v0 = 0x7F - tmp_v0;
     }
-    rotation[2] += timer + 0x94;
-    if(360.0f <= rotation[2]){
-        rotation[2] -= 360.0f;
+    sp1C[2] += tmp_v0 + 0x94;
+    if(360.0f <= sp1C[2]){
+        sp1C[2] -= 360.0f;
     }
-    viewport_setRotation_vec3f(rotation);
-}
-#endif
+    viewport_setRotation_vec3f(sp1C);
 
-void code13C0_checkCCChecksums(void){
-#if ANTI_TAMPER
-    u32 rom_data;
-    u32 unused;
-    osPiReadIo(0x504, &rom_data);
-    rom_data = (rom_data & 0xffff) + 0xffff5BA0;
-    if(rom_data){
-        code13C0_makeCameraFlipAndTilt();
-    }
-#endif
 }
+
+void CC_func_80387D4C(void){
+    u32 sp1C;
+    u32 tmp_v0;
+    osPiReadIo(0x504, &sp1C);
+    sp1C = (sp1C & 0xffff) + 0xffff5BA0;
+    if(sp1C){
+        func_80387CC0();
+    }
+}
+

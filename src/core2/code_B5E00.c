@@ -122,12 +122,12 @@ void gameFile_save(s32 gamenum){
     saveData_create(&gameFile_saveData[filenum]);
 }
 
-bool gameFile_isNotEmpty(s32 gamenum){
+n64_bool gameFile_isNotEmpty(s32 gamenum){
     s32 filenum = gameFile_GameIdToFileIdMap[gamenum];
     return gameFile_saveData[filenum].magic != 0;
 }
 
-bool gameFile_anyNonEmpty(void){
+n64_bool gameFile_anyNonEmpty(void){
     int i;
     for(i = 0; i < 3; i++){
         if(gameFile_isNotEmpty(i))

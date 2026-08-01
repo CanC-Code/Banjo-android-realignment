@@ -1,4 +1,5 @@
 #include <ultra64.h>
+#include "bka_safe_base.h"
 #include "core1/core1.h"
 #include "functions.h"
 #include "variables.h"
@@ -29,8 +30,8 @@ extern ActorInfo fxWadingBootsTouchSparkle;
 extern ActorInfo fxTurboTrainersTouchSparkle; //turbotrainers
 extern ActorInfo chExplosionRipple;
 extern ActorInfo chBubble;
-extern ActorInfo chBigbutt; //bigbutt
-extern ActorInfo chSmallBull; //brownbull
+extern ActorInfo D_80366090; //bigbutt
+extern ActorInfo D_803660B4; //brownbull
 extern ActorInfo chJiggy; //jiggy
 extern ActorInfo chJigsawDance; //jigdance
 extern ActorInfo D_80366340;
@@ -41,16 +42,16 @@ extern ActorInfo D_803663D0;
 extern ActorInfo D_803663F4;
 extern ActorInfo chExtraLife; //extralife
 extern ActorInfo sumusicNote; //music_note
-extern ActorInfo chEmptyHoneycomb; //chhoneycarrier
-extern ActorInfo chHoneycomb; //chhoney
+extern ActorInfo D_80366C80; //chhoneycarrier
+extern ActorInfo D_80366CA4; //chhoney
 extern ActorInfo chTrainers;
 extern ActorInfo D_80366EF0; //large_shadow
 extern ActorInfo chShockJump; //chshockjump
 extern ActorInfo chFlightPad; //flight_pad
-extern ActorInfo chSnippet; //snippet
-extern ActorInfo chBlackSnippet; //black_snippet
-extern ActorInfo chMutieSnippet; //mutie_snippet
-extern ActorInfo chBuzzbomb; //buzzbomb
+extern ActorInfo D_803670B8; //snippet
+extern ActorInfo D_803670DC; //black_snippet
+extern ActorInfo D_80367100; //mutie_snippet
+extern ActorInfo D_80367130; //buzzbomb
 extern ActorInfo D_80367160;
 extern ActorInfo D_80367184;
 extern ActorInfo chJinjoBlue; //jingo_blue
@@ -59,108 +60,108 @@ extern ActorInfo chJinjoYellow; //jingo_yellow
 extern ActorInfo chJinjoPink; //jingo_pink
 extern ActorInfo chJinjoOrange; //jingo_orange
 extern ActorInfo chBeehive; //chbeehive
-extern ActorInfo chBeeSwarm; //chswarm
+extern ActorInfo D_80367310; //chswarm
 extern ActorInfo D_80367390; //chwaterfallfx
 extern ActorInfo chShrapnelDescription; //scrapnel
 extern ActorInfo chGloop; //gloop
-extern ActorInfo chMumbo; //mumbo
-extern ActorInfo chMumboSign5; //mumbo_token_sign.5
-extern ActorInfo chMumboSign10; //mumbo_toke_sign.10
-extern ActorInfo chMumboSign15; //mumbo_toke_sign.15
-extern ActorInfo chMumboSign20; //mumbo_toke_sign.20
-extern ActorInfo chMumboSign25; //mumbo_toke_sign.25
+extern ActorInfo D_803674E0; //mumbo
+extern ActorInfo D_80367530; //mumbo_token_sign.5
+extern ActorInfo D_80367554; //mumbo_toke_sign.10
+extern ActorInfo D_80367578; //mumbo_toke_sign.15
+extern ActorInfo D_8036759C; //mumbo_toke_sign.20
+extern ActorInfo D_803675C0; //mumbo_toke_sign.25
 extern ActorInfo D_803675F0;
 extern ActorInfo D_80367760;
 extern ActorInfo D_80367784;
-extern ActorInfo chIceKey; //ice_key
-extern ActorInfo chMumboSwitch; //mumbo_transform_pad
-extern ActorInfo chFFTeleportPad;
-extern ActorInfo chSnsEgg; //SnS_egg
-extern ActorInfo gWorldExitPad; //level_entry_disk
-extern ActorInfo chMMWitchSwitch; //witch_switch.mm;
-extern ActorInfo chMMMWitchSwitch; //witch_switch.mmm
-extern ActorInfo chTTCWitchSwitch; //witch_switch.ttc
-extern ActorInfo chRBBWitchSwitch; //witch_switch.rbb
-extern ActorInfo chCCWWitchSwitch; //witch_switch.ccw
-extern ActorInfo chFPWitchSwitch; //witch_switch.fp
-extern ActorInfo chCCWitchSwitch; //witch_switch.cc
-extern ActorInfo chBGSWitchSwitch; //witch_switch.bgs
-extern ActorInfo chGVWitchSwitch; //witch_switch.gv
-extern ActorInfo chWadingBoots; //wading boots
+extern ActorInfo D_803677A8; //ice_key
+extern ActorInfo D_803677CC; //mumbo_transform_pad
+extern ActorInfo D_803677F0;
+extern ActorInfo D_80367814; //SnS_egg
+extern ActorInfo D_80367838; //level_entry_disk
+extern ActorInfo D_8036785C; //witch_switch.mm;
+extern ActorInfo D_80367880; //witch_switch.mmm
+extern ActorInfo D_803678A4; //witch_switch.ttc
+extern ActorInfo D_803678C8; //witch_switch.rbb
+extern ActorInfo D_803678EC; //witch_switch.ccw
+extern ActorInfo D_80367910; //witch_switch.fp
+extern ActorInfo D_80367934; //witch_switch.cc
+extern ActorInfo D_80367958; //witch_switch.bgs
+extern ActorInfo D_8036797C; //witch_switch.gv
+extern ActorInfo D_80367A20; //wading boots
 extern ActorInfo chBadShad; //chbadshad
 extern ActorInfo D_80367AB0;
 extern ActorInfo D_80367AD4;
 extern ActorInfo D_80367AF8;
 extern ActorInfo D_80367B20; //chclimbbase
-extern ActorInfo chOrangeCollectible; //orange
-extern ActorInfo chGoldBullion; //gold_bullion
-extern ActorInfo chBluePresentCollectible;
-extern ActorInfo chGreenPresentCollectible;
-extern ActorInfo chRedPresentCollectible;
+extern ActorInfo D_80367B80; //orange
+extern ActorInfo D_80367BA4; //gold_bullion
+extern ActorInfo D_80367BC8;
+extern ActorInfo D_80367BEC;
+extern ActorInfo D_80367C10;
 extern ActorInfo chPiranhaWaterParticles;
 extern ActorInfo fxSpentRedFeather; //spent_redfeather
 extern ActorInfo fxSpentGoldFeather; //spent_goldfeather
-extern ActorInfo chBlueEgg; //egg
-extern ActorInfo chRedFeather; //redfeather
-extern ActorInfo chGoldFeather; //goldfeather 
+extern ActorInfo D_80367D00; //egg
+extern ActorInfo D_80367D24; //redfeather
+extern ActorInfo D_80367D48; //goldfeather 
 extern ActorInfo gChMole; //bottles
-extern ActorInfo chMolehill; //chmolehill
+extern ActorInfo D_80367E20; //chmolehill
 extern ActorInfo D_80367E70;
 extern ActorInfo D_80367F30;
-extern ActorInfo gcGameOverSign;//GAME_OVER
-extern ActorInfo gcTheEndSign;//THE_END
-extern ActorInfo gcBanjoKazooieSign;//player_KAZOOIE
+extern ActorInfo D_8036804C;//GAME_OVER
+extern ActorInfo D_8036807C;//THE_END
+extern ActorInfo D_803680AC;//player_KAZOOIE
 extern ActorInfo chOverlayCopyrightDescription;//copyright_info
-extern ActorInfo chOverlayPressStart;//PRESS_START
-extern ActorInfo chOverlayNoController;//NO_CONTROLLER)
+extern ActorInfo D_80368124;//PRESS_START
+extern ActorInfo D_80368174;//NO_CONTROLLER)
 extern ActorInfo chBottlesBonusDescription; //jiggy_picture
-extern ActorInfo chMumbosHandWithPicture; 
+extern ActorInfo D_8036833C; 
 extern ActorInfo D_8036838C;
-extern ActorInfo chBottlesBonusCursor; //banjos_hand_BB
-extern ActorInfo chFireSparkle; //fire_sparkle
-extern ActorInfo chBanjoCurtains;
-extern ActorInfo chBanjoHouseDoor;
-extern ActorInfo chFishbowl; //roysten
-extern ActorInfo chCuckooClock; //cuckoo_clock
+extern ActorInfo D_80368418; //banjos_hand_BB
+extern ActorInfo D_80368450; //fire_sparkle
+extern ActorInfo D_80368474;
+extern ActorInfo D_80368498;
+extern ActorInfo D_803684BC; //roysten
+extern ActorInfo D_803684E0; //cuckoo_clock
 extern ActorInfo D_80368504;
 extern ActorInfo D_80368528;
 extern ActorInfo D_8036854C;
 extern ActorInfo D_80368570;
-extern ActorInfo chMumboToken; //mumbotoken
+extern ActorInfo D_803685A0; //mumbotoken
 extern ActorInfo chSnowman; //sirslush
 extern ActorInfo chSnowball; //snowball
 extern ActorInfo chSnowmanHat; //sir_slush_hat
 extern ActorInfo D_80372810;
-extern ActorInfo chGrilleChompa; //grillchompa
-extern ActorInfo chClucker; //clucker
-extern ActorInfo chScarabBeetle; //scarab
+extern ActorInfo D_80372840; //grillchompa
+extern ActorInfo D_80372870; //clucker
+extern ActorInfo D_803728A0; //scarab
 extern ActorInfo chMinigame; //boombox
-extern ActorInfo leafEmitterCCWAutumn; //leaf_particle
-extern ActorInfo leafEmitterCCWHub;
-extern ActorInfo rainEmitterCCWSpring; //rain
-extern ActorInfo rainEmitterCCWHub;
-extern ActorInfo snowEmitterCCWWinter; //snow
-extern ActorInfo snowEmitterCCWHub; 
+extern ActorInfo D_80372970; //leaf_particle
+extern ActorInfo D_80372994;
+extern ActorInfo D_803729B8; //rain
+extern ActorInfo D_803729DC;
+extern ActorInfo D_80372A00; //snow
+extern ActorInfo D_80372A24; 
 extern ActorInfo D_80372A48; 
 extern ActorInfo D_80372A6C; 
 extern ActorInfo gChFireFxInfo; //fire
 extern ActorInfo gChDripsInfo;//water_drops
-extern ActorInfo chIcecubeA;
-extern ActorInfo chIcecubeB;//ice_cube
-extern ActorInfo chTeeHee; //teehee
-extern ActorInfo chFlotsam; //floatsam
-extern ActorInfo chSkeleton; //limbo
-extern ActorInfo chSeamanGrublin; //grublin_hood
-extern ActorInfo chMumMum; //mummum
-extern ActorInfo chChumpFish;
+extern ActorInfo D_80372B80;
+extern ActorInfo D_80372BA4;//ice_cube
+extern ActorInfo D_80372C18; //teehee
+extern ActorInfo D_80372C80; //floatsam
+extern ActorInfo D_80372D78; //limbo
+extern ActorInfo D_80372DF8; //grublin_hood
+extern ActorInfo D_80372E78; //mummum
+extern ActorInfo D_80372EE0;
 extern ActorInfo chTermite; //ticker
 extern ActorInfo D_80372FC0;
 extern ActorInfo D_80372FE4;
 extern ActorInfo gChBat; //nibbly
-extern ActorInfo chWhipcrack;
-extern ActorInfo chBetaVent1;
-extern ActorInfo chBetaVent2;
-extern ActorInfo lairBottlesDialog;
+extern ActorInfo D_80373100;
+extern ActorInfo D_80373134;
+extern ActorInfo D_80373158;
+extern ActorInfo D_803731B0;
 extern ActorInfo D_803732E0;
 extern ActorInfo D_80373DC0;
 
@@ -185,12 +186,14 @@ FunctionQueue *spawnQueue = NULL;
 
 /* .code */
 void spawnQueue_malloc(void){
-    u32 tmp = (gsworld_getMap() == MAP_90_GL_BATTLEMENTS)? 50: 15;
-    spawnQueue = (FunctionQueue *) malloc(tmp * sizeof(FunctionQueue));
+    u32 tmp = (gsworld_get_map() == MAP_90_GL_BATTLEMENTS)? 50: 15;
+    spawnQueue = (FunctionQueue *) n64_malloc(tmp * sizeof(FunctionQueue));
 }
 
 void spawnQueue_reset(void){
-    enum overlay_e loaded_asm_file = overlayManager_getLoadedID();
+    s32 loaded_asm_file;
+
+    loaded_asm_file = overlayManagergetLoadedId();
     spawnQueue_lock();
     spawnQueueLength = 0;
     chmumbo_func_802D1724();
@@ -217,11 +220,11 @@ void spawnQueue_reset(void){
     spawnableActorList_new();
     spawnableActorList_add(&D_80367160, actor_new, ACTOR_FLAG_NONE); //cutscene Trigger?
     spawnableActorList_add(&D_803675F0, actor_new, ACTOR_FLAG_UNKNOWN_6);
-    spawnableActorList_add(&chBigbutt, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_1 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_25); 
-    spawnableActorList_add(&chSmallBull, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_1 | ACTOR_FLAG_UNKNOWN_8);
-    spawnableActorList_add(&chMumbo, actor_new, ACTOR_FLAG_UNKNOWN_1 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8);
+    spawnableActorList_add(&D_80366090, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_1 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_25); 
+    spawnableActorList_add(&D_803660B4, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_1 | ACTOR_FLAG_UNKNOWN_8);
+    spawnableActorList_add(&D_803674E0, actor_new, ACTOR_FLAG_UNKNOWN_1 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8);
     spawnableActorList_add(&chBeehive, actor_new, ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_25);
-    spawnableActorList_add(&chBeeSwarm, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_17);
+    spawnableActorList_add(&D_80367310, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_17);
     spawnableActorList_add(&D_80367390, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_19);
     spawnableActorList_add(&chJinjoYellow, actor_new, ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_8);
     spawnableActorList_add(&chJinjoOrange, actor_new, ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_8);
@@ -231,11 +234,11 @@ void spawnQueue_reset(void){
     spawnableActorList_add(&chJiggy, actor_new, ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_21);
     spawnableActorList_add(&chJigsawDance, actor_new, ACTOR_FLAG_UNKNOWN_2);
     spawnableActorList_add(&chPiranhaWaterParticles, actor_new, ACTOR_FLAG_UNKNOWN_2);
-    spawnableActorList_add(&chWadingBoots, actor_new, ACTOR_FLAG_NONE);
-    spawnableActorList_add(&chEmptyHoneycomb, actor_new, ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_21); //chhoneycarrier
-    spawnableActorList_add(&chHoneycomb, actor_new, ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_21); //chhoney
+    spawnableActorList_add(&D_80367A20, actor_new, ACTOR_FLAG_NONE);
+    spawnableActorList_add(&D_80366C80, actor_new, ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_21); //chhoneycarrier
+    spawnableActorList_add(&D_80366CA4, actor_new, ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_21); //chhoney
     spawnableActorList_add(&sumusicNote, actor_new, ACTOR_FLAG_UNKNOWN_21); //music_note
-    spawnableActorList_add(&chBlueEgg, actor_new, ACTOR_FLAG_UNKNOWN_21); //egg
+    spawnableActorList_add(&D_80367D00, actor_new, ACTOR_FLAG_UNKNOWN_21); //egg
     spawnableActorList_add(&D_80366340, func_802C8A54, ACTOR_FLAG_UNKNOWN_2);
     spawnableActorList_add(&D_80366364, func_802C8AA8, ACTOR_FLAG_UNKNOWN_2);
     spawnableActorList_add(&D_80366388, func_802C8AF8, ACTOR_FLAG_UNKNOWN_2);
@@ -252,107 +255,107 @@ void spawnQueue_reset(void){
     spawnableActorList_add(&chExtraLife, actor_new, ACTOR_FLAG_UNKNOWN_21); //extralife
     spawnableActorList_add(&chExplosionRipple, actor_new, ACTOR_FLAG_UNKNOWN_2);
     spawnableActorList_add(&chBadShad, actor_new, ACTOR_FLAG_UNKNOWN_2); //chbadshad
-    spawnableActorList_add(&chMumboToken, actor_new, ACTOR_FLAG_UNKNOWN_6); //mumbotoken
+    spawnableActorList_add(&D_803685A0, actor_new, ACTOR_FLAG_UNKNOWN_6); //mumbotoken
     spawnableActorList_add(&D_80367F30, actor_new, ACTOR_FLAG_UNKNOWN_10);
     spawnableActorList_add(&chBubble, actor_new, ACTOR_FLAG_UNKNOWN_2);
     spawnableActorList_add(&chGloop, actor_new, ACTOR_FLAG_UNKNOWN_1 | ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_7); //gloop
     spawnableActorList_add(&chShockJump, actor_new, ACTOR_FLAG_NONE); //chshockjump
     spawnableActorList_add(&chFlightPad, actor_new, ACTOR_FLAG_NONE); //flight_pad
-    spawnableActorList_add(&chRedFeather, actor_new, ACTOR_FLAG_UNKNOWN_21); //redfeather
-    spawnableActorList_add(&chGoldFeather, actor_new, ACTOR_FLAG_UNKNOWN_21); //goldfeather 
+    spawnableActorList_add(&D_80367D24, actor_new, ACTOR_FLAG_UNKNOWN_21); //redfeather
+    spawnableActorList_add(&D_80367D48, actor_new, ACTOR_FLAG_UNKNOWN_21); //goldfeather 
     spawnableActorList_add(&fxSpentRedFeather, actor_new, ACTOR_FLAG_UNKNOWN_2); //spent_redfeather
     spawnableActorList_add(&fxSpentGoldFeather, actor_new, ACTOR_FLAG_UNKNOWN_2); //spent_goldfeather
     spawnableActorList_add(&gChMole, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8); //bottles
-    spawnableActorList_add(&chMolehill, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_6); //chmolehill
+    spawnableActorList_add(&D_80367E20, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_6); //chmolehill
     spawnableActorList_add(&D_80373DC0, actor_new, ACTOR_FLAG_UNKNOWN_19);
     spawnableActorList_add(&D_80367E70, actor_new, ACTOR_FLAG_NONE);
     spawnableActorList_add(&gChSnacker, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_16); //snacker
     spawnableActorList_add(&D_80366EF0, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_17); //large_shadow
     spawnableActorList_add(&D_80367B20, actor_new, ACTOR_FLAG_UNKNOWN_7); //chclimbbase
-    spawnableActorList_add(&chGoldBullion, actor_new, ACTOR_FLAG_UNKNOWN_6); //gold_bullion
-    spawnableActorList_add(&chOrangeCollectible, actor_new, ACTOR_FLAG_UNKNOWN_1); //orange
-    spawnableActorList_add(&leafEmitterCCWAutumn, actor_new, ACTOR_FLAG_UNKNOWN_7); //leaf_particle
-    spawnableActorList_add(&leafEmitterCCWHub, actor_new, ACTOR_FLAG_UNKNOWN_7);
-    spawnableActorList_add(&rainEmitterCCWSpring, actor_new, ACTOR_FLAG_UNKNOWN_7); //rain
-    spawnableActorList_add(&rainEmitterCCWHub, actor_new, ACTOR_FLAG_UNKNOWN_7);
-    spawnableActorList_add(&snowEmitterCCWWinter, actor_new, ACTOR_FLAG_UNKNOWN_7); //snow
-    spawnableActorList_add(&snowEmitterCCWHub, actor_new, ACTOR_FLAG_UNKNOWN_7); 
+    spawnableActorList_add(&D_80367BA4, actor_new, ACTOR_FLAG_UNKNOWN_6); //gold_bullion
+    spawnableActorList_add(&D_80367B80, actor_new, ACTOR_FLAG_UNKNOWN_1); //orange
+    spawnableActorList_add(&D_80372970, actor_new, ACTOR_FLAG_UNKNOWN_7); //leaf_particle
+    spawnableActorList_add(&D_80372994, actor_new, ACTOR_FLAG_UNKNOWN_7);
+    spawnableActorList_add(&D_803729B8, actor_new, ACTOR_FLAG_UNKNOWN_7); //rain
+    spawnableActorList_add(&D_803729DC, actor_new, ACTOR_FLAG_UNKNOWN_7);
+    spawnableActorList_add(&D_80372A00, actor_new, ACTOR_FLAG_UNKNOWN_7); //snow
+    spawnableActorList_add(&D_80372A24, actor_new, ACTOR_FLAG_UNKNOWN_7); 
     spawnableActorList_add(&D_80372A48, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_7); 
     spawnableActorList_add(&D_80372A6C, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_7); 
     spawnableActorList_add(&chMinigame, actor_new, ACTOR_FLAG_UNKNOWN_7); //boombox
-    spawnableActorList_add(&chIceKey, actor_new, ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15); //ice_key
-    spawnableActorList_add(&chSnsEgg, actor_new, ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15); //SnS_egg
+    spawnableActorList_add(&D_803677A8, actor_new, ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15); //ice_key
+    spawnableActorList_add(&D_80367814, actor_new, ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15); //SnS_egg
     spawnableActorList_add(&gChFireFxInfo, actor_new, ACTOR_FLAG_NONE); //fire
-    spawnableActorList_add(&gWorldExitPad, actor_new, ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15); //level_entry_disk
+    spawnableActorList_add(&D_80367838, actor_new, ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15); //level_entry_disk
     spawnableActorList_add(&D_80367760, actor_new, ACTOR_FLAG_UNKNOWN_12);
     spawnableActorList_add(&D_80367784, actor_new, ACTOR_FLAG_UNKNOWN_12);
     spawnableActorList_add(&gameSelect_banjoSleeping, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_17); //banjo.without_right_hand
     spawnableActorList_add(&gameSelect_banjoGameboy, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_17); //banjo.playing_gameboy
     spawnableActorList_add(&gameSelect_banjoCooking, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_17); //banjo.cooking
-    spawnableActorList_add(&chMumboSwitch, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15);//mumbo_transform_pad
-    spawnableActorList_add(&chFFTeleportPad, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15);
-    spawnableActorList_add(&lairBottlesDialog, actor_new, ACTOR_FLAG_NONE);
+    spawnableActorList_add(&D_803677CC, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15);//mumbo_transform_pad
+    spawnableActorList_add(&D_803677F0, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15);
+    spawnableActorList_add(&D_803731B0, actor_new, ACTOR_FLAG_NONE);
     spawnableActorList_add(&chSnowball, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_20);//snowball
     spawnableActorList_add(&chSnowmanHat, actor_new, ACTOR_FLAG_UNKNOWN_2);//sir_slush_hat
     spawnableActorList_add(&gChDripsInfo, actor_new, ACTOR_FLAG_UNKNOWN_10);//water_drops
-    spawnableActorList_add(&chIcecubeB, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_17 | ACTOR_FLAG_UNKNOWN_25);//ice_cube
-    spawnableActorList_add(&gcGameOverSign, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//GAME_OVER
-    spawnableActorList_add(&gcTheEndSign, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//THE_END
-    spawnableActorList_add(&gcBanjoKazooieSign, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//player_KAZOOIE
+    spawnableActorList_add(&D_80372BA4, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_17 | ACTOR_FLAG_UNKNOWN_25);//ice_cube
+    spawnableActorList_add(&D_8036804C, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//GAME_OVER
+    spawnableActorList_add(&D_8036807C, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//THE_END
+    spawnableActorList_add(&D_803680AC, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//player_KAZOOIE
     spawnableActorList_add(&chOverlayCopyrightDescription, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//copyright_info
-    spawnableActorList_add(&chOverlayPressStart, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//PRESS_START
+    spawnableActorList_add(&D_80368124, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//PRESS_START
     spawnableActorList_add(&chBottlesBonusDescription, chBottlesBonus_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_12 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//jiggy_picture
-    spawnableActorList_add(&chMumbosHandWithPicture, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);
+    spawnableActorList_add(&D_8036833C, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);
     spawnableActorList_add(&D_8036838C, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_12 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);
-    spawnableActorList_add(&chBottlesBonusCursor, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//banjos_hand_BB
-    spawnableActorList_add(&chOverlayNoController, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//NO_CONTROLLER);
-    spawnableActorList_add(&chMumboSign5, actor_new, ACTOR_FLAG_NONE);//mumbo_token_sign.5
-    spawnableActorList_add(&chMumboSign10, actor_new, ACTOR_FLAG_NONE);//mumbo_toke_sign.10
-    spawnableActorList_add(&chMumboSign15, actor_new, ACTOR_FLAG_NONE);//mumbo_toke_sign.15
-    spawnableActorList_add(&chMumboSign20, actor_new, ACTOR_FLAG_NONE);//mumbo_toke_sign.20
-    spawnableActorList_add(&chMumboSign25, actor_new, ACTOR_FLAG_NONE);//mumbo_toke_sign.25
-    spawnableActorList_add(&chMMWitchSwitch, actor_new, ACTOR_FLAG_NONE);//witch_switch.mm;
-    spawnableActorList_add(&chMMMWitchSwitch, actor_new, ACTOR_FLAG_NONE);//witch_switch.mmm
-    spawnableActorList_add(&chTTCWitchSwitch, actor_new, ACTOR_FLAG_NONE);//witch_switch.ttc
-    spawnableActorList_add(&chRBBWitchSwitch, actor_new, ACTOR_FLAG_NONE);//witch_switch.rbb
-    spawnableActorList_add(&chCCWWitchSwitch, actor_new, ACTOR_FLAG_NONE);//witch_switch.ccw
-    spawnableActorList_add(&chFPWitchSwitch, actor_new, ACTOR_FLAG_NONE);//witch_switch.fp
-    spawnableActorList_add(&chCCWitchSwitch, actor_new, ACTOR_FLAG_NONE);//witch_switch.cc
-    spawnableActorList_add(&chBGSWitchSwitch, actor_new, ACTOR_FLAG_NONE);//witch_switch.bgs
-    spawnableActorList_add(&chGVWitchSwitch, actor_new, ACTOR_FLAG_UNKNOWN_10);//witch_switch.gv
-    spawnableActorList_add(&chFireSparkle, actor_new, ACTOR_FLAG_UNKNOWN_17);//fire_sparkle
-    spawnableActorList_add(&chFishbowl, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8);//roysten
-    spawnableActorList_add(&chCuckooClock, actor_new, ACTOR_FLAG_NONE);//cuckoo_clock
+    spawnableActorList_add(&D_80368418, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//banjos_hand_BB
+    spawnableActorList_add(&D_80368174, actor_new, ACTOR_FLAG_UNKNOWN_2 | ACTOR_FLAG_UNKNOWN_9 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_15 | ACTOR_FLAG_UNKNOWN_20 | ACTOR_FLAG_UNKNOWN_22);//NO_CONTROLLER);
+    spawnableActorList_add(&D_80367530, actor_new, ACTOR_FLAG_NONE);//mumbo_token_sign.5
+    spawnableActorList_add(&D_80367554, actor_new, ACTOR_FLAG_NONE);//mumbo_toke_sign.10
+    spawnableActorList_add(&D_80367578, actor_new, ACTOR_FLAG_NONE);//mumbo_toke_sign.15
+    spawnableActorList_add(&D_8036759C, actor_new, ACTOR_FLAG_NONE);//mumbo_toke_sign.20
+    spawnableActorList_add(&D_803675C0, actor_new, ACTOR_FLAG_NONE);//mumbo_toke_sign.25
+    spawnableActorList_add(&D_8036785C, actor_new, ACTOR_FLAG_NONE);//witch_switch.mm;
+    spawnableActorList_add(&D_80367880, actor_new, ACTOR_FLAG_NONE);//witch_switch.mmm
+    spawnableActorList_add(&D_803678A4, actor_new, ACTOR_FLAG_NONE);//witch_switch.ttc
+    spawnableActorList_add(&D_803678C8, actor_new, ACTOR_FLAG_NONE);//witch_switch.rbb
+    spawnableActorList_add(&D_803678EC, actor_new, ACTOR_FLAG_NONE);//witch_switch.ccw
+    spawnableActorList_add(&D_80367910, actor_new, ACTOR_FLAG_NONE);//witch_switch.fp
+    spawnableActorList_add(&D_80367934, actor_new, ACTOR_FLAG_NONE);//witch_switch.cc
+    spawnableActorList_add(&D_80367958, actor_new, ACTOR_FLAG_NONE);//witch_switch.bgs
+    spawnableActorList_add(&D_8036797C, actor_new, ACTOR_FLAG_UNKNOWN_10);//witch_switch.gv
+    spawnableActorList_add(&D_80368450, actor_new, ACTOR_FLAG_UNKNOWN_17);//fire_sparkle
+    spawnableActorList_add(&D_803684BC, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8);//roysten
+    spawnableActorList_add(&D_803684E0, actor_new, ACTOR_FLAG_NONE);//cuckoo_clock
     spawnableActorList_add(&D_80368504, actor_new, ACTOR_FLAG_NONE);
     spawnableActorList_add(&D_80368528, actor_new, ACTOR_FLAG_NONE);
     spawnableActorList_add(&D_8036854C, actor_new, ACTOR_FLAG_NONE);
     spawnableActorList_add(&D_80368570, actor_new, ACTOR_FLAG_NONE);
-    spawnableActorList_add(&chBanjoCurtains, actor_new, ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_7);
-    spawnableActorList_add(&chBanjoHouseDoor, actor_new, ACTOR_FLAG_NONE);
+    spawnableActorList_add(&D_80368474, actor_new, ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_7);
+    spawnableActorList_add(&D_80368498, actor_new, ACTOR_FLAG_NONE);
     spawnableActorList_add(&D_803732E0, actor_new, ACTOR_FLAG_NONE);
     spawnableActorList_add(&D_80372810, actor_new, ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_23);
-    spawnableActorList_add(&chWhipcrack, actor_new, ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_23 | ACTOR_FLAG_UNKNOWN_25);
-    spawnableActorList_add(&chBetaVent1, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_11);
-    spawnableActorList_add(&chBetaVent2, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_11);
-    spawnableActorList_add(&chChumpFish, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_25);
+    spawnableActorList_add(&D_80373100, actor_new, ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_23 | ACTOR_FLAG_UNKNOWN_25);
+    spawnableActorList_add(&D_80373134, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_11);
+    spawnableActorList_add(&D_80373158, actor_new, ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_11);
+    spawnableActorList_add(&D_80372EE0, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_25);
     spawnableActorList_addIfMapVisited(&chTermite, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_25, MAP_2_MM_MUMBOS_MOUNTAIN); //ticker
-    spawnableActorList_addIfMapVisited(&chFlotsam, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_25, MAP_31_RBB_RUSTY_BUCKET_BAY); //floatsam
-    spawnableActorList_addIfMapVisited(&chTeeHee, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_12 | ACTOR_FLAG_UNKNOWN_17, MAP_1B_MMM_MAD_MONSTER_MANSION); //teehee
+    spawnableActorList_addIfMapVisited(&D_80372C80, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_25, MAP_31_RBB_RUSTY_BUCKET_BAY); //floatsam
+    spawnableActorList_addIfMapVisited(&D_80372C18, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_12 | ACTOR_FLAG_UNKNOWN_17, MAP_1B_MMM_MAD_MONSTER_MANSION); //teehee
     spawnableActorList_addIfMapVisited(&D_80372FC0, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_25, MAP_1B_MMM_MAD_MONSTER_MANSION);
     spawnableActorList_addIfMapVisited(&D_80372FE4, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_25, MAP_1B_MMM_MAD_MONSTER_MANSION);
     spawnableActorList_addIfMapVisited(&gChBat, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_21 |ACTOR_FLAG_UNKNOWN_25, MAP_1B_MMM_MAD_MONSTER_MANSION); //nibbly
-    spawnableActorList_addIfMapVisited(&chBuzzbomb, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_25, MAP_D_BGS_BUBBLEGLOOP_SWAMP); //buzzbomb
-    spawnableActorList_addIfMapVisited(&chIcecubeA, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_17 | ACTOR_FLAG_UNKNOWN_25, MAP_27_FP_FREEZEEZY_PEAK);
+    spawnableActorList_addIfMapVisited(&D_80367130, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_25, MAP_D_BGS_BUBBLEGLOOP_SWAMP); //buzzbomb
+    spawnableActorList_addIfMapVisited(&D_80372B80, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_17 | ACTOR_FLAG_UNKNOWN_25, MAP_27_FP_FREEZEEZY_PEAK);
     spawnableActorList_addIfMapVisited(&chShrapnelDescription, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_25, MAP_7_TTC_TREASURE_TROVE_COVE); //scrapnel
-    spawnableActorList_addIfMapVisited(&chSkeleton, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_24 | ACTOR_FLAG_UNKNOWN_25, MAP_1B_MMM_MAD_MONSTER_MANSION); //limbo
-    spawnableActorList_addIfMapVisited(&chSeamanGrublin, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_25, MAP_31_RBB_RUSTY_BUCKET_BAY); //grublin_hood
-    spawnableActorList_addIfMapVisited(&chMumMum, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_24 | ACTOR_FLAG_UNKNOWN_25, MAP_12_GV_GOBIS_VALLEY); //mummum
-    spawnableActorList_addIfMapVisited(&chGrilleChompa, actor_new, ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_23 |ACTOR_FLAG_UNKNOWN_25, MAP_B_CC_CLANKERS_CAVERN); //grillchompa
-    spawnableActorList_addIfMapVisited(&chSnippet, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_24 | ACTOR_FLAG_UNKNOWN_25, MAP_7_TTC_TREASURE_TROVE_COVE); //snippet
-    spawnableActorList_addIfMapVisited(&chBlackSnippet, actor_new, ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_24 | ACTOR_FLAG_UNKNOWN_25, MAP_7_TTC_TREASURE_TROVE_COVE); //black_snippet
-    spawnableActorList_addIfMapVisited(&chMutieSnippet, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_12 | ACTOR_FLAG_UNKNOWN_24 | ACTOR_FLAG_UNKNOWN_25, MAP_7_TTC_TREASURE_TROVE_COVE); //mutie_snippet
-    spawnableActorList_addIfMapVisited(&chClucker, actor_new, ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_23 |ACTOR_FLAG_UNKNOWN_25, MAP_40_CCW_HUB); //clucker
-    spawnableActorList_addIfMapVisited(&chScarabBeetle, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_25, MAP_12_GV_GOBIS_VALLEY); //scarab
+    spawnableActorList_addIfMapVisited(&D_80372D78, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_24 | ACTOR_FLAG_UNKNOWN_25, MAP_1B_MMM_MAD_MONSTER_MANSION); //limbo
+    spawnableActorList_addIfMapVisited(&D_80372DF8, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_25, MAP_31_RBB_RUSTY_BUCKET_BAY); //grublin_hood
+    spawnableActorList_addIfMapVisited(&D_80372E78, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_3 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_16 | ACTOR_FLAG_UNKNOWN_24 | ACTOR_FLAG_UNKNOWN_25, MAP_12_GV_GOBIS_VALLEY); //mummum
+    spawnableActorList_addIfMapVisited(&D_80372840, actor_new, ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_23 |ACTOR_FLAG_UNKNOWN_25, MAP_B_CC_CLANKERS_CAVERN); //grillchompa
+    spawnableActorList_addIfMapVisited(&D_803670B8, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_24 | ACTOR_FLAG_UNKNOWN_25, MAP_7_TTC_TREASURE_TROVE_COVE); //snippet
+    spawnableActorList_addIfMapVisited(&D_803670DC, actor_new, ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_24 | ACTOR_FLAG_UNKNOWN_25, MAP_7_TTC_TREASURE_TROVE_COVE); //black_snippet
+    spawnableActorList_addIfMapVisited(&D_80367100, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_12 | ACTOR_FLAG_UNKNOWN_24 | ACTOR_FLAG_UNKNOWN_25, MAP_7_TTC_TREASURE_TROVE_COVE); //mutie_snippet
+    spawnableActorList_addIfMapVisited(&D_80372870, actor_new, ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_23 |ACTOR_FLAG_UNKNOWN_25, MAP_40_CCW_HUB); //clucker
+    spawnableActorList_addIfMapVisited(&D_803728A0, actor_new, ACTOR_FLAG_UNKNOWN_0 | ACTOR_FLAG_UNKNOWN_7 | ACTOR_FLAG_UNKNOWN_8 | ACTOR_FLAG_UNKNOWN_11 | ACTOR_FLAG_UNKNOWN_25, MAP_12_GV_GOBIS_VALLEY); //scarab
     spawnableActorList_addIfMapVisited(&chSnowman, actor_new, ACTOR_FLAG_UNKNOWN_5 | ACTOR_FLAG_UNKNOWN_6 | ACTOR_FLAG_UNKNOWN_10 | ACTOR_FLAG_UNKNOWN_25, MAP_27_FP_FREEZEEZY_PEAK); //sirslush
     switch(loaded_asm_file){
         default:
@@ -385,16 +388,16 @@ void spawnQueue_reset(void){
             MM_func_803888B0();
             break;
         case OVERLAY_7_SWAMP:
-            bgs_updateSpawnableActors();
+            BGS_func_8038F1E0();
             break;
         case OVERLAY_8_SHIP:
             RBB_func_80386C48();
             break;
         case OVERLAY_9_SNOW:
             FP_func_80391324();
-            spawnableActorList_add(&chBluePresentCollectible, actor_new, ACTOR_FLAG_UNKNOWN_3);
-            spawnableActorList_add(&chGreenPresentCollectible, actor_new, ACTOR_FLAG_UNKNOWN_3);
-            spawnableActorList_add(&chRedPresentCollectible, actor_new, ACTOR_FLAG_UNKNOWN_3);
+            spawnableActorList_add(&D_80367BC8, actor_new, ACTOR_FLAG_UNKNOWN_3);
+            spawnableActorList_add(&D_80367BEC, actor_new, ACTOR_FLAG_UNKNOWN_3);
+            spawnableActorList_add(&D_80367C10, actor_new, ACTOR_FLAG_UNKNOWN_3);
             break;
         case OVERLAY_A_TREE:
             CCW_func_8038DB6C();
@@ -413,7 +416,7 @@ void spawnQueue_free(void){
     spawnableActorList_free();
     actorArray_free();
     func_80305D94();
-    free(spawnQueue);
+    n64_free(spawnQueue);
     spawnQueue = NULL;
     spawnQueueLength = 0;
     
@@ -422,7 +425,7 @@ void spawnQueue_free(void){
 void spawnQueue_func_802C39D4(void){
     func_803268B4();
     if(!levelSpecificFlags_validateCRC2()){
-        eeprom_writeBlocks(0, 0, (void *) PHYS_TO_K0(0x00749530), EEPROM_MAXBLOCKS);
+        eeprom_writeBlocks(0, 0, (void*)BKA_TRANSLATE_ADDR(0x80749530), EEPROM_MAXBLOCKS);
     }
 }
 
@@ -462,16 +465,16 @@ void spawnQueue_flush(void){
     func_803283D4();
 }
 
-void spawnQueue_unlock(void) {
-    spawnQueueLock = FALSE;
+void spawnQueue_unlock(void){
+    spawnQueueLock = 0;
 }
 
-void spawnQueue_lock(void) {
-    spawnQueueLock = TRUE;
+void spawnQueue_lock(void){
+    spawnQueueLock = 1;
 }
 
 void __spawnQueue_add_0(void (* arg0)(void)){
-    u32 tmp = (gsworld_getMap() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
+    u32 tmp = (gsworld_get_map() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
     if(tmp != spawnQueueLength){
         spawnQueue[spawnQueueLength].func0 = arg0;
         spawnQueue[spawnQueueLength].arg_cnt = 0;
@@ -480,7 +483,7 @@ void __spawnQueue_add_0(void (* arg0)(void)){
 }
 
 void __spawnQueue_add_1(GenFunction_1 arg0, s32 arg1){
-    u32 tmp = (gsworld_getMap() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
+    u32 tmp = (gsworld_get_map() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
     if(tmp != spawnQueueLength){
         spawnQueue[spawnQueueLength].func0 = (void (*)(void))arg0;
         spawnQueue[spawnQueueLength].arg[0] = arg1;
@@ -490,7 +493,7 @@ void __spawnQueue_add_1(GenFunction_1 arg0, s32 arg1){
 }
 
 void __spawnQueue_add_2(void (* arg0)(void), s32 arg1, s32 arg2){
-    u32 tmp = (gsworld_getMap() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
+    u32 tmp = (gsworld_get_map() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
     if(tmp != spawnQueueLength){
         spawnQueue[spawnQueueLength].func0 = arg0;
         spawnQueue[spawnQueueLength].arg[0] = arg1;
@@ -501,7 +504,7 @@ void __spawnQueue_add_2(void (* arg0)(void), s32 arg1, s32 arg2){
 }
 
 void __spawnQueue_add_3(void (* arg0)(void), s32 arg1, s32 arg2, s32 arg3){
-    u32 tmp = (gsworld_getMap() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
+    u32 tmp = (gsworld_get_map() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
     if(tmp != spawnQueueLength){
         spawnQueue[spawnQueueLength].func0 = arg0;
         spawnQueue[spawnQueueLength].arg[0] = arg1;
@@ -513,7 +516,7 @@ void __spawnQueue_add_3(void (* arg0)(void), s32 arg1, s32 arg2, s32 arg3){
 }
 
 void __spawnQueue_add_4(GenFunction_4 arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4){
-    u32 tmp = (gsworld_getMap() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
+    u32 tmp = (gsworld_get_map() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
     if(tmp != spawnQueueLength){
         spawnQueue[spawnQueueLength].func0 = (void (*)(void))arg0;
         spawnQueue[spawnQueueLength].arg[0] = arg1;
@@ -526,7 +529,7 @@ void __spawnQueue_add_4(GenFunction_4 arg0, s32 arg1, s32 arg2, s32 arg3, s32 ar
 }
 
 void __spawnQueue_add_5(void (* arg0)(void), s32 arg1, s32 arg2, s32 arg3, s32 arg4, s32 arg5){
-    u32 tmp = (gsworld_getMap() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
+    u32 tmp = (gsworld_get_map() == MAP_90_GL_BATTLEMENTS)? 0x32: 0xF;
     if(tmp != spawnQueueLength){
         spawnQueue[spawnQueueLength].func0 = arg0;
         spawnQueue[spawnQueueLength].arg[0] = arg1;
@@ -598,6 +601,6 @@ Actor *spawnQueue_bundle_s32_2(enum bundle_e bundle_id, s32 x, s32 y, s32 z) {
 
 void spawnQueue_defrag(FunctionQueue *arg0) {
     if ((arg0 = spawnQueue) != NULL) {
-        spawnQueue = (FunctionQueue *) defrag(arg0);
+        spawnQueue = (FunctionQueue *) defrag();
     }
 }

@@ -11,20 +11,12 @@ static void __ncCameraNodeList_removeNode(int camera_node_index);
 s32 ncCameraNodeList_nodeIsValid(int camera_node_index);
 static void __ncCameraNodeList_setCameraNodeType(int camera_node_index, s32 type);
 
-enum ncCameraNodeType {
-    NC_CAMERA_NODE_TYPE_0_UNK,
-    NC_CAMERA_NODE_TYPE_1_PIVOT,
-    NC_CAMERA_NODE_TYPE_2_STATIC,
-    NC_CAMERA_NODE_TYPE_3_ZOOM,
-    NC_CAMERA_NODE_TYPE_4_RANDOM
-};
-
-#define CAMERA_NODE_START_INDICATOR   0x01
-#define CAMERA_INFO_START_INDICATOR   0x02
-#define CAMERA_LIST_END_INDICATOR     0x00
-
 /* .bss */
 CameraNode sNcCameraNodeList[NC_CAMERA_NODE_LIST_CAPACITY];
+
+
+/* Automated Forward Decls */
+static void __ncCameraNodeList_addNode(int camera_node_index);
 
 /* .code */
 void ncCameraNodeList_init() {
@@ -50,23 +42,23 @@ static void __ncCameraNodeList_addNode(int camera_node_index) {
 }
 
 static void __ncCameraNodeList_removeNode(int camera_node_index) {
-    __ncCameraNodeList_setCameraNodeType(camera_node_index, NC_CAMERA_NODE_TYPE_0_UNK);
+    __ncCameraNodeList_setCameraNodeType(camera_node_index, 0);
     sNcCameraNodeList[camera_node_index].valid = 0;
 }
 
-RandomCameraNode* ncCameraNodeList_getRandomCameraNode(int camera_node_index) {
+CameraNodeType4* ncCameraNodeList_getCameraNodeType4(int camera_node_index) {
     return sNcCameraNodeList[camera_node_index].data_ptr;
 }
 
-ZoomCameraNode* ncCameraNodeList_getZoomCameraNode(int camera_node_index) {
+CameraNodeType3* ncCameraNodeList_getCameraNodeType3(int camera_node_index) {
     return sNcCameraNodeList[camera_node_index].data_ptr;
 }
 
-PivotCameraNode* ncCameraNodeList_getPivotCameraNode(int camera_node_index) {
+CameraNodeType1* ncCameraNodeList_getCameraNodeType1(int camera_node_index) {
     return sNcCameraNodeList[camera_node_index].data_ptr;
 }
 
-StaticCameraNode* ncCameraNodeList_getStaticCameraNode(int camera_node_index) {
+CameraNodeType2* ncCameraNodeList_getCameraNodeType2(int camera_node_index) {
     return sNcCameraNodeList[camera_node_index].data_ptr;
 }
 
@@ -87,61 +79,62 @@ static void __ncCameraNodeList_setCameraNodeType(int camera_node_index, s32 type
         return;
 
     switch(sNcCameraNodeList[camera_node_index].type) {
-        case NC_CAMERA_NODE_TYPE_4_RANDOM:
+        case 4:
             cameraNodeType4_free(sNcCameraNodeList[camera_node_index].data_ptr);
             break;
-        case NC_CAMERA_NODE_TYPE_3_ZOOM:
+        case 3:
             cameraNodeType3_free(sNcCameraNodeList[camera_node_index].data_ptr);
             break;
-        case NC_CAMERA_NODE_TYPE_1_PIVOT:
+        case 1:
             cameraNodeType1_free(sNcCameraNodeList[camera_node_index].data_ptr);
             break;
-        case NC_CAMERA_NODE_TYPE_2_STATIC:
+        case 2:
             cameraNodeType2_free(sNcCameraNodeList[camera_node_index].data_ptr);
             break;
-        case NC_CAMERA_NODE_TYPE_0_UNK:
+        case 0:
             break;
     }
     sNcCameraNodeList[camera_node_index].type = type;
 
     switch (type)
     {
-        case NC_CAMERA_NODE_TYPE_4_RANDOM:
+        case 4:
             sNcCameraNodeList[camera_node_index].data_ptr = cameraNodeType4_init();
             break;
-        case NC_CAMERA_NODE_TYPE_3_ZOOM:
+        case 3:
             sNcCameraNodeList[camera_node_index].data_ptr = cameraNodeType3_init();
             break;
-        case NC_CAMERA_NODE_TYPE_1_PIVOT:
+        case 1:
             sNcCameraNodeList[camera_node_index].data_ptr = cameraNodeType1_init();
             break;
-        case NC_CAMERA_NODE_TYPE_2_STATIC:
+        case 2:
             sNcCameraNodeList[camera_node_index].data_ptr = cameraNodeType2_init();
             break;
-        case NC_CAMERA_NODE_TYPE_0_UNK:
+        case 0:
             break;
     }
+
 }
 
 void __ncCameraNodeList_nodeFromFile(File *file_ptr, int camera_node_index) {
     u8 camera_node_type;
     __ncCameraNodeList_addNode(camera_node_index);
-    file_getByte_ifExpected(file_ptr, CAMERA_INFO_START_INDICATOR, &camera_node_type);
+    file_getByte_ifExpected(file_ptr, 2, &camera_node_type);
     __ncCameraNodeList_setCameraNodeType(camera_node_index, camera_node_type);
     switch(ncCameraNodeList_getNodeType(camera_node_index)) {
-        case NC_CAMERA_NODE_TYPE_4_RANDOM:
-            cameraNodeType4_fromFile(file_ptr, ncCameraNodeList_getRandomCameraNode(camera_node_index));
+        case 4:
+            cameraNodeType4_fromFile(file_ptr, ncCameraNodeList_getCameraNodeType4(camera_node_index));
             break;
-        case NC_CAMERA_NODE_TYPE_3_ZOOM:
-            cameraNodeType3_fromFile(file_ptr, ncCameraNodeList_getZoomCameraNode(camera_node_index));
+        case 3:
+            cameraNodeType3_fromFile(file_ptr, ncCameraNodeList_getCameraNodeType3(camera_node_index));
             break;
-        case NC_CAMERA_NODE_TYPE_1_PIVOT:
-            cameraNodeType1_fromFile(file_ptr, ncCameraNodeList_getPivotCameraNode(camera_node_index));
+        case 1:
+            cameraNodeType1_fromFile(file_ptr, ncCameraNodeList_getCameraNodeType1(camera_node_index));
             break;
-        case NC_CAMERA_NODE_TYPE_2_STATIC:
-            cameraNodeType2_fromFile(file_ptr, ncCameraNodeList_getStaticCameraNode(camera_node_index));
+        case 2:
+            cameraNodeType2_fromFile(file_ptr, ncCameraNodeList_getCameraNodeType2(camera_node_index));
             break;
-        case NC_CAMERA_NODE_TYPE_0_UNK:
+        case 0:
             break;
     }
 }
@@ -150,10 +143,11 @@ void ncCameraNodeList_fromFile(File *file_ptr) {
     s16 camera_node_index;
     ncCameraNodeList_free();
     ncCameraNodeList_init();
-    while(!file_isNextByteExpected(file_ptr, CAMERA_LIST_END_INDICATOR)) {
-        if(file_getShort_ifExpected(file_ptr, CAMERA_NODE_START_INDICATOR, &camera_node_index))
+    while(!file_isNextByteExpected(file_ptr, 0)) {
+        if(file_getShort_ifExpected(file_ptr, 1, &camera_node_index))
             __ncCameraNodeList_nodeFromFile(file_ptr, camera_node_index);
     }
+
 }
 
 void ncCameraNodeList_defrag() {
@@ -161,19 +155,19 @@ void ncCameraNodeList_defrag() {
     for(i = 0; i < NC_CAMERA_NODE_LIST_CAPACITY; i++) {
         if(sNcCameraNodeList[i].valid) {
             switch(sNcCameraNodeList[i].type) {
-                case NC_CAMERA_NODE_TYPE_4_RANDOM:
+                case 4:
                     sNcCameraNodeList[i].data_ptr = defrag(sNcCameraNodeList[i].data_ptr);
                     break;
-                case NC_CAMERA_NODE_TYPE_3_ZOOM:
+                case 3:
                     sNcCameraNodeList[i].data_ptr = defrag(sNcCameraNodeList[i].data_ptr);
                     break;
-                case NC_CAMERA_NODE_TYPE_1_PIVOT:
+                case 1:
                     sNcCameraNodeList[i].data_ptr = defrag(sNcCameraNodeList[i].data_ptr);
                     break;
-                case NC_CAMERA_NODE_TYPE_2_STATIC:
+                case 2:
                     sNcCameraNodeList[i].data_ptr = defrag(sNcCameraNodeList[i].data_ptr);
                     break;
-                case NC_CAMERA_NODE_TYPE_0_UNK:
+                case 0:
                     break;
             }
         }

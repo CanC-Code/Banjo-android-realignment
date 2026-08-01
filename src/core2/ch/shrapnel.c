@@ -11,15 +11,6 @@ extern f32 func_80309B24(f32[3]);
 void chshrapnel_update(Actor *this);
 
 /* .data */
-
-enum shrapnel_states
-{
-    SHRAPNEL_STATE_1_IDLE = 1,
-    SHRAPNEL_STATE_2_TURN_TO_PLAYER,
-    SHRAPNEL_STATE_3_CHASE,
-    SHRAPNEL_STATE_4_EXPLODE
-};
-
 ActorAnimationInfo chShrapnelAnimations[] = {
     {0, 0.0f},
     {ASSET_1F4_ANIM_SHRAPNEL_IDLE, 1.0f},
@@ -29,6 +20,9 @@ ActorAnimationInfo chShrapnelAnimations[] = {
     {ASSET_1F4_ANIM_SHRAPNEL_IDLE, 1.0f},
     {ASSET_1F4_ANIM_SHRAPNEL_IDLE, 1.0f}
 };
+
+
+
 
 /* .code */
 void chShrapnel_func_802D0A00(Actor *this) {
@@ -42,13 +36,13 @@ void chShrapnel_func_802D0A38(Actor *this){
     else{
         if(subaddie_playerIsWithinSphereAndActive(this, 600) && func_803292E0(this)){
             this->actor_specific_1_f = 0.0f;
-            subaddie_set_state_with_direction(this, SHRAPNEL_STATE_2_TURN_TO_PLAYER, 0.0f, 1);
+            subaddie_set_state_with_direction(this, 2, 0.0f, 1);
         }
     }
 }
 
 void chShrapnel_func_802D0AB8(Actor *this) {
-    subaddie_set_state_with_direction(this, SHRAPNEL_STATE_1_IDLE, 0.0f, 0);
+    subaddie_set_state_with_direction(this, 1, 0.0f, 0);
     chShrapnel_func_802D0A00(this);
     func_80328CEC(this, (s32) this->yaw_ideal, 0x87, 0xAF);
     this->unk38_31 = 0x1E;
@@ -164,16 +158,16 @@ void chshrapnel_update(Actor *this) {
     this->position[1] = this->unk1C[1] - (sinf(this->lifetime_value * 4.0f) * 10.0f);
     playerPosition_get(player_position);
     switch (this->state) {
-        case SHRAPNEL_STATE_1_IDLE:
+        case 1:
             chShrapnel_func_802D0A38(this);
             break;
 
-        case SHRAPNEL_STATE_2_TURN_TO_PLAYER:
+        case 2:
             this->yaw_ideal = (f32) subaddie_getYawToPlayer(this);
             subaddie_turnToYaw(this, 4.0f);
             if (func_80329480(this)) {
                 if (250.0 > ABS(player_position[1] - this->unk1C[1])) {
-                    subaddie_set_state(this, SHRAPNEL_STATE_3_CHASE);
+                    subaddie_set_state(this, 3);
                     actor_loopAnimation(this);
                     sfx_playFadeShorthandDefault(SFX_C4_TWINKLY_MUNCHER_GRR, 0.6f, 32750, this->position, 1250, 2500);
                     this->actor_specific_1_f = 4.0f;
@@ -181,7 +175,7 @@ void chshrapnel_update(Actor *this) {
             }
             break;
 
-        case SHRAPNEL_STATE_3_CHASE:
+        case 3:
             this->yaw_ideal = (f32) subaddie_getYawToPlayer(this);
             subaddie_turnToYaw(this, this->actor_specific_1_f / 2);
             this->actor_specific_1_f = MIN(50.0, (this->actor_specific_1_f + tick));
@@ -190,7 +184,7 @@ void chshrapnel_update(Actor *this) {
             }
             break;
 
-        case SHRAPNEL_STATE_4_EXPLODE:
+        case 4:
             if (anctrl_isStopped(this->anctrl) != 0) {
                 marker_despawn(this->marker);
             }

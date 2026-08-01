@@ -88,6 +88,6 @@ void func_802D8B20(enum actor_e actor_id){
     feather->lifetime_value = 1.2f;
 }
 
-void func_802D8BE4(bool gold_feather){
+void func_802D8BE4(n64_bool gold_feather){
     __spawnQueue_add_1((GenFunction_1)func_802D8B20, (!gold_feather) ? ACTOR_1FF_SPENT_RED_FEATHER : ACTOR_200_SPENT_GOLD_FEATHER);
 }
