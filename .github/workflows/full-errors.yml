@@ -1,0 +1,74 @@
+name: Compile Debug APK from static-build (collect all errors)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout static-build Branch
+        uses: actions/checkout@v4
+        with:
+          ref: static-build
+          submodules: recursive
+
+      - name: ☕ Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: 🛠️ Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: 🐘 Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.2
+
+      - name: 🧹 Clean previous build artifacts
+        run: |
+          rm -rf Android/app/.cxx
+          rm -rf Android/app/build
+
+      - name: 🔧 Configure CMake (create build directory)
+        run: |
+          cd Android
+          gradle configureCMakeDebug[arm64-v8a] \
+            -Pandroid.externalNativeBuild.cmake.arguments="-DEXCLUDE_GAME_SRC=OFF"
+
+      - name: 💥 Build native code with keep-going (capture all errors)
+        continue-on-error: true   # don't stop the workflow on failure
+        run: |
+          BUILD_DIR="Android/app/.cxx/Debug/p2y5e6n2/arm64-v8a"
+          NINJA="$ANDROID_SDK_ROOT/cmake/3.22.1/bin/ninja"
+          $NINJA -C "$BUILD_DIR" bkawrapper -k 0 2>&1 | \
+            grep "error:" | sort -u > all_errors.txt
+          echo "Total unique error lines: $(wc -l < all_errors.txt)"
+          cat all_errors.txt
+
+      - name: 📤 Upload error log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-errors
+          path: all_errors.txt
+
+      - name: 🐘 Build APK (will succeed only if native build passed)
+        continue-on-error: true
+        run: |
+          cd Android
+          gradle assembleDebug \
+            -Pandroid.externalNativeBuild.cmake.arguments="-DEXCLUDE_GAME_SRC=OFF" \
+            --stacktrace
+
+      - name: 📦 Upload APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bka-verification-apk
+          path: |
+            Android/app/build/outputs/apk/debug/*.apk
+        # This step runs even if the previous steps failed,
+        # but will only find an APK if the build succeeded.
