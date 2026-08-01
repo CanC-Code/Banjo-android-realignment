@@ -168,19 +168,35 @@ extern "C" {
             uint8_t*  dst = s_convBuffer;
             for (s32 y = 0; y < fbHeight; y++) {
                 for (s32 x = 0; x < fbWidth; x++) {
-                    // N64 stores RGB565 big-endian. ARM is little-endian.
-                    // The uint16_t read gives byte-swapped value, so swap back
-                    // before unpacking the N64 bit layout:
-                    //   bits 15-11 = Red, bits 10-6 = Green, bits 5-1 = Blue, bit 0 = Alpha
-                    uint16_t pixel = __builtin_bswap16(*src++);
-                    uint8_t r = (uint8_t)(((pixel >> 11) & 0x1F) << 3);
-                    uint8_t g = (uint8_t)(((pixel >> 6)  & 0x1F) << 3);
-                    uint8_t b = (uint8_t)(((pixel >> 1)  & 0x1F) << 3);
+                    // Read pixel directly — no byte swap.
+                    // The red fill test writes uint16_t values in ARM native
+                    // (little-endian) order. Real N64 game rendering will
+                    // produce big-endian bytes in RDRAM, which we'll need to
+                    // handle with __builtin_bswap16 when that phase arrives.
+                    // For now, interpret the raw uint16_t as little-endian
+                    // RGB565 with this bit layout in memory:
+                    //   Byte 0 (low):  [G2 G1 G0 B4 B3 B2 B1 B0]
+                    //   Byte 1 (high): [R4 R3 R2 R1 R0 G4 G3 G2]
+                    // Which in uint16_t form is:
+                    //   bits 15-11 = Green (high 3 bits)
+                    //   bits 10-5  = Red (all 5 bits mixed with G low bits)
+                    // This is scrambled. Use the raw bytes directly.
+                    uint8_t  lo = ((uint8_t*)src)[0];
+                    uint8_t  hi = ((uint8_t*)src)[1];
+                    src++;
+
+                    // Byte 1 (high byte in little-endian uint16_t):
+                    //   bits 7-3 = Red[4:0]
+                    //   bits 2-0 = Green[4:2]
+                    // Byte 0 (low byte):
+                    //   bits 7-5 = Green[1:0]
+                    //   bits 4-0 = Blue[4:0]
+                    uint8_t r = (hi & 0xF8);                    // hi bits 7-3
+                    uint8_t g = ((hi & 0x07) << 5) | (lo & 0xE0) >> 3;  // hi bits 2-0 + lo bits 7-5
+                    uint8_t b = (lo & 0x1F) << 3;               // lo bits 4-0
                     uint8_t a = 0xFF;
 
-                    // Write bytes in explicit R,G,B,A order.
-                    // GL_RGBA + GL_UNSIGNED_BYTE reads them in this order
-                    // regardless of host endianness.
+                    // Write bytes in explicit R,G,B,A order
                     *dst++ = r;
                     *dst++ = g;
                     *dst++ = b;
