@@ -10,7 +10,7 @@ extern void func_802BEA4C(f32[3], f32[3], f32, f32[3]);
 extern void func_802BEBE8(f32[3], f32[3], f32, f32[3]);
 extern void func_802BEAAC(f32[3], f32[3], f32, f32[3], f32[3], f32[3], f32[3]);
 extern NodeProp *cubeList_findNodePropByActorIdAndPosition_s32(enum actor_e, s32[3]);
-extern BKCollisionTri *func_80320B98(f32[3], f32[3], f32[3], s32);
+extern BKCollisionTriangle *func_80320B98(f32[3], f32[3], f32[3], s32);
 f32 func_802BB938(f32[3], f32[3]);
 f32 func_802BBD48(void);
 f32 func_802BBEA4(f32 arg0[3], f32 arg1[3], f32 arg2, s32 arg3, s32 arg4);
@@ -41,7 +41,7 @@ f32 D_8037D908[3];
 f32 D_8037D918[3];
 
 /* .code */
-n64_bool func_802BB720(s32 arg0, f32 arg1[3], f32 arg2[3], s32 *arg3) {
+bool func_802BB720(s32 arg0, f32 arg1[3], f32 arg2[3], s32 *arg3) {
     f32 temp_f6;
     NodeProp *temp_v0;
 
@@ -74,7 +74,7 @@ n64_bool func_802BB720(s32 arg0, f32 arg1[3], f32 arg2[3], s32 *arg3) {
 }
 
 
-n64_bool func_802BB884(f32 arg0[3], f32 *arg1) {
+bool func_802BB884(f32 arg0[3], f32 *arg1) {
     f32 sp24[3];
     f32 sp18[3];
 
@@ -84,7 +84,7 @@ n64_bool func_802BB884(f32 arg0[3], f32 *arg1) {
     player_getPosition(sp24);
     sp24[1] += 50.0f;
     ml_vec3f_diff_copy(sp18, arg0, sp24);
-    *arg1 = gu_sqrtf(sp18[0]*sp18[0] + sp18[1]*sp18[1] + sp18[2]*sp18[2]);
+    *arg1 = sqrtf(sp18[0]*sp18[0] + sp18[1]*sp18[1] + sp18[2]*sp18[2]);
     return TRUE;
 }
 
@@ -137,7 +137,7 @@ void func_802BBA84(void) {
         D_8037D8C8 = D_8037D8CC * 0.0078125;
         return;
     }
-    if (gsworld_get_map() == MAP_91_FILE_SELECT) {
+    if (gsworld_getMap() == MAP_91_FILE_SELECT) {
         D_8037D8C8 = D_8037D8CC * 0.0078125;
         return;
     }
@@ -180,9 +180,9 @@ void func_802BBD0C(Gfx **gdl, Mtx **mptr, Vtx **vptr){
     func_802BEE2C(gdl, mptr, vptr);
 }
 
-void func_802BBD2C(f32 *arg0, f32 *arg1){
-    *arg0 = D_8037D8C8;
-    *arg1 = D_8037D8CC;
+void core2_34790_getClipDistances(f32 *near, f32 *far) {
+    *near = D_8037D8C8;
+    *far = D_8037D8CC;
 }
 
 f32 func_802BBD48(void) {
@@ -205,7 +205,7 @@ f32 func_802BBEA4(f32 arg0[3], f32 arg1[3], f32 arg2, s32 arg3, s32 arg4) {
     f32 sp4C[3];
     f32 phi_f2;
     f32 sp3C[3];
-    BKCollisionTri *sp38;
+    BKCollisionTriangle *sp38;
     s32 i;
 
     if (arg3 == 0) {
@@ -367,12 +367,12 @@ void func_802BC2CC(s32 arg0) {
     }
 }
 
-n64_bool func_802BC428(void){
+bool func_802BC428(void){
     return D_8037D8C6;
 }
 
 void func_802BC434(f32 arg0[3], f32 arg1[3], f32 arg2[3]) {
-    func_8025727C(arg1[0], arg1[1], arg1[2], arg2[0], arg2[1], arg2[2], &arg0[0], &arg0[1]);
+    ml_horizontal_and_vertical_angles(arg1[0], arg1[1], arg1[2], arg2[0], arg2[1], arg2[2], &arg0[0], &arg0[1]);
     arg0[0] = mlNormalizeAngle(-arg0[0]);
     arg0[2] = 0.0f;
 }

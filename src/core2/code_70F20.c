@@ -26,7 +26,7 @@ void func_802F7EB0(struct3s *this){
     sp4C[1] = randf2(200.0f, 300.0f);
     sp4C[2] = -tmpf;
 
-    if(gu_sqrtf(this->unk10[0]*this->unk10[0] + this->unk10[1]*this->unk10[1] + this->unk10[2]*this->unk10[2]) < 5.0f){
+    if(sqrtf(this->unk10[0]*this->unk10[0] + this->unk10[1]*this->unk10[1] + this->unk10[2]*this->unk10[2]) < 5.0f){
         ml_vec3f_yaw_rotate_copy(sp4C, sp4C, randf2(0.0f, 360.0f));
     }
     else{
@@ -67,11 +67,11 @@ void func_802F8110(struct3s *this, Gfx **gdl, Mtx **mptr, u32 arg3){
     for(iPtr = startPtr; iPtr < endPtr; iPtr++){
         modelRender_setDepthMode(MODEL_RENDER_DEPTH_COMPARE);
         modelRender_draw(gdl, mptr, iPtr, 0, 1.0f, 0, this->unk2C);
-        iPtr->unk18 = func_8033A170();
+        iPtr->unk18 = modelRender_func_8033A170();
     }
 }
 
-n64_bool func_802F81D8(struct3s *this){
+bool func_802F81D8(struct3s *this){
     return (this->unk28 != 1) && (vector_size(this->unk20) == 0);
 }
 
@@ -80,12 +80,12 @@ void func_802F8214(struct3s * this){
         func_802F9D38(this->unk0);
     vector_free(this->unk20);
     func_8033BD20(&this->unk2C);
-    n64_free(this);
+    free(this);
 
 }
 
 struct3s *func_802F8264(s32 arg0){
-    struct3s * ptr = (struct3s *) n64_malloc(sizeof(struct3s));
+    struct3s * ptr = (struct3s *) malloc(sizeof(struct3s));
     ptr->unk0 = 0;
     ptr->unk1C = 0;
     ptr->unk34 = 0;

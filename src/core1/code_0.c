@@ -1,16 +1,9 @@
-// File: Banjo-android-realignment/src/core1/code_0.c
-
 #include <ultra64.h>
 #include "core1/core1.h"
 #include "functions.h"
 #include "variables.h"
 #include "version.h"
 #include "gc/gctransition.h"
-#include <android/log.h>
-#include <string.h>
-
-#define LOG_TAG "BKA_CODE0"
-#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 
 #define MAIN_THREAD_STACK_SIZE 0x17F0
 
@@ -18,37 +11,30 @@
     extern s32 D_80000300;
 #endif
 
-extern void __osTimerServicesInit(void);
-
-/* ---- Frame synchronisation hook (prevents CPU spinning) ---- */
-extern void BKA_FrameSyncHook(void);
-
 s32 D_80275610 = 0;
 s32 D_80275614 = 0;
-u32 gGlobalTimer = 0;
-u32 sDebugVar_8027561C[] = { 0x9, 0x4, 0xA, 0x3, 0xB, 0x2, 0xC, 0x5, 0x0,  0x1, 0x6, 0xD,  -1 };
-u32 D_80275650 = VER_SELECT(0xAD019D3C, 0xA371A8F3, 0, 0);
-u32 D_80275654 = VER_SELECT(0xD381B72F, 0xD0709154, 0, 0);
+s32 gGlobalTimer = 0;
+u32 sDebugVar_8027561C[] = { 0x9, 0x4, 0xA, 0x3, 0xB, 0x2, 0xC, 0x5, 0x0,  0x1, 0x6, 0xD,  -1 }; // never used
+s32 D_80275650 = VER_SELECT(0xAD019D3C, 0xA371A8F3, 0, 0); //SM_DATA_CRC2
+s32 D_80275654 = VER_SELECT(0xD381B72F, 0xD0709154, 0, 0); //MM_DATA_CRC2
 char sDebugVar_80275658[] = VER_SELECT("HjunkDire:218755", "HjunkDire:300875", "HjunkDire:", "HjunkDire:");
 
 /* .bss */
 u32 D_8027A130;
 u8 pad_8027A138[0x400];
-u64 sDebugVar_8027A538;
-u64 sDebugVar_8027A540;
-u8 sMainThreadStack[MAIN_THREAD_STACK_SIZE];
+u64 sDebugVar_8027A538; // never used
+u64 sDebugVar_8027A540; // never used
+u8 sMainThreadStack[MAIN_THREAD_STACK_SIZE]; // The real size of the stack is unclear yet, maybe there are some out-optimized debug variables below the stack
 OSThread sMainThread;
 s32 gBootMap;
-static n64_bool sDisableInput;
-static u64 sDebugVar_8027BEF0;
+static bool sDisableInput;
+static u64 sDebugVar_8027BEF0; // never used
 
 extern u8 core2_TEXT_START[];
 
-void func_8023DA20(s32 arg0){
-    if (core2_TEXT_START && core2_TEXT_START > (u8*)&D_8027A130) {
-        bzero(&D_8027A130, core2_TEXT_START - (u8*)&D_8027A130);
-    }
-    osWriteBackDCacheAll();
+void core1_main(s32 arg0){ 
+    bzero(&D_8027A130, core2_TEXT_START - (u8*)&D_8027A130);
+    osWritebackDCacheAll();
     sns_find_and_parse_payload();
     osInitialize();
     initThread_create();
@@ -56,11 +42,11 @@ void func_8023DA20(s32 arg0){
 
 void func_8023DA74(void){
     func_8033BD6C();
-    func_80255198();
+    func_80255198(); //heap_flush_free_queue
 }
 
 void func_8023DA9C(s32 arg0){
-    func_80254008();
+    core1_15B30_sendMesg3ToRenderThread();
     viMgr_clearFramebuffers();
     if (D_8027A130 == 4){
         func_802E3580();
@@ -79,15 +65,15 @@ void func_8023DA9C(s32 arg0){
     ucode_stub1();
 }
 
-u32 globalTimer_getTimeMasked(u32 mask){
+s32 globalTimer_getTimeMasked(s32 mask) {
     return gGlobalTimer & mask;
 }
 
-s32 globalTimer_getTime(void){
+s32 globalTimer_getTime(void) {
     return gGlobalTimer;
 }
 
-void globalTimer_reset(void){
+void globalTimer_reset(void) {
     gGlobalTimer = 0;
 }
 
@@ -110,61 +96,60 @@ void func_8023DBDC(void){
 }
 
 void core1_init(void) {
-    LOGI("BKA: core1_init START");
-    __osTimerServicesInit();
 #if VERSION == VERSION_PAL
      osTvType = 0;
 #endif
     ucode_load();
     setBootMap(getDefaultBootMap());
-    rarezip_init();
+    rarezip_init(); //initialize decompressor's huft table
     viMgr_init();
-    overlayManagerloadCore2();
+    overlayManager_loadCore2();
     sDebugVar_8027BEF0 = sDebugVar_8027A538;
     heap_init();
-    func_80254028();
+    core1_15B30_init();
     dummy_func_8025AFB0();
     allocUnusedBlock();
     assetCache_init();
-
-    // FIXME: These init functions are currently stubbed because they depend
-    // on N64 hardware (controllers, audio DSP, RSP microcode).
-    // They will be un-stubbed as the HLE layer matures.
-    //
-    // pfsManager_init();      // crashes in controller init — needs HLE controller
-    // audioManager_init();    // crashes in sfxInstruments_init — needs HLE audio
-    // graphicsCache_init();   // may block — needs HLE RSP
-    // ml_init();              // may block — needs HLE math
-    // gctransition_reset();   // may block — depends on graphicsCache
-
-    D_8027A130 = 3;             // set game state to "game running"
+    pfsManager_init();
+    baMotor_init();
+    audioManager_init();
+    graphicsCache_init();
+    ml_init();
+    gctransition_reset();
+    D_8027A130 = 0;
     gGlobalTimer = 0;
-    func_8023DA9C(3);           // calls func_802E4214(gBootMap) to init world
-    LOGI("BKA: core1_init DONE");
+    func_8023DA9C(3);
 }
 
-void globalTimer_incTimer(void){
+void globalTimer_incTimer(void) {
     gGlobalTimer++;
 }
 
-void globalTimer_decTimer(void){
+void globalTimer_decTimer(void) {
     gGlobalTimer--;
 }
 
 void mainLoop(void){
     s32 x, y;
+    s32 r, g, b, a;
+    u16 tmp;
+    u16 rgba;
+    s32 offset;
 
-    viMgr_clearFramebuffers();
-
-    if((globalTimer_getTime() & 0x7f) == 0x11)
+    if ((globalTimer_getTime() & 0x7F) == 0x11) {
         sns_write_payload_over_heap();
+    }
+
     func_8023DA74();
 
-    if(D_8027A130 != 3 || getGameMode() != GAME_MODE_4_PAUSED)
+    if (D_8027A130 != 3 || getGameMode() != GAME_MODE_4_PAUSED) {
         globalTimer_incTimer();
+    }
+    
+    if (!sDisableInput) {
+        pfsManager_update();
+    }
 
-    // pfsManager_update() and sDisableInput are skipped because
-    // pfsManager_init was stubbed.
     sDisableInput = FALSE;
 
     baMotor_80250C08();
@@ -184,33 +169,69 @@ void mainLoop(void){
             func_80255ACC();
             spawnQueue_func_802C3A18();
             if(func_802E4424())
-                game_draw(0);               // real game rendering
+                game_draw(FALSE);
             spawnQueue_flush();
             break;
-    }
+    }//L8023DE34
 
     if(D_80275610){
         func_8023DA9C(D_80275610 - 1);
         D_80275610 = 0;
-    }
-
-    // --- Frame synchronisation: wait for the host to present the current frame ---
-    BKA_FrameSyncHook();
+    }//L8023DE54
+    if( !func_8032056C()
+        || !levelSpecificFlags_validateCRC1()
+        || !dummy_func_80320240()
+    ){
+        s32 offset;
+        //render weird CRC failure image
+        for(y= 0x1e; y < gFramebufferHeight - 0x1e; y++){//L8023DEB4
+            for(x = 0x14; x < 0xeb; x++){
+                tmp = ((globalTimer_getTime() << 3) + x * x + y * y);
+                
+                r = _SHIFTL(x>>3, 11, 5);
+                g = _SHIFTL(y>>3, 6, 5);
+                b = _SHIFTL(tmp>>3, 1, 5);
+                a = 1;
+                
+                rgba = b | r | g | a;
+                
+                offset = ((gFramebufferWidth - 0xFF) / 2) + x + (y*gFramebufferWidth);
+                gFramebuffers[0][offset] = (s32) rgba;
+                gFramebuffers[1][offset] = (s32) rgba;
+            }
+        }
+    }//L8023DF70
 }
 
-void mainThread_entry(void *arg) {
-    LOGI("BKA: mainThread_entry START");
+void mainThread_entry(void *arg) { 
     core1_init();
     sns_write_payload_over_heap();
-    LOGI("BKA: entering main loop");
-    while (1) { mainLoop(); }
+
+    while (1) {
+        mainLoop();
+    }
 }
 
-void func_8023DFF0(s32 arg0){ D_80275610 = arg0 + 1; }
-s32 func_8023E000(void){ return D_8027A130; }
-void setBootMap(enum map_e map_id){ gBootMap = map_id; }
+void func_8023DFF0(s32 arg0){
+    D_80275610 = arg0 + 1;
+}
+
+s32 func_8023E000(void){
+    return D_8027A130;
+}
+
+void setBootMap(enum map_e map_id){
+    gBootMap = map_id;
+}
+
 void mainThread_create(void) {
     osCreateThread(&sMainThread, 6, mainThread_entry, NULL, sMainThreadStack + MAIN_THREAD_STACK_SIZE, 20);
 }
-OSThread *mainThread_get(void) { return &sMainThread; }
-void disableInput_set(void){ sDisableInput = TRUE; }
+
+OSThread *mainThread_get(void) {
+    return &sMainThread;
+}
+
+void disableInput_set(void){
+    sDisableInput = TRUE;
+}

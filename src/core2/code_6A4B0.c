@@ -10,7 +10,7 @@ typedef struct Struct_Core2_6A4B0_2{
     u16 *tmem_raw_ptr;
     u16 *tmem_ptr;
     void (*draw_method)(struct Struct_Core2_6A4B0_2 *, Gfx **, Mtx **, Vtx **);
-    n64_bool unk10;
+    bool unk10;
 }Struct_Core2_6A4B0_2;
 
 s16 *func_802F1804(Struct_Core2_6A4B0_2 *arg0, s32 arg1, s32 arg2, s32 arg3, s32 arg4);
@@ -104,13 +104,13 @@ void func_802F1858(Struct_Core2_6A4B0_2 *arg0, Gfx **gfx, Mtx **mtx, Vtx **vtx){
 
 void func_802F1884(Struct_Core2_6A4B0_2 *arg0){
     func_802F18B8(arg0);
-    n64_free(arg0->vtx_coord);
-    n64_free(arg0);
+    free(arg0->vtx_coord);
+    free(arg0);
 }
 
 void func_802F18B8(Struct_Core2_6A4B0_2 *arg0){
     if(arg0->tmem_raw_ptr != NULL){
-        n64_free(arg0->tmem_raw_ptr);
+        free(arg0->tmem_raw_ptr);
         arg0->tmem_raw_ptr = NULL;
     }
 }
@@ -118,8 +118,8 @@ void func_802F18B8(Struct_Core2_6A4B0_2 *arg0){
 Struct_Core2_6A4B0_2 *func_802F18F0(void){
     Struct_Core2_6A4B0_2 *self;
 
-    self = (Struct_Core2_6A4B0_2 *) n64_malloc(sizeof(Struct_Core2_6A4B0_2));
-    self->vtx_coord = n64_malloc(6*9*2*3*3*sizeof(u16));
+    self = (Struct_Core2_6A4B0_2 *) malloc(sizeof(Struct_Core2_6A4B0_2));
+    self->vtx_coord = malloc(6*9*2*3*3*sizeof(u16));
     self->tmem_raw_ptr = NULL;
     self->draw_method = 0;
     self->unk10 = 0;
@@ -128,13 +128,13 @@ Struct_Core2_6A4B0_2 *func_802F18F0(void){
 
 void func_802F1934(Struct_Core2_6A4B0_2 * arg0, s32 arg1){
     func_802F18B8(arg0);
-    arg0->tmem_raw_ptr = n64_malloc(gFramebufferWidth*gFramebufferHeight*sizeof(u16) + 0x10);
+    arg0->tmem_raw_ptr = malloc(gFramebufferWidth*gFramebufferHeight*sizeof(u16) + 0x10);
     arg0->tmem_ptr = arg0->tmem_raw_ptr;
     while(((s32)arg0->tmem_ptr & 0x10) == 0){
         arg0->tmem_ptr = (u16*)((s32)arg0->tmem_ptr + 1);
     }
-    func_80253010(arg0->tmem_ptr, gFramebuffers[arg1], gFramebufferWidth*gFramebufferHeight*sizeof(u16));
-    osWriteBackDCacheAll();
+    bkmemcpy64(arg0->tmem_ptr, gFramebuffers[arg1], gFramebufferWidth*gFramebufferHeight*sizeof(u16));
+    osWritebackDCacheAll();
 }
 
 void func_802F1A08(s32 arg0) { }
@@ -145,8 +145,8 @@ void func_802F1A10(Struct_Core2_6A4B0_2 *arg0, f32 angle_degrees) {
     f32 temp_f0;
     f32 temp_f12;
     f32 temp_f20;
-    f32 n64_cos;
-    f32 n64_sin;
+    f32 cos;
+    f32 sin;
     f32 temp_f2;
     s32 *var_s1;
     s32 *var_s2;
@@ -159,8 +159,8 @@ void func_802F1A10(Struct_Core2_6A4B0_2 *arg0, f32 angle_degrees) {
     static s32 D_80368A40[6] = {0, 1, 0, 1, 1, 0};
     static s32 D_80368A58[6] = {0, 0, 1, 0, 1, 1};
 
-    n64_cos = cosf(angle_degrees * 2 * BAD_PI);
-    n64_sin = sinf(angle_degrees * 2 * BAD_PI);
+    cos = cosf(angle_degrees * 2 * BAD_PI);
+    sin = sinf(angle_degrees * 2 * BAD_PI);
     viewport_getPosition_vec3f(spC0);
     spCC[0] = (-(gFramebufferWidth / 2) * 4) + 8;
     spCC[1] = ((gFramebufferHeight / 2) * 4) - 0x38;
@@ -179,8 +179,8 @@ void func_802F1A10(Struct_Core2_6A4B0_2 *arg0, f32 angle_degrees) {
                     temp_f2 = temp_f2 * (1.0f - angle_degrees);
 
                     temp_f12 = temp_f0;
-                    temp_f0 = (temp_f12 * n64_cos) - (temp_f2 * n64_sin);
-                    temp_f2 = (temp_f12 * n64_sin) + (temp_f2 * n64_cos);
+                    temp_f0 = (temp_f12 * cos) - (temp_f2 * sin);
+                    temp_f2 = (temp_f12 * sin) + (temp_f2 * cos);
                     
                     temp_f0 = temp_f0 + ((-560.0f - temp_f0) * angle_degrees);
                     temp_f2 = temp_f2 + ((400.0f - temp_f2) * angle_degrees);

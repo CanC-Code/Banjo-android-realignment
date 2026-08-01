@@ -34,7 +34,7 @@ s32 baflap_getCount(void) {
  * @return true if baflap duration was extended
  * @return false if baflap does not extend duration or all timers in flap queue are occupied
  */
-n64_bool baflap_add(f32 duration) {
+bool baflap_add(f32 duration) {
     s32 i;
 
     // check that timer is far enough away from any value
@@ -73,7 +73,7 @@ void baflap_reset(void) {
  * 
  * @param active false (0) or true (!0)
  */
-void baflap_activate(n64_bool active){
+void baflap_activate(bool active){
     s_active = active;
     if(!s_active){
         baflap_reset();

@@ -4,10 +4,11 @@
 
 #include "core2/ba/anim.h"
 #include "core2/ba/physics.h"
+#include "core2/yaw.h"
 
 extern void bainput_setDiveCooldown(s32, f32);
 
-n64_bool bsswim_inset(enum bs_e state_id);
+bool bsswim_inset(enum bs_e state_id);
 
 /* .data */
 f32 bsSwimHorzVelocityMin = 30.0f;
@@ -76,7 +77,7 @@ void __bsswim_updateVelocity(void) {
 void __bsswim_enteredWater(void) {
     if (level_get() == LEVEL_9_RUSTY_BUCKET_BAY) {
         progressDialog_showDialogMaskZero(FILEPROG_AB_SWIM_OILY_WATER);
-    } else if (gsworld_get_map() == MAP_46_CCW_WINTER) {
+    } else if (gsworld_getMap() == MAP_46_CCW_WINTER) {
         progressDialog_showDialogMaskZero(FILEPROG_DD_HAS_TOUCHED_CCW_ICY_WATER);
     }
     baphysics_set_gravity(100.0f);
@@ -96,7 +97,7 @@ void __bsswim_end(void) {
     }
 }
 
-n64_bool bsswim_inset(enum bs_e state_id){
+bool bsswim_inset(enum bs_e state_id){
     return state_id == BS_2D_SWIM_IDLE
         || state_id == BS_2E_SWIM
         || state_id == BS_4C_LANDING_IN_WATER
@@ -139,7 +140,7 @@ void bsswim_idle_init(void) {
         anctrl_setDuration(anim_ctrl, 1.2f);
         anctrl_start(anim_ctrl, "bsswim.c", 0xFD);
     }
-    func_8029C7F4(1, 3, 3, BA_PHYSICS_NORMAL);
+    code_14420_setUpdateTypes(1, YAW_STATE_3_BOUNDED, 3, BA_PHYSICS_NORMAL);
     yaw_setVelocityBounded(500.0f, 5.0f);
     baphysics_set_target_horizontal_velocity(0.0f);
     __bsswim_enteredWater();
@@ -181,7 +182,7 @@ void bsswim_idle_update(void) {
         next_state = BS_5_JUMP;
     }
     if (baflag_isTrue(BA_FLAG_6) || baflag_isTrue(BA_FLAG_14_LOSE_BOGGY_RACE)) {
-        next_state = BS_D_TIMEOUT;
+        next_state = BS_D_TIMEOUT_TRANSFORMATION;
     }
     bs_setState(next_state);
 }
@@ -258,7 +259,7 @@ void bsswim_swim_update(void) {
         next_state = BS_5_JUMP;
     }
     if (baflag_isTrue(BA_FLAG_6) || baflag_isTrue(BA_FLAG_14_LOSE_BOGGY_RACE)) {
-        next_state = BS_D_TIMEOUT;
+        next_state = BS_D_TIMEOUT_TRANSFORMATION;
     }
     bs_setState(next_state);
 }
@@ -282,7 +283,7 @@ void __bsswim_update_rotation(void) {
 
 void bsswim_lookat_init(void) {
     baanim_playForDuration_loopSmooth(ASSET_57_ANIM_BSSWIM_IDLE, 1.2f);
-    func_8029C7F4(1, 3, 3, BA_PHYSICS_NORMAL);
+    code_14420_setUpdateTypes(1, YAW_STATE_3_BOUNDED, 3, BA_PHYSICS_NORMAL);
     yaw_setVelocityBounded(500.0f, 5.0f);
     baphysics_set_target_horizontal_velocity(0.0f);
     __bsswim_enteredWater();

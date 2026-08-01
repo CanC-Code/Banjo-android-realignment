@@ -8,10 +8,6 @@ static f32 idealPitch_degree;
 static f32 pitchVelocityLimit_degreePerSec;
 static f32 pitchVelocity_degreePerSec;
 
-
-/* Automated Forward Decls */
-static void __pitch_update(f32 limit, f32 angVel);
-
 /* .code */
 static void __pitch_update(f32 limit, f32 angVel){
     f32 diff;

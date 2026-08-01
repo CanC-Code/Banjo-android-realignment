@@ -1,7 +1,7 @@
 #include <ultra64.h>
 #include "functions.h"
 #include "variables.h"
-/* Redirected */ #include <n64_math.h>
+#include <math.h>
 
 extern f32 mapModel_getFloorY(f32[3]);
 
@@ -99,7 +99,7 @@ int chbat_isWithinHorzontalRadiusOfHome(Actor * this, s32 dist){
     return 0;
 }
 
-n64_bool chbat_nearHome(Actor *arg0, s32 arg1) {
+bool chbat_nearHome(Actor *arg0, s32 arg1) {
     if( (arg0->position[1] < ( arg0->unk1C[1] + 0.5)) 
         && (( arg0->unk1C[1] - 0.5) < arg0->position[1])
     ) {
@@ -123,7 +123,7 @@ void chBat_updateHeight(Actor *this, f32 target_height, f32 velocity){
     }
 }
 
-n64_bool func_8035FC98(Actor *this, f32 arg1){
+bool func_8035FC98(Actor *this, f32 arg1){
     f32 sp34[3];
     f32 sp28[3];
     f32 sp1C[3];
@@ -141,7 +141,7 @@ n64_bool func_8035FC98(Actor *this, f32 arg1){
 
 }
 
-n64_bool func_8035FD28(Actor *this){
+bool func_8035FD28(Actor *this){
     this->velocity[0] -= 2.5;
     if(func_8035FC98(this, this->velocity[0]*2)){
         return FALSE;
@@ -150,7 +150,7 @@ n64_bool func_8035FD28(Actor *this){
     return TRUE;
 }
 
-n64_bool chbat_nearPlayer(Actor *this) {
+bool chbat_nearPlayer(Actor *this) {
     f32 sp24[3];
 
     player_getPosition(sp24);
@@ -179,7 +179,7 @@ n64_bool chbat_nearPlayer(Actor *this) {
     return FALSE;
 }
 
-n64_bool func_8035FEDC(Actor *this){
+bool func_8035FEDC(Actor *this){
     if(func_8032CA80(this, this->unk38_0?0x13:4)){
         if(this->unk38_0){
             return FALSE;
@@ -193,7 +193,7 @@ n64_bool func_8035FEDC(Actor *this){
     return TRUE;
 }
 
-n64_bool func_8035FF5C(Actor *this){
+bool func_8035FF5C(Actor *this){
     if(func_8032CA80(this, 5) && func_80329480(this)){
         this->actor_specific_1_f = 0.0f;
         return FALSE;
@@ -238,7 +238,7 @@ void chbat_updateRollTowardsZero(Actor *this){
     }
 }
 
-n64_bool func_80360198(Actor *this) {
+bool func_80360198(Actor *this) {
     f32 var_f16;
     f64 temp_f0;
     f64 d_yaw;
@@ -325,7 +325,7 @@ int func_803604E8(Actor *this){
     return 1;
 }
 
-n64_bool chbat_updateRoam(Actor *this) {
+bool chbat_updateRoam(Actor *this) {
     s32 phi_v0;
     s32 phi_s1;
     s32 phi_s2;

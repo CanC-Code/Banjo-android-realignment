@@ -2,10 +2,10 @@
 #include "functions.h"
 #include "variables.h"
 
-extern n64_bool func_80309DBC(f32[3], f32[3], f32, f32 sp54[3], s32, s32);
-extern n64_bool func_80320C94(f32[3], f32[3], f32, f32 sp54[3], s32, s32);
+extern bool func_80309DBC(f32[3], f32[3], f32, f32 sp54[3], s32, s32);
+extern bool func_80320C94(f32[3], f32[3], f32, f32 sp54[3], s32, s32);
 extern f32 func_8033229C(ActorMarker *);
-extern n64_bool func_80309D58(f32[3], s32);
+extern bool func_80309D58(f32[3], s32);
 
 typedef struct {
     s16 flags;
@@ -190,10 +190,10 @@ Actor *bundle_spawn_f32(enum bundle_e bundle_id, f32 position[3]) {
     return __bundle_spawnWithFirstActor(bundle_id, position, NULL);
 }
 
-n64_bool func_802C939C(Actor *actor, f32 arg1[3], f32 arg2[3], f32 arg3[3], n64_bool arg4) {
+bool func_802C939C(Actor *actor, f32 arg1[3], f32 arg2[3], f32 arg3[3], bool arg4) {
     Bundle *bundle = (Bundle *)&actor->unkBC;
     f32 sp60;
-    n64_bool var_v1;
+    bool var_v1;
     f32 sp50[3];
     f32 sp44[3];
     s32 sp40;
@@ -326,7 +326,7 @@ void bundle_update(Actor *actor) {
                 }
 
                 ml_vec3f_scale(bundle->velocity, bundle_info->bounce_factor);
-                speed = gu_sqrtf((bundle->velocity[0] * bundle->velocity[0]) + (bundle->velocity[1] * bundle->velocity[1]) + (bundle->velocity[2] * bundle->velocity[2]));
+                speed = sqrtf((bundle->velocity[0] * bundle->velocity[0]) + (bundle->velocity[1] * bundle->velocity[1]) + (bundle->velocity[2] * bundle->velocity[2]));
 
                 if (((speed < 200.0f) && (sp40[1] > 0.75)) || (speed < 10.0f)) {
                     bundle->state = BUNDLE_STATE_2_YAWING;
@@ -383,7 +383,7 @@ f32 *bundle_getVelocity(Actor *actor){
     return ptr->velocity;
 }
 
-n64_bool func_802C9C14(Actor *actor){
+bool func_802C9C14(Actor *actor){
     Bundle *ptr = (Bundle *)&actor->unkBC;
     return ptr->unk2C < 1U;
 }

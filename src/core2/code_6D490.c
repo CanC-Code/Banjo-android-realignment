@@ -74,7 +74,7 @@ s32 func_802F4420(Struct5Ds *this){
         return 4;
     }
 
-    return func_803246B4(gsworld_get_map(), this->unk0);
+    return func_803246B4(gsworld_getMap(), this->unk0);
 }
 
 void func_802F44AC(Struct5Ds *this, enum sfx_e sfx_id, f32 arg2, f32 arg3, s32 arg4){
@@ -114,7 +114,7 @@ void func_802F4554(Struct5Ds *this, enum sfx_e sfx_id, f32 arg2, f32 arg3, f32 a
 
 }
 
-n64_bool func_802F4604(Struct5Ds *this, f32 arg1, s32 arg2){
+bool func_802F4604(Struct5Ds *this, f32 arg1, s32 arg2){
     int i;
 
     for(i = 0; D_80368DF0[i].unk0 != 0; i++ ){
@@ -157,11 +157,11 @@ void func_802F46F4(Struct5Ds *this){
 void func_802F4798(Struct5Ds *this){
     sfxsource_freeSfxsourceByIndex(this->unk1C);
     sfxsource_freeSfxsourceByIndex(this->unk1D);
-    n64_free(this);
+    free(this);
 }
 
 Struct5Ds *func_802F47D0(void){
-    Struct5Ds *this = (Struct5Ds *)n64_malloc(sizeof(Struct5Ds));
+    Struct5Ds *this = (Struct5Ds *)malloc(sizeof(Struct5Ds));
     this->unk1E = 0;
     this->unk1F = 1;
     

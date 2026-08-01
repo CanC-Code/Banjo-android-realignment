@@ -44,7 +44,7 @@ void __chlmonkey_updateBringOrange(Actor **this_ptr) {
     player_setCarryObjectPoseInHorizontalRadius((*this_ptr)->position, 800.0f, ACTOR_29_ORANGE_COLLECTIBLE, this_ptr);
 
     if (subaddie_playerIsWithinSphereAndActive(*this_ptr, 345) &&
-        bacarry_get_markerId() == MARKER_36_ORANGE_COLLECTIBLE &&
+        bacarry_getMarkerId() == MARKER_36_ORANGE_COLLECTIBLE &&
         player_throwCarriedObject()) {
 
         func_8028FA34(0xc6, *this_ptr);
@@ -94,7 +94,7 @@ void chlmonkey_update(Actor *this) {
     actor_collisionOff(this);
     this->marker->propPtr->unk8_3 = 1;
 
-    if (gsworld_get_map() != MAP_2_MM_MUMBOS_MOUNTAIN) {
+    if (gsworld_getMap() != MAP_2_MM_MUMBOS_MOUNTAIN) {
         func_80343DEC(this);
     }
     else {//L80388630

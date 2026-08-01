@@ -16,7 +16,7 @@ s32 code94620_func_8031B5B0(void) {
     return s_dialogBin.unk0;
 }
 
-s32 func_8031B5BC(void){ return 1; }
+s32 func_8031B5BC(void){ return VER_SELECT(1, 3, 0, 0); }
 
 void func_8031B5C4(s32 arg0) {
     if ((arg0 >= 0) && (arg0 < func_8031B5BC())) {
@@ -25,7 +25,7 @@ void func_8031B5C4(s32 arg0) {
     D_80383150 = 1;
 }
 
-n64_bool func_8031B604(char *arg0) {
+bool func_8031B604(char *arg0) {
     return (arg0[0] == 0xFD) && (arg0[1] == 0x6A);
 }
 

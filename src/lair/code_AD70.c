@@ -1,5 +1,4 @@
 #include <ultra64.h>
-#include "bka_safe_base.h"
 #include "functions.h"
 #include "variables.h"
 #include "core2/particle.h"
@@ -19,8 +18,16 @@ typedef struct {
 void func_80391B04(Actor *this);
 
 /* .data */
-ActorInfo D_80394AB0 = { 0x1EF, 0x3BB, 0x54B, 0x1, NULL, func_80391B04, actor_update_func_80326224, func_80325340, 0, 0, 0.0f, 0};
+// Furnace Fun Fireball?
+ActorInfo D_80394AB0 = {
+    0x1EF, 0x3BB, 0x54B,
+    0x1, NULL,
+    func_80391B04, actor_update_func_80326224, func_80325340,
+    0, 0, 0.0f, 0
+};
+
 s32 D_80394AD4[3] = {0xBA, 0xBA, 0xBA};
+
 ParticleScaleAndLifetimeRanges D_80394AE0 = {
     {0.1f, 0.2f},
     {3.6f, 4.6f},
@@ -166,9 +173,9 @@ void func_80391810(Actor *this, s32 next_state) {
     switch (next_state) {
     case 1:
         sp34 = (this->position[1] + this->actor_specific_1_f) - this->unk1C[1];
-        this->velocity[1] = gu_sqrtf(this->actor_specific_1_f * 2000.0);
+        this->velocity[1] = sqrtf(this->actor_specific_1_f * 2000.0);
         local->unk0 = -this->velocity[1] / -1000.0f;
-        local->unk0 += gu_sqrtf((sp34 * -2.0) / -1000.0);
+        local->unk0 += sqrtf((sp34 * -2.0) / -1000.0);
         this->velocity[0] = this->unk1C[0] - this->position[0];
         this->velocity[2] = this->unk1C[2] - this->position[2];
         this->velocity[0] /= local->unk0;
@@ -306,7 +313,7 @@ void func_80391EA8(ActorMarker *marker, ActorMarker *a1, f32 a2[3], f32 f1, f32 
 
     actor->partnerActor = a1;
 
-    *(f32 *)BKA_TRANSLATE_ADDR((unk + 0x04)) = f2 > 0 ? 0.5 : 0.0;
-    *(s32 *)BKA_TRANSLATE_ADDR((unk + 0x0C)) = f2 < 0 ? 2.5 : 1.0;
+    *(f32 *)(unk + 0x04) = f2 > 0 ? 0.5 : 0.0;
+    *(s32 *)(unk + 0x0C) = f2 < 0 ? 2.5 : 1.0;
 }
 

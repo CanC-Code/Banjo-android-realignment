@@ -35,7 +35,7 @@ void func_802DC110(f32 *position, enum asset_e sprite_id) {
     func_802EFC28(pCtrl, &D_80368004);
 }
 
-n64_bool func_802DC188(void) {
+bool func_802DC188(void) {
     f32 sp1C[3];
 
     player_getVelocity(sp1C);

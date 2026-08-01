@@ -30,13 +30,13 @@ void ncDynamicCam5_update(void) {
     player_getPosition(sp74);
     sp74[1] += 60.0f;
     ml_vec3f_diff_copy(sp5C, sp44, sp74);
-    sp30 = ml_map_f(D_8037DABC, 0.2f, 0.5f, gu_sqrtf(sp5C[0] * sp5C[0] + sp5C[1] * sp5C[1] + sp5C[2] * sp5C[2]), 300.0f);
+    sp30 = ml_map_f(D_8037DABC, 0.2f, 0.5f, sqrtf(sp5C[0] * sp5C[0] + sp5C[1] * sp5C[1] + sp5C[2] * sp5C[2]), 300.0f);
     D_8037DABC += time_getDelta();
     ml_vec3f_scale_copy(sp50, D_8037DAB0, sp30);
     ml_vec3f_diff_copy(sp68, sp74, sp50);
     func_802BE190(sp68);
     ncDynamicCamera_getPosition(sp68);
-    func_8025727C(sp74[0], sp74[1], sp74[2], sp68[0], sp68[1], sp68[2], &sp38[0], &sp38[1]);
+    ml_horizontal_and_vertical_angles(sp74[0], sp74[1], sp74[2], sp68[0], sp68[1], sp68[2], &sp38[0], &sp38[1]);
     sp38[0] = -sp38[0];
     sp38[2] = 0.0f;
     func_802BD904(sp38);

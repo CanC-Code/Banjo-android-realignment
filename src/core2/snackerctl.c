@@ -24,15 +24,6 @@ f32 D_8036361C[2] = {29.25f, 269.5f};
 /* .bss */
 SnackerCtlState s_snackerctl_state;
 
-
-/* Automated Forward Decls */
-static s32 __snackerctl_player_within_distance(f32 x, f32 z, f32 dist);
-static SnackerCtlState __snackerctl_update_ttc(void);
-static SnackerCtlState __snackerctl_update_rbb(void);
-static void func_8028A558(ActorMarker *arg0, enum asset_e arg1, s32 arg2);
-static void func_8028A584(ActorMarker *arg0, enum asset_e arg1, s32 arg2);
-static SnackerCtlState _snackerctl_update_bottles_bonus(void);
-
 /* .code */
 void snackerctl_reset(void){
     s_snackerctl_state = SNACKER_CTL_STATE_0_INACTIVE;
@@ -136,7 +127,7 @@ static SnackerCtlState _snackerctl_update_bottles_bonus(void){
 }
 
 void snackerctl_update(void){
-    switch(gsworld_get_map()){
+    switch(gsworld_getMap()){
         case MAP_7_TTC_TREASURE_TROVE_COVE:
             s_snackerctl_state = __snackerctl_update_ttc();
             break;

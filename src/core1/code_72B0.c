@@ -4,10 +4,10 @@
 #include "variables.h"
 
 int collisionTri_isHitFromAbove_actor(f32 arg0[3], Actor *arg1, s32 arg2);
-extern n64_bool func_80320DB0(f32[3], f32, f32[3], u32);
-extern n64_bool func_80323240(struct56s *, f32, f32[3]);
-extern BKCollisionTri *func_80320B98(f32[3], f32[3], f32[3], u32);
-extern BKCollisionTri *func_80320C94(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3[3], s32 arg4, u32 arg5);
+extern bool func_80320DB0(f32[3], f32, f32[3], u32);
+extern bool func_80323240(struct56s *, f32, f32[3]);
+extern BKCollisionTriangle *func_80320B98(f32[3], f32[3], f32[3], u32);
+extern BKCollisionTriangle *func_80320C94(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3[3], s32 arg4, u32 arg5);
 extern f32 floor_getXPosition(struct0*);
 extern void func_8031C5AC(struct0 *, f32 *);
 
@@ -19,7 +19,7 @@ void func_80244CD0(f32 arg0[3], u32 arg1) {
     f32 sp34[3];
     f32 sp28[3];
     f32 sp1C[3];
-    BKCollisionTri *temp_v0;
+    BKCollisionTriangle *temp_v0;
 
     ml_vec3f_copy(sp28, arg0);
     ml_vec3f_copy(sp1C, arg0);
@@ -31,10 +31,10 @@ void func_80244CD0(f32 arg0[3], u32 arg1) {
     }
 }
 
-BKCollisionTri *func_80244D94(f32 arg0[3], f32 arg1[3], f32 arg2[3], u32 arg3, f32 arg4) {
+BKCollisionTriangle *func_80244D94(f32 arg0[3], f32 arg1[3], f32 arg2[3], u32 arg3, f32 arg4) {
     f32 sp2C[3];
     f32 sp20[3];
-    BKCollisionTri *sp1C;
+    BKCollisionTriangle *sp1C;
 
     ml_vec3f_copy(sp20, arg1);
     ml_vec3f_diff_copy(sp2C, sp20, arg0);
@@ -51,10 +51,10 @@ BKCollisionTri *func_80244D94(f32 arg0[3], f32 arg1[3], f32 arg2[3], u32 arg3, f
     return sp1C;
 }
 
-BKCollisionTri *func_80244E54(f32 arg0[3], f32 arg1[3], f32 arg2[3], u32 arg3, f32 arg4, f32 arg5){
+BKCollisionTriangle *func_80244E54(f32 arg0[3], f32 arg1[3], f32 arg2[3], u32 arg3, f32 arg4, f32 arg5){
     f32 sp34[3];
     f32 sp28[3];
-    BKCollisionTri *sp24;
+    BKCollisionTriangle *sp24;
 
     ml_vec3f_copy(sp34, arg0);
     ml_vec3f_copy(sp28, arg1);
@@ -157,10 +157,10 @@ void func_802451A4(f32 arg0[3], f32 arg1[3], f32 arg2[3], f32 arg3[3], f32 arg4[
     arg1[2] += phi_f12 * sp48[2];
 }
 
-n64_bool func_80245314(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3, s32 arg4) {
+bool func_80245314(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3, s32 arg4) {
     f32 sp2C[3];
     f32 sp20[3];
-    n64_bool temp_v0;
+    bool temp_v0;
 
     ml_vec3f_copy(sp2C, arg0);
     ml_vec3f_copy(sp20, arg0);
@@ -173,7 +173,7 @@ n64_bool func_80245314(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3, s32 arg4) {
     return temp_v0;
 }
 
-n64_bool func_802453A0(f32 arg0[3], f32 arg1[3], f32 arg2[3]){
+bool func_802453A0(f32 arg0[3], f32 arg1[3], f32 arg2[3]){
     f32 sp24[3];
     f32 sp18[3];
     ml_vec3f_copy(sp18, arg1);
@@ -220,7 +220,7 @@ int func_8024549C(f32 arg0[3], f32 arg1){
     return sp1C;
 }
 
-n64_bool func_80245524(f32 arg0[3], void *arg1, s32 *arg2, f32 *arg3){
+bool func_80245524(f32 arg0[3], void *arg1, s32 *arg2, f32 *arg3){
     *arg2 = func_8034C630(arg1);
     if(*arg2 == NULL){
         *arg3 = arg0[1];
@@ -278,7 +278,7 @@ void func_8024560C(f32 arg0[3], struct0 *arg1, UNK_TYPE(s32) arg2, u8 *arg3, f32
     }
 }
 
-BKCollisionTri *func_8024575C(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3[3], s32 arg4, u32 arg5){
+BKCollisionTriangle *func_8024575C(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3[3], s32 arg4, u32 arg5){
     if(arg2 < ml_vec3f_distance(arg0, arg1)){
         return NULL;
     }
@@ -286,8 +286,8 @@ BKCollisionTri *func_8024575C(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3[3], s
 
 }
 
-BKCollisionTri *func_802457C4(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3, f32 arg4[3], s32 arg5, u32 arg6){
-    BKCollisionTri *var_v1;
+BKCollisionTriangle *func_802457C4(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3, f32 arg4[3], s32 arg5, u32 arg6){
+    BKCollisionTriangle *var_v1;
     f32 sp38[3];
     f32 sp2C[3];
 
@@ -308,7 +308,7 @@ BKCollisionTri *func_802457C4(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3, f32 
     return var_v1;
 }
 
-void collisionTri_copy(BKCollisionTri *dst, BKCollisionTri *src) {
+void collisionTri_copy(BKCollisionTriangle *dst, BKCollisionTriangle *src) {
     TUPLE_COPY(dst->unk0, src->unk0)
     dst->flags = src->flags;
     dst->unk6 = src->unk6;

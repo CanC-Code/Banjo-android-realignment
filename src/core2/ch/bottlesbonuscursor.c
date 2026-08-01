@@ -3,7 +3,7 @@
 #include "functions.h"
 #include "variables.h"
 
-/* Redirected */ #include <n64_time.h>
+#include "time.h"
 
 #ifndef ABS
 #define	ABS(d)		((d) >= 0) ? (d) : -(d)
@@ -36,25 +36,25 @@ void chBottlesBonusCursor_func_802DF99C(void);
 void chBottlesBonusCursor_update(Actor *this);
 
 /* .data */
-ActorAnimationInfo D_803683B0[] = {
+ActorAnimationInfo chBottlesBonusCursorAnimations[] = {
     {0x000, 0.0f},
-    {0x2A2, 1.0f},
-    {0x2A5, 1.0f},
-    {0x2A4, 0.4f},
-    {0x2A3, 0.4f},
-    {0x2A1, 0.3f},
-    {0x2A7, 0.4f},
-    {0x2A1, 0.3f},
-    {0x2A6, 2.6f},
-    {0x2A8, 2.6f}
+    {ASSET_2A2_ANIM_BOTTLES_BONUS_CURSOR_UNKNOWN, 1.0f},
+    {ASSET_2A5_ANIM_BOTTLES_BONUS_CURSOR_UNKNOWN, 1.0f},
+    {ASSET_2A4_ANIM_BOTTLES_BONUS_CURSOR_UNKNOWN, 0.4f},
+    {ASSET_2A3_ANIM_BOTTLES_BONUS_CURSOR_UNKNOWN, 0.4f},
+    {ASSET_2A1_ANIM_BOTTLES_BONUS_CURSOR_UNKNOWN, 0.3f},
+    {ASSET_2A7_ANIM_BOTTLES_BONUS_CURSOR_UNKNOWN, 0.4f},
+    {ASSET_2A1_ANIM_BOTTLES_BONUS_CURSOR_UNKNOWN, 0.3f},
+    {ASSET_2A6_ANIM_BOTTLES_BONUS_CURSOR_UNKNOWN, 2.6f},
+    {ASSET_2A8_ANIM_BOTTLES_BONUS_CURSOR_UNKNOWN, 2.6f}
 };
 
 f32 D_80368400[3] = {570.0f, 328.9f, -186.4f};
 f32 D_8036840C[3] = {-11.28f, 3.92f, -52.96f};
 
-ActorInfo D_80368418 = {
-    0x17A, 0x2B4, 0x565, 
-    0x1, D_803683B0, 
+ActorInfo chBottlesBonusCursor = {
+    MARKER_17A_BOTTLES_BONUS_BANJO_HAND, ACTOR_2B4_BOTTLES_BONUS_BANJO_HAND, ASSET_565_MODEL_BOTTLES_BONUS_BANJO_HAND, 
+    0x1, chBottlesBonusCursorAnimations, 
     chBottlesBonusCursor_update, actor_update_func_80326224, func_80325340, 
     0, 0, 0.0f, 0
 };
@@ -64,6 +64,7 @@ ActorMarker *chBottlesBonusCursorMarker;
 f32 D_8037E068[60][2];
 Struct_core2_584D0_0 D_8037E248[20]; //puzzle pieces
 s32 D_8037E5B8;
+
 struct {
     s32 unk0;
     u8 pad4[0xC];
@@ -75,13 +76,10 @@ struct {
     f32 unk28;
     f32 unk2C;
 } D_8037E5C0;
+
 f32 D_8037E5F0;
 f32 D_8037E5F4;
 f32 D_8037E5F8[3];
-
-
-/* Automated Forward Decls */
-static f32 __XY_dist_square(f32 arg0[2], f32 arg1[2]);
 
 /* .code */
 void chBottlesBonusCursor_func_802DF460(s32 indx, ActorMarker *caller, f32 arg2[3]) {
@@ -120,7 +118,7 @@ s32 chBottlesBonusCursor_func_802DF50C(void) {
     return -1;
 }
 
-n64_bool chBottlesBonusCursor_checkPuzzleCompletion(void) {
+bool chBottlesBonusCursor_checkPuzzleCompletion(void) {
     s32 i;
 
     D_8037E5C0.is_completed = TRUE;
@@ -149,13 +147,13 @@ void chBottlesBonusCursor_draw(Gfx **gfx, Mtx **mtx, Vtx **vtx) {
     f32 sp3C;
 
     this = marker_getActorAndRotation(chBottlesBonusCursorMarker, rotation);
-    modelRender_preDraw((GenFunction_1)actor_predrawMethod, (s32)this);
-    modelRender_postDraw((GenFunction_1)actor_postdrawMethod, (s32)chBottlesBonusCursorMarker);
+    modelRender_setPreDrawCallback((GenFunction_1)actor_predrawMethod, (s32)this);
+    modelRender_setPostDrawCallback((GenFunction_1)actor_postdrawMethod, (s32)chBottlesBonusCursorMarker);
     modelRender_setDepthMode(MODEL_RENDER_DEPTH_FULL);
     actor_setOpacity(this, 0xB9);
     viewport_func_8024E030(this->position, D_8037E5C0.unk18);
     sp3C = (this->scale * 650.0f);
-    func_80253208(gfx, 
+    depthbuffer_clearRegion(gfx, 
         (s32)(D_8037E5C0.unk18[0]  - sp3C/2), (s32)(D_8037E5C0.unk18[1] - sp3C/2),
         (s32)sp3C, (s32)sp3C,
         gFramebuffers[getActiveFramebuffer()]
@@ -454,7 +452,7 @@ s32 chBottlesBonusCursor_func_802E06B4(void){
     return D_8037E5B8;
 }
 
-n64_bool chBottlesBonusCursor_isPuzzleCompleted(void){
+bool chBottlesBonusCursor_isPuzzleCompleted(void){
     return D_8037E5C0.is_completed;
 }
 

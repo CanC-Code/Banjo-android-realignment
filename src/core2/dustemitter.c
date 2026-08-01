@@ -22,7 +22,7 @@ void dustEmitter_empty(ParticleEmitter *this) {
     return;
 }
 
-n64_bool dustEmitter_isActive(s32 index) {
+bool dustEmitter_isActive(s32 index) {
     return (index < EMITTER_COUNT) ? !particleEmitter_isDone(pem_getEmitterByIndex(emitterIndexes[index])) : FALSE;
 }
 
@@ -42,7 +42,7 @@ void dustEmitter_free(void) {
     }
 }
 
-void dustEmitter_emit(f32 position[3], f32 velocity[3], s32 color[4], n64_bool useDefaultDrawMode, f32 lifetime,
+void dustEmitter_emit(f32 position[3], f32 velocity[3], s32 color[4], bool useDefaultDrawMode, f32 lifetime,
     f32 additionalYVelocity, s32 startingScale, s32 finalScale, enum dust_emitter_type_e type) {
 
     s32 _1;

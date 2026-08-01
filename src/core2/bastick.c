@@ -82,7 +82,7 @@ void bastick_update(void) {
     if (bastick.locked_at_zero) {
         bastick.value[0] = bastick.value[1] = 0.0f;
     }
-    bastick.distance = gu_sqrtf(bastick.value[0]*bastick.value[0] + bastick.value[1]*bastick.value[1]);
+    bastick.distance = sqrtf(bastick.value[0]*bastick.value[0] + bastick.value[1]*bastick.value[1]);
     if (bastick.distance != 0.0f) {
         bastick.zeroed_count = 0;
         bastick.nonzero_count = (s32) (bastick.nonzero_count + 1);
@@ -128,7 +128,7 @@ f32 bastick_getZonePosition(void){
     return bastick.zone_position;
 }
 
-void bastick_lockAtzero(n64_bool arg0){
+void bastick_lockAtzero(bool arg0){
     bastick.locked_at_zero = arg0;
 }
 
@@ -151,10 +151,10 @@ s32 bastick_getCenteredCount(void){
     return bastick.zeroed_count;
 }
 
-n64_bool bastick_newlyActive(void){
+bool bastick_newlyActive(void){
     return bastick.nonzero_count == 1;
 }
 
-n64_bool bastick_newlyCentered(void){
+bool bastick_newlyCentered(void){
     return bastick.zeroed_count == 1;
 }

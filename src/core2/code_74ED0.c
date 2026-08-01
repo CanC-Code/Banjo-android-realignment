@@ -99,7 +99,7 @@ void func_802FC0D8(void) {
     struct8s *sp1C;
     f32 temp_f0;
     s32 var_v0;
-    n64_bool var_v1;
+    bool var_v1;
 
     sp1C = D_80381560[0];
     if(D_80369884 != 0){
@@ -156,14 +156,14 @@ void func_802FC0D8(void) {
     }
 }
 
-n64_bool func_802FC390(void){
+bool func_802FC390(void){
     s32 *phi_v1 = D_80381560[0];
     if (D_80369884 == 0)
         return FALSE; 
     return *phi_v1 == 2;
 }
 
-n64_bool func_802FC3C4(void){
+bool func_802FC3C4(void){
     if (D_80369884 == 0)
         return FALSE; 
     return (func_802FDD0C(D_80381560[D_80369884 - 1]) == 0xE);

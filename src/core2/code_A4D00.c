@@ -15,15 +15,15 @@ extern f32 func_8033229C(ActorMarker *marker);
 
 extern f32 func_80309B24(f32 [3]);
 
-extern BKCollisionTri *func_80320C94(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3[3], s32 arg4, u32 arg5);
+extern BKCollisionTriangle *func_80320C94(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3[3], s32 arg4, u32 arg5);
 
 /* .h */
-typedef n64_bool (*method_core2_A4D00_0)(Actor *, f32[3], s32, s32);
+typedef bool (*method_core2_A4D00_0)(Actor *, f32[3], s32, s32);
 
 typedef struct {
     f32 unk0[3];
     f32 unkC[3];
-    BKCollisionTri *unk18;
+    BKCollisionTriangle *unk18;
     f32 unk1C[3];
     f32 unk28[3];
     f32 unk34[3];
@@ -33,29 +33,29 @@ typedef struct {
     s32 unk8C;
 } Struct_A4D00;
 
-n64_bool func_8032BC90(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032BC90(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032BD88(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032BD88(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032C280(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032C280(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032C2F0(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032C2F0(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032C404(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032C404(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032C4AC(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032C4AC(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032C660(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032C660(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032C6E0(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032C6E0(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032C79C(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032C79C(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032C99C(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032C99C(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032C9C0(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032C9C0(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3);
 
-n64_bool func_8032CA40(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3);
+bool func_8032CA40(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3);
 
 /* .data */
 method_core2_A4D00_0 D_8036E5D0[][6] = {
@@ -87,9 +87,9 @@ Prop *D_803833D0;
 f32 D_803833D8[3];
 
 /* .code */
-n64_bool func_8032BC90(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032BC90(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
     f32 sp44[3];
-    n64_bool sp40;
+    bool sp40;
     s32 phi_v0;
     f32 sp30[3];
 
@@ -110,7 +110,7 @@ void func_8032BD64(f32 arg0[3]) {
     ml_vec3f_copy(arg0, D_803833D8);
 }
 
-n64_bool func_8032BD88(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032BD88(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     s32 i;
     s32 temp_s7;
     Struct_A4D00 *var_fp;
@@ -205,7 +205,7 @@ n64_bool func_8032BD88(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
         ml_vec3f_copy(arg0->position, arg1);
     }
     else if (var_fp != NULL) {
-        temp_f20 = gu_sqrtf((sp284[0] * sp284[0]) + (sp284[1] * sp284[1]) + (sp284[2] * sp284[2]));
+        temp_f20 = sqrtf((sp284[0] * sp284[0]) + (sp284[1] * sp284[1]) + (sp284[2] * sp284[2]));
         arg0->position[0] = var_fp->unk0[0];
         arg0->position[1] = var_fp->unk0[1];
         arg0->position[2] = var_fp->unk0[2];
@@ -221,14 +221,14 @@ n64_bool func_8032BD88(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     return BOOL(var_fp != NULL);
 }
 
-n64_bool func_8032C280(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032C280(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     if ((arg0->unk10_25 != 0) && !func_80307390(arg0->unk10_25 - 1, arg0->unk10_18 - 1)) {
         return FALSE;
     }
     return func_8032BD88(arg0, arg1, arg2, arg3);
 }
 
-n64_bool func_8032C2F0(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032C2F0(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     f32 sp6C[3];
     f32 sp60[3];
     f32 sp20[4][4];
@@ -246,7 +246,7 @@ n64_bool func_8032C2F0(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     return FALSE;
 }
 
-n64_bool func_8032C404(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032C404(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     f32 sp1C[3];
 
     sp1C[0] = arg0->actor_specific_1_f;
@@ -259,7 +259,7 @@ n64_bool func_8032C404(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     return FALSE;
 }
 
-n64_bool func_8032C4AC(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032C4AC(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     f32 sp4C[3];
     f32 sp40[3];
     f32 sp34[3];
@@ -293,7 +293,7 @@ n64_bool func_8032C4AC(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     return FALSE;
 }
 
-n64_bool func_8032C660(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032C660(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     f32 temp_f12;
     f32 temp_f2;
 
@@ -303,7 +303,7 @@ n64_bool func_8032C660(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
 }
 
 
-n64_bool func_8032C6E0(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032C6E0(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
     s32 temp_v0;
     u32 temp_v1;
 
@@ -320,7 +320,7 @@ n64_bool func_8032C6E0(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
     return FALSE;
 }
 
-n64_bool func_8032C79C(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032C79C(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     s32 temp_v0;
 
     if (arg0->unk10_25 != 0) {
@@ -337,7 +337,7 @@ n64_bool func_8032C79C(Actor *arg0, f32 arg1[3], s32 arg2, s32 arg3) {
     return func_8032C6E0(arg0, arg1, arg2, arg3);
 }
 
-n64_bool func_8032C850(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3, n64_bool nonactor) {
+bool func_8032C850(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3, bool nonactor) {
     Prop *var_v1;
     f32 temp_f0;
     s32 stored_collidability;
@@ -361,12 +361,12 @@ n64_bool func_8032C850(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3, n64_bool n
     return FALSE;
 }
 
-n64_bool func_8032C99C(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032C99C(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
     return func_8032C850(actor, arg1, arg2, arg3, 1);
 }
 
 
-n64_bool func_8032C9C0(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
+bool func_8032C9C0(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
     return func_8032C850(actor, arg1, arg2, arg3, 0);
 }
 
@@ -378,8 +378,8 @@ void func_8032C9E0(f32 arg0[3]) {
     }
 }
 
-n64_bool func_8032CA40(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
-    n64_bool var_v1 = BOOL(arg3 & 8);
+bool func_8032CA40(Actor *actor, f32 arg1[3], s32 arg2, s32 arg3) {
+    bool var_v1 = BOOL(arg3 & 8);
 
     if (var_v1) {
         TUPLE_COPY(actor->position, arg1)

@@ -13,7 +13,7 @@ ActorInfo gCodeBF0 = {
 };
 
 /* .code */
-void __codeBF0_draw(Actor *this){
+static void __codeBF0_draw(Actor *this){
     if(!this->volatile_initialized){
         this->unk10_12 = 0;
         this->unk38_31 = this->unk10_12;
@@ -35,7 +35,7 @@ void __codeBF0_draw(Actor *this){
     }
 }
 
-n64_bool codeBF0_shouldSpawnQuarrieHoneyComb(ActorMarker *marker){
+bool codeBF0_shouldSpawnQuarrieHoneyComb(ActorMarker *marker){
     Actor *actor = marker_getActor(marker);
     
     return (--actor->unk10_12) == 0 ? TRUE : FALSE;

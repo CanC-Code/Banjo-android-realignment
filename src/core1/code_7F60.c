@@ -6,19 +6,14 @@
 
 static void _guMtxIdentF(float mf[4][4]);
 
-#if VERSION == VERSION_USA_1_0
-u8 D_80275900[8] = {0xCF, 0xAD, 0xA2, 0x90, 0x93, 0x4A, 0x83, 0xF1};
-#elif VERSION == VERSION_PAL
-u8 D_80275900[8] = {0xD3, 0x9E, 0xA6, 0x20, 0xC7, 0x7E, 0xD5, 0xC6};
-#endif
+s32 D_802758F0 = VER_SELECT(0xAD7FF2F3, 0xB585BADA, 0, 0); // BGS_DATA_CRC2
+s32 D_802758F4 = VER_SELECT(0xD884D8AC, 0xD731B7E2, 0, 0); // FP_DATA_CRC2
+s32 D_802758F8 = 0;
+s32 D_802758FC = 0;
+s32 D_80275900 = VER_SELECT(0xCFADA290, 0xD39EA620, 0, 0); // LAIR_DATA_CRC2
+s32 D_80275904 = VER_SELECT(0x934A83F1, 0xC77ED5C6, 0, 0); // GV_DATA_CRC2
 
 f32 D_80275908 = BAD_DTOR;
-
-
-/* Automated Forward Decls */
-static s32 guFToFix32(f32 arg0);
-static void __guMtxF2L(float mf[4][4], Mtx *m);
-static void _guNormalize(f32 *arg0, f32 *arg1, f32 *arg2);
 
 static s32 guFToFix32(f32 arg0){
 	return arg0*65536.0f;
@@ -116,7 +111,7 @@ void guMtxCatF(f32 lmf[4][4], f32 rmf[4][4], f32 dst[4][4]) {
 static void _guNormalize(f32 *arg0, f32 *arg1, f32 *arg2) {
     f32 inv_len;
 
-    inv_len = 1.0f / gu_sqrtf((*arg0 * *arg0) + (*arg1 * *arg1) + (*arg2 * *arg2));
+    inv_len = 1.0f / sqrtf((*arg0 * *arg0) + (*arg1 * *arg1) + (*arg2 * *arg2));
     *arg0 *= inv_len;
     *arg1 *= inv_len;
     *arg2 *= inv_len;

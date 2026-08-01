@@ -27,15 +27,6 @@ ActorInfo gChAttackTutorial = {
     0, 0, 0.0f, 0
 };
 
-
-/* Automated Forward Decls */
-static void __chAttackTutorial_spawnEnemyActorForMarker(ActorMarker* marker, enum actor_e enemy_id);
-static s32 __chAttackTutorial_spawnEnemyActor(Actor *this, s32 already_killed_enemies);
-static void __chAttackTutorial_advanceMarkToState2(ActorMarker *marker, enum asset_e text_id, s32 arg2);
-static void __chAttackTutorial_learnAbilityBasedOnDialog(ActorMarker *marker, enum asset_e dialog_id, s32 arg2);
-static n64_bool __chAttackTutorial_areLearnableAbilitiesUnlocked();
-static void __chAttackTutorial_handleDialog(ActorMarker *marker, enum asset_e text_id, s32 arg2);
-
 /* .code */
 static void __chAttackTutorial_spawnEnemyActorForMarker(ActorMarker* marker, enum actor_e enemy_id) {
     Actor* actor = marker_getActor(marker);
@@ -133,7 +124,7 @@ static void __chAttackTutorial_setState(Actor* this, enum ch_attack_tutorial_sta
     subaddie_set_state(this, state);
 }
 
-static n64_bool __chAttackTutorial_areLearnableAbilitiesUnlocked() {
+static bool __chAttackTutorial_areLearnableAbilitiesUnlocked() {
     return ability_isUnlocked(ABILITY_4_CLAW_SWIPE)
         && ability_isUnlocked(ABILITY_C_ROLL)
         && ability_isUnlocked(ABILITY_B_RATATAT_RAP);
@@ -217,7 +208,7 @@ static void __chAttackTutorial_handleDialog(ActorMarker *marker, enum asset_e te
 
 static void __chAttackTutorial_showDialogText(ActorMarker* marker) {
     s32 dialog_text;
-    n64_bool has_killed_enemy;
+    bool has_killed_enemy;
     s32 dialog_flag = 0x4;
     
     Actor* actor = marker_getActor(marker);

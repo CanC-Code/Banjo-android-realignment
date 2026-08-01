@@ -5,10 +5,6 @@
 #include "core2/anctrl.h"
 #include "animation.h"
 
-
-/* Automated Forward Decls */
-static void __anctrl_update_looped(AnimCtrl *this);
-
 /* .code */
 void anctrl_80286F90(AnimCtrl *this){
     Animation *anim;
@@ -103,7 +99,7 @@ void func_802871A4(AnimCtrl *this){
 AnimCtrl *anctrl_new(s32 arg0){ //new
     ActorAnimCtrl *this;
 
-    this = (ActorAnimCtrl *)n64_malloc( anim_getSize() + 0x28);
+    this = (ActorAnimCtrl *)malloc( anim_getSize() + 0x28);
     this->anctrl.animation = &this->animation;
     anim_new(&this->animation, 1);
     this->anctrl.playback_type = 0;
@@ -122,7 +118,7 @@ AnimCtrl *anctrl_new(s32 arg0){ //new
 
 void anctrl_free(AnimCtrl * this){ //free
     anim_release(this->animation);
-    n64_free(this);
+    free(this);
 }
 
 void anctrl_update(AnimCtrl *this){//update
@@ -300,7 +296,7 @@ s32  anctrl_8028780C(f32 position[3], s32 arg1){
 
 void anctrl_drawSetup(AnimCtrl *this, f32 *position, s32 arg2){
     s32 map;
-    map = gsworld_get_map();
+    map = gsworld_getMap();
     if( map != MAP_1E_CS_START_NINTENDO 
         && map != MAP_1F_CS_START_RAREWARE
         && map != MAP_20_CS_END_NOT_100 

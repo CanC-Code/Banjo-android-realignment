@@ -6,7 +6,7 @@
 #include "core2/statetimer.h"
 #include "ba/iFrame.h"
 
-extern BKCollisionTri *func_8029463C(void);
+extern BKCollisionTriangle *func_8029463C(void);
 
 /* .bss */
 u8 hazardSfxId;
@@ -16,7 +16,7 @@ f32 playerPosition[3];
 f32 effectTimer;
 
 /*.code */
-n64_bool isOnFloor(void) {
+bool isOnFloor(void) {
     return floor_isCurrentFloorunk59() && floor_getCurrentFloorYPosition() > playerPosition_getY();
 }
 
@@ -75,7 +75,7 @@ void triggerSwampHazardEffects(void) {
 }
 
 void triggerHazardEffects(void) {
-    switch (gsworld_get_map()) {
+    switch (gsworld_getMap()) {
         case MAP_12_GV_GOBIS_VALLEY:
         case MAP_31_RBB_RUSTY_BUCKET_BAY:
         case MAP_3C_RBB_KITCHEN:
@@ -166,7 +166,7 @@ void updateSwampEffects(void) {
 }
 
 void updateHazardEffects(void) {
-    switch (gsworld_get_map()) {
+    switch (gsworld_getMap()) {
         case MAP_12_GV_GOBIS_VALLEY:
         case MAP_31_RBB_RUSTY_BUCKET_BAY:
         case MAP_3C_RBB_KITCHEN:
@@ -187,10 +187,10 @@ void updateHazardEffects(void) {
     }
 }
 
-n64_bool isPlayerInHazard(void) {
+bool isPlayerInHazard(void) {
     f32 player_position[3];
 
-    switch (gsworld_get_map()) {
+    switch (gsworld_getMap()) {
         case MAP_D_BGS_BUBBLEGLOOP_SWAMP:
         case MAP_12_GV_GOBIS_VALLEY:
         case MAP_1B_MMM_MAD_MONSTER_MANSION:
@@ -216,12 +216,12 @@ n64_bool isPlayerInHazard(void) {
     return FALSE;
 }
 
-n64_bool canTakeGroundDamage(void) {
+bool canTakeGroundDamage(void) {
     enum bs_e bs_state;
 
     bs_state = bs_getState();
 
-    switch (gsworld_get_map()) {
+    switch (gsworld_getMap()) {
         case MAP_D_BGS_BUBBLEGLOOP_SWAMP:
         case MAP_12_GV_GOBIS_VALLEY:
         case MAP_1B_MMM_MAD_MONSTER_MANSION:
@@ -254,14 +254,14 @@ n64_bool canTakeGroundDamage(void) {
 }
 
 void hazards_update(void) {
-    n64_bool can_take_ground_damage;
-    BKCollisionTri *collision;
+    bool can_take_ground_damage;
+    BKCollisionTriangle *collision;
     s32 sp1C;
     s32 sp18;
     
     updateHazardEffects();
 
-    if (gsworld_get_map() == MAP_12_GV_GOBIS_VALLEY) {
+    if (gsworld_getMap() == MAP_12_GV_GOBIS_VALLEY) {
         sp18 = 0;
         sp1C = 0;
 
@@ -287,7 +287,7 @@ void hazards_update(void) {
     batimer_decrement(BA_TIMER_HAZARDS);
 
     if (can_take_ground_damage) {
-        if (gsworld_get_map() == MAP_8E_GL_FURNACE_FUN) {
+        if (gsworld_getMap() == MAP_8E_GL_FURNACE_FUN) {
             if (bs_checkInterrupt(BS_INTR_13_FF_DEATH_SQUARE)) {
                 triggerHazardEffects();
             }
@@ -306,7 +306,7 @@ void hazards_update(void) {
                 }
             }
 
-            switch (gsworld_get_map()) { // Show dialog associated with touching a hazard for the first time
+            switch (gsworld_getMap()) { // Show dialog associated with touching a hazard for the first time
                 case MAP_43_CCW_SPRING:
                 case MAP_44_CCW_SUMMER:
                 case MAP_45_CCW_AUTUMN:

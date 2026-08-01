@@ -111,10 +111,10 @@ void __baMarker_8028B7F4(void){
 
 void __baMarker_8028B848(void){
     s32 s0 = 0;
-    if(gsworld_get_map() == MAP_69_GL_MM_LOBBY){
+    if(gsworld_getMap() == MAP_69_GL_MM_LOBBY){
         s0 = ASSET_E57_DIALOG_FIRST_JIGGY;
     }
-    else if(gsworld_get_map() == MAP_2_MM_MUMBOS_MOUNTAIN){
+    else if(gsworld_getMap() == MAP_2_MM_MUMBOS_MOUNTAIN){
         s0 = ASSET_B45_DIALOG_JIGGY_COLLECT_10;
     }
 
@@ -333,12 +333,12 @@ void __baMarker_resolveCollision(Prop *other_prop){
 
             case MARKER_F5_BGS_ELEVATED_WALKWAY_SWITCH: //L8028BFB0
                 if(plyr_hitbox_type == HITBOX_1_BEAK_BUSTER)
-                    __baMarker_8028BAB0(JIGGY_20_BGS_ELEVATED_WALKWAY, BGS_SPECIFIC_FLAG_1, BGS_SPECIFIC_FLAG_WALKWAY_JIGGY_TIMER_RUNNING, BGS_SPECIFIC_FLAG_7);
+                    __baMarker_8028BAB0(JIGGY_20_BGS_ELEVATED_WALKWAY, BGS_SPECIFIC_FLAG_1, BGS_SPECIFIC_FLAG_3_WALKWAY_JIGGY_TIMER_RUNNING, BGS_SPECIFIC_FLAG_7);
                 break;
                 
             case MARKER_FD_BGS_MAZE_SWITCH: //L8028BFD4
                 if(plyr_hitbox_type == HITBOX_1_BEAK_BUSTER)
-                    __baMarker_8028BAB0(JIGGY_25_BGS_MAZE, BGS_SPECIFIC_FLAG_A, BGS_SPECIFIC_FLAG_MAZE_JIGGY_TIMER_RUNNING, BGS_SPECIFIC_FLAG_8);
+                    __baMarker_8028BAB0(JIGGY_25_BGS_MAZE, BGS_SPECIFIC_FLAG_A, BGS_SPECIFIC_FLAG_C_MAZE_JIGGY_TIMER_RUNNING, BGS_SPECIFIC_FLAG_8);
                 break;
                 
             case MARKER_EC_GV_SUN_SWITCH: //L8028BFF8
@@ -554,7 +554,7 @@ void __baMarker_resolveCollision(Prop *other_prop){
                             __baMarker_8028B848();
                         }
 
-                        if(func_8025AD7C(COMUSIC_30_5TH_JINJO_COLLECTED)){
+                        if(comusic_isTrackQueued(COMUSIC_30_5TH_JINJO_COLLECTED)){
                             __baMarker_8028B8DC();
                         }
 
@@ -602,7 +602,7 @@ void __baMarker_resolveCollision(Prop *other_prop){
                 if(__baMarker_8028BC20(marker))
                     return;
                 
-                if( gsworld_get_map() == MAP_8E_GL_FURNACE_FUN
+                if( gsworld_getMap() == MAP_8E_GL_FURNACE_FUN
                     && volatileFlag_get(VOLATILE_FLAG_0_IN_FURNACE_FUN_QUIZ)
                     && !fileProgressFlag_get(FILEPROG_A6_FURNACE_FUN_COMPLETE)
                 ){
@@ -619,7 +619,7 @@ void __baMarker_resolveCollision(Prop *other_prop){
 
             case MARKER_169_SNS_EGG: //L8028C908
                 { //ONLY THIS CASE DOESN'T MATCH
-                    switch (gsworld_get_map())
+                    switch (gsworld_getMap())
                     {
                     case MAP_1D_MMM_CELLAR: //L8028C95C
                         sns_set_item_and_update_payload(SNS_ITEM_EGG_CYAN, 0, 1);
@@ -714,7 +714,7 @@ void __baMarker_resolveCollision(Prop *other_prop){
             case MARKER_61_EXTRA_LIFE: //L8028CD50
                 if(__baMarker_8028BC20(marker))
                     return;
-                if( gsworld_get_map() == MAP_8E_GL_FURNACE_FUN
+                if( gsworld_getMap() == MAP_8E_GL_FURNACE_FUN
                     && volatileFlag_get(VOLATILE_FLAG_0_IN_FURNACE_FUN_QUIZ)
                     && !fileProgressFlag_get(FILEPROG_A6_FURNACE_FUN_COMPLETE)
                 ){
@@ -757,7 +757,7 @@ void __baMarker_resolveCollision(Prop *other_prop){
                     return;
                 if(bsStoredState_getTransformation() != TRANSFORM_1_BANJO)
                     return;
-                if(func_8028F170())
+                if(player_isInFirstPersonView())
                     return;
                 if(func_8028F25C())
                     return;
@@ -785,7 +785,7 @@ void __baMarker_resolveCollision(Prop *other_prop){
                 if(func_8028F25C())
                     return;
 
-                if(func_8028F170())
+                if(player_isInFirstPersonView())
                     return;
                 
                 if(!chtrainers_canUse(actor))
@@ -917,8 +917,8 @@ void baMarker_update(void){
     Prop *other_prop;
 
     if ((D_8037BF88 != 0)){
-        temp_s0 = func_8024FEEC(func_8025ADD4(COMUSIC_30_5TH_JINJO_COLLECTED) & 0xFF);
-        if((coMusicPlayer_getTrackCount() < 4 && temp_s0 >= 0xBB9) || !func_8025AD7C(COMUSIC_30_5TH_JINJO_COLLECTED)){
+        temp_s0 = musicSlot_getCSeqTicks(comusic_getTrackPosition(COMUSIC_30_5TH_JINJO_COLLECTED));
+        if((coMusicPlayer_getTrackCount() < 4 && temp_s0 >= 0xBB9) || !comusic_isTrackQueued(COMUSIC_30_5TH_JINJO_COLLECTED)){
             func_8028F918(0);
             D_8037BF88 = 0;
         }
@@ -969,7 +969,7 @@ void baMarker_collisionOn(void){ //player_collisionOn
     playerMarker->collidable = TRUE;
 }
 
-n64_bool baMarker_isCollidable(void){ //player_isCollidable
+bool baMarker_isCollidable(void){ //player_isCollidable
     return BOOL(playerMarker->collidable);
 }
 

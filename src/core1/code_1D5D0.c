@@ -1,23 +1,14 @@
 #include <ultra64.h>
-#include "bka_safe_base.h"
 #include "core1/core1.h"
 #include "functions.h"
 #include "variables.h"
 #include "save.h"
 
-n64_bool snsToRestoreItems = FALSE;
+bool snsToRestoreItems = FALSE;
 struct SnsPayload *snsBasePayloadPtr1 = NULL;
 struct SnsPayload *snsBasePayloadPtr2 = NULL;
 struct SnsPayload *snsBasePayloadPtr3 = NULL;
 struct SnsPayload *snsBasePayloadPtr4 = NULL;
-
-/* Static buffers for the four SNS payloads.
- * sizeof(struct SnsPayload) == 0x80 (128 bytes), so these avoid the
- * heap allocator which currently returns truncated 32‑bit addresses. */
-static struct SnsPayload sns_payload_buf_1;
-static struct SnsPayload sns_payload_buf_2;
-static struct SnsPayload sns_payload_buf_3;
-static struct SnsPayload sns_payload_buf_4;
 
 /* .bss */
 StopNSwop_Data snsParsedKeys;
@@ -97,8 +88,8 @@ void sns_save_and_update_global_data(void)
 
         gSaveData.snsw = gSaveData.snsw << SNS_NUM_FLAGS >> SNS_NUM_FLAGS ^ gSaveData.snsw;
 
-        for (i = 0; i < sizeof(gSaveData.UNUSED); i++)
-            gSaveData.UNUSED[i] = 0;
+        for (i = 0; i < sizeof(gSaveData.padding); i++)
+            gSaveData.padding[i] = 0;
 
         sns_update_global_save_data_checksum();
     }
@@ -142,15 +133,13 @@ void sns_find_and_parse_payload(void)
 
 void sns_init_base_payloads(void)
 {
-    // Use static buffers because the heap allocator currently returns
-    // truncated 32‑bit pointers that crash on aarch64.
-    snsBasePayloadPtr1 = snspayload_init_new_payload(&sns_payload_buf_1);
-    snsBasePayloadPtr2 = snspayload_init_new_payload(&sns_payload_buf_2);
-    snsBasePayloadPtr3 = snspayload_init_new_payload(&sns_payload_buf_3);
-    snsBasePayloadPtr4 = snspayload_init_new_payload(&sns_payload_buf_4);
+    snsBasePayloadPtr3 = snspayload_init_new_payload((struct SnsPayload *)0x803FFF00);
+    snsBasePayloadPtr4 = snspayload_init_new_payload((struct SnsPayload *)0x803A5C00);
+    snsBasePayloadPtr1 = snspayload_init_new_payload((struct SnsPayload *)func_8025484C(0x100));
+    snsBasePayloadPtr2 = snspayload_init_new_payload((struct SnsPayload *)func_80254898(0x100));
 }
 
-n64_bool sns_get_or_set_key(n64_bool state, struct SnsPayload *payload, s32 key, s32 mode)
+bool sns_get_or_set_key(bool state, struct SnsPayload *payload, s32 key, s32 mode)
 {
     if (mode == SNS_MODE_WRITE)
     {
@@ -260,7 +249,7 @@ void sns_stub(void) {}
  * If FALSE, on boot, the game will start on the file select
  * screen (skips all the logo cutscenes)
  */
-n64_bool DEBUG_use_special_bootmap(void)
+bool DEBUG_use_special_bootmap(void)
 {
     return FALSE;
 }
@@ -268,12 +257,12 @@ n64_bool DEBUG_use_special_bootmap(void)
 /**
  * Dev flag: purpose unknown?
  */
-n64_bool func_8025B818(void)
+bool func_8025B818(void)
 {
     return TRUE;
 }
 
-n64_bool sns_get_item_state(enum StopNSwop_Item item, s32 set)
+bool sns_get_item_state(enum StopNSwop_Item item, s32 set)
 {
     switch (item)
     {
@@ -382,3 +371,4 @@ void sns_restore_backed_up_items(void)
 
     snsToRestoreItems = FALSE;
 }
+

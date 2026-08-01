@@ -1,7 +1,7 @@
 #include <ultra64.h>
 #include "core1/core1.h"
 
-static int huft_build(b, n, s, d, e, t, m)
+/* static */ int huft_build(b, n, s, d, e, t, m)
 unsigned *b;            /* code lengths in bits (all assumed <= BMAX) */
 unsigned n;             /* number of codes (assumed <= N_MAX) */
 unsigned s;             /* number of simple-valued codes (0..s-1) */
@@ -189,7 +189,7 @@ int *m;                 /* maximum lookup bits, returns actual */
    return y != 0 && g != 1;
 }
 
-static int inflate_codes(struct huft *tl, struct huft *td, s32 bl, s32 bd)
+/* static */ int inflate_codes(struct huft *tl, struct huft *td, s32 bl, s32 bd)
 {
   register unsigned e;  /* table entry flag/number of extra bits */
   unsigned n, d;        /* length and index for copy */
@@ -269,7 +269,7 @@ static int inflate_codes(struct huft *tl, struct huft *td, s32 bl, s32 bd)
   return 0;
 }
 
-static int inflate_stored(void)
+/* static */ int inflate_stored(void)
 /* "decompress" an inflated type 0 (stored) block. */
 {
   unsigned n;           /* number of bytes in block */
@@ -313,7 +313,7 @@ static int inflate_stored(void)
   return 0;
 }
 
-static int inflate_fixed(void)
+/* static */ int inflate_fixed(void)
 /* decompress an inflated type 1 (fixed Huffman codes) block.  We should
    either replace this with a custom decoder, or at least precompute the
    Huffman tables. */
@@ -350,7 +350,7 @@ static int inflate_fixed(void)
   return 0;
 }
 
-static int inflate_dynamic(void)/* decompress an inflated type 2 (dynamic Huffman codes) block. */
+/* static */ int inflate_dynamic(void)/* decompress an inflated type 2 (dynamic Huffman codes) block. */
 {
   int i;                /* temporary variables */
   unsigned j;
@@ -459,7 +459,7 @@ static int inflate_dynamic(void)/* decompress an inflated type 2 (dynamic Huffma
   return 0;
 }
 
-static int inflate_block(int *e)
+/* static */ int inflate_block(int *e)
 /* decompress an inflated block */
 {
   u32 t;           /* block type */
@@ -502,13 +502,8 @@ static int inflate_block(int *e)
   return 2;
 }
 
-/* decompress an inflated entry
- * FIX: renamed from inflate() to bkboot_inflate() to match the prototype
- * already declared in rarezip.h, and to stop colliding with zlib's real
- * int inflate(z_streamp, int) which this project also links in
- * (ultra/zlib/inflate.c). Same symbol name in two objects is a guaranteed
- * "multiple definition" link error regardless of differing signatures. */
-int bkboot_inflate(void)
+/* decompress an inflated entry */
+int inflate(void) //int inflate()
 {
   int e;                /* last block flag */
   int r;                /* result code */

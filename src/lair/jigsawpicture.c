@@ -50,6 +50,7 @@ JigsawPictureInfo PICTURE_INFO[0xB] ={
     {25, 0x5, FILEPROG_7A_DOG_PUZZLE_PIECES_PLACED },
     { 4, 0x3, FILEPROG_7F_DOUBLE_HEALTH_PUZZLE_PIECES_PLACED }
 };
+
 s32 D_80394824[3] = { 0xff, 0xff, 0 };
 ParticleScaleAndLifetimeRanges D_80394830 = {
     { 0.17f, 0.24f },
@@ -61,7 +62,7 @@ ParticleScaleAndLifetimeRanges D_80394830 = {
 };
 
 /* .code */
-n64_bool jigsawPicture_isJigsawPictureComplete(s32 world) {
+bool jigsawPicture_isJigsawPictureComplete(s32 world) {
     return fileProgressFlag_getN(PICTURE_INFO[world - 1].progressFlag, PICTURE_INFO[world - 1].sizeBits) == PICTURE_INFO[world - 1].cost;
 }
 
@@ -71,7 +72,7 @@ s32 getPictureCost(Actor *this) {
         ? PICTURE_INFO[this->actorTypeSpecificField - 1].cost : 0;
 }
 
-n64_bool isPictureComplete(Actor *this) {
+bool isPictureComplete(Actor *this) {
     JigsawPictureActorData *local;
 
     local = (JigsawPictureActorData*)&this->local;
@@ -122,8 +123,8 @@ void onJigsawPodiumCollide(ActorMarker *marker, ActorMarker *_) {
     marker->isBanjoOnTop = TRUE;
 }
 
-n64_bool isBanjoOnPodium(ActorMarker *marker) {
-    return func_8028F20C() && func_8028FB48(0x08000000) && marker->isBanjoOnTop;
+bool isBanjoOnPodium(ActorMarker *marker) {
+    return player_isStableWithExtraSteps() && func_8028FB48(0x08000000) && marker->isBanjoOnTop;
 }
 
 s32 isPicturePiecePlaced(Actor *this, s32 position) {
@@ -211,7 +212,7 @@ void stoodOnPodiumCallback(ActorMarker *marker) {
     Actor *this;
 
     this = marker_getActor(marker);
-    func_8034A174(func_803097A0(), getUnknownJigsawPictureIndex(this), camera_position);
+    vec3fArray_get_vec3f(func_803097A0(), getUnknownJigsawPictureIndex(this), camera_position);
 
     // Put Banjo into the idle animation
     func_8028E6EC(2);
@@ -283,7 +284,7 @@ s32 getPicturePiecePosition(Actor *this) {
     return position;
 }
 
-void addOrRemovePieceFromDisplay(Actor *this, s32 position, n64_bool isAdd) {
+void addOrRemovePieceFromDisplay(Actor *this, s32 position, bool isAdd) {
     s32 piece = func_8034C528(jiggyPositionToID(this, position));
 
     if (piece != 0) {
@@ -322,7 +323,7 @@ void jigsawPicture_setState(Actor *this, s32 nextState) {
     s32 i;
 
     local = (JigsawPictureActorData*)&this->local;
-    func_8034A174(func_803097A0(), getUnknownJigsawPictureIndex(this), position);
+    vec3fArray_get_vec3f(func_803097A0(), getUnknownJigsawPictureIndex(this), position);
 
     switch (nextState) {
         case JIGSAW_PICTURE_LEAVE_PODIUM:
@@ -534,8 +535,7 @@ void updateJigsawPictureActor(Actor *this) {
         }
 
         if (this->marker->unk14_21) {
-            s32 sp58[3];
-            n64_memcpy(sp58, D_80394824, 3 * sizeof(s32));
+            s32 sp58[3] = D_80394824;
             ParticleEmitter *sp54;
             sp54 = partEmitMgr_newEmitter(6);
             particleEmitter_setSprite(sp54, ASSET_710_SPRITE_SPARKLE_PURPLE);
@@ -555,7 +555,7 @@ void updateJigsawPictureActor(Actor *this) {
 
     switch (this->state) {
         case JIGSAW_PICTURE_LEAVE_PODIUM:
-            if (!this->has_met_before && (!func_8028F20C() || !func_8028FB48(0x08000000))) {
+            if (!this->has_met_before && (!player_isStableWithExtraSteps() || !func_8028FB48(0x08000000))) {
                 this->has_met_before = TRUE;
             }
 
@@ -639,9 +639,9 @@ void updateJigsawPictureActor(Actor *this) {
                 this->unk38_0 = TRUE;
             }
 
-            func_802FACA4(0x2B);
+            code_73640_printItemCount(ITEM_2B_UNKNOWN);
         } else if (this->unk38_0) {
-            func_802FAD64(0x2B);
+            func_802FAD64(ITEM_2B_UNKNOWN);
             this->unk38_0 = FALSE;
         }
     }

@@ -51,7 +51,7 @@ void ncDynamicCam8_update(void) {
     ml_vec3f_diff_copy(sp50, sp5C, sp44);
     func_802BC434(sp38, sp5C, sp44);
     func_802BC434(sp2C, sp5C, sp20);
-    if (gu_sqrtf(sp50[0]*sp50[0] + sp50[2]*sp50[2]) < 100.0f) {
+    if (sqrtf(sp50[0]*sp50[0] + sp50[2]*sp50[2]) < 100.0f) {
         sp38[1] = sp2C[1];
     }
     func_802BD904(sp38);
@@ -63,7 +63,7 @@ void ncDynamicCam8_func_802BF9B8(s32 arg0) {
     f32 sp28;
     s32 temp_s0;
 
-    temp_s0 = ncCameraNodeList_getCameraNodeType1(arg0);
+    temp_s0 = ncCameraNodeList_getPivotCameraNode(arg0);
     D_8037DB0C = code336F0_func_802BA8BC (temp_s0);
     D_8037DB0D = code336F0_func_802BA87C(temp_s0);
     code336F0_func_802BA7D8(temp_s0, &D_8037DB00);

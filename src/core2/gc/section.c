@@ -188,10 +188,10 @@ enum level_e map_getLevel(enum map_e map){
 char *gcsection_getName(enum map_e map){
     MapInfo *map_info = func_8030AD00(map);
     D_803823A0[0] = 0;
-    n64_strcat(D_803823A0, map_info->name);
-    n64_strcat(D_803823A0, " (");
+    strcat(D_803823A0, map_info->name);
+    strcat(D_803823A0, " (");
     strIToA(D_803823A0, map);
-    n64_strcat(D_803823A0, ")");
+    strcat(D_803823A0, ")");
     return D_803823A0;
 }
 
@@ -249,7 +249,7 @@ void func_8030AE70(s32 *arg0) {
     }
 }
 
-n64_bool func_8030AF58(enum map_e arg0) {
+bool func_8030AF58(enum map_e arg0) {
     MapInfo *phi_v0;
 
     for(phi_v0 = &D_8036B810[1]; phi_v0->map_id != 0; phi_v0++) {

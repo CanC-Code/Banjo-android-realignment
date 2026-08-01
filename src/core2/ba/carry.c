@@ -1,7 +1,6 @@
 #include "functions.h"
 
 #include "core2/ba/carry.h"
-#include <n64_types.h>
 
 
 void bacarry_set_offsets(f32 arg0, f32 arg1);
@@ -62,7 +61,7 @@ void bacarry_reset_marker(void){
     baCarry_marker = NULL;
 }
 
-ActorMarker *bacarry_get_marker(void){
+ActorMarker *bacarry_getMarker(void){
    return baCarry_marker; 
 }
 

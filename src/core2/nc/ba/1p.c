@@ -20,7 +20,7 @@ struct{
 } D_8037DC60;
 
 /* .code */
-n64_bool __ncba1p_fullyZoomedIn(void) {
+bool __ncba1p_fullyZoomedIn(void) {
     return (ml_vec3f_distance(D_8037DC60.position, D_8037DC60.zoomed_in_position) < 40.0f);
 }
 

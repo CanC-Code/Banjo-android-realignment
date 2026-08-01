@@ -6,7 +6,7 @@
 #include "core2/yaw.h"
 
 /* .bss */
-n64_bool  bsTalkStayInState;
+bool  bsTalkStayInState;
 
 /* .code */
 void bstalk_init(void){

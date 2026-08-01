@@ -1,10 +1,7 @@
 #include <ultra64.h>
-#include "functions.h"
-#include "variables.h"
+#include "core2/string.h"
 
-/* Redirected */ #include <n64_string.h>
-
-void n64_strcat(char *dst, char *src){
+void strcat(char *dst, const char *src){
     while(*(dst) != '\0'){
         dst++;
     }
@@ -25,14 +22,14 @@ void strcatc(char *dst, char src){
 void strFToA(char *dst, f32 val){
     s32 decimal;
     if (val < (f32) 0.0){
-        n64_strcat(dst, "-");
+        strcat(dst, "-");
         val = -val;
     }
     strIToA(dst, (s32)val);
-    n64_strcat(dst, ".");
+    strcat(dst, ".");
     decimal = (s32)((val - (f32)((s32)val))*(f32)100.0);
     if(decimal < 10){
-        n64_strcat(dst, "0");
+        strcat(dst, "0");
     }
     strIToA(dst, decimal);
 }
@@ -40,12 +37,12 @@ void strFToA(char *dst, f32 val){
 void _strFToA(char *dst, f32 val, s32 decPlaces){
     u32 i;
     if (val < 0.0f){
-        n64_strcat(dst, "-");
+        strcat(dst, "-");
         val = -val;
     }
     strIToA(dst, val);
     if (decPlaces != 0){
-        n64_strcat(dst, ".");
+        strcat(dst, ".");
         for(i = decPlaces--; i > 0; i = decPlaces--) {
             val -= (s32)val;
             val *= 10;
@@ -91,7 +88,7 @@ void _strIToA(char *str, s32 num, char prefix){
     *str = '\0';
 }
 
-s32 strcmp(const char *str1, const char *str2){
+int strcmp(const char *str1, const char *str2){
     while (*str1 && *str2 && *str1 == *str2) {
         str1++;
         str2++;
@@ -105,7 +102,7 @@ s32 strcmp(const char *str1, const char *str2){
         return 1;
 }
 
-void n64_strcpy(char *dst, char *src){
+void *strcpy(char *dst, const char *src){
      while(*(src) != '\0'){
         *(dst++) = *(src++);
     }
@@ -113,9 +110,9 @@ void n64_strcpy(char *dst, char *src){
 }
 
 
-s32 n64_strlen(char *str){
+int strlen(const char *str){
     char v0;
-    s32 len;
+    int len;
 
     len = 0;
     v0 = *(str++);
@@ -156,7 +153,7 @@ void strcpyToTok(char *arg0, char *arg1, char *arg2){
     *arg1 = '\0';
 }
 
-void strToUpper(char *str){
+char *strupr(char *str){
     char *ret = str;
     while (*ret != '\0'){
         if ((*ret >= 0x61) && (*ret < 0x7B)){

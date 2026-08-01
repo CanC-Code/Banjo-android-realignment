@@ -2,7 +2,6 @@
 
 #include "functions.h"
 #include "variables.h"
-#include <n64_types.h>
 
 #define FILE_DEFAULT_SIZE 0x20
 
@@ -141,13 +140,13 @@ void file_read(File *file, void *dst, s32 len) {
                 capacity *= 2;
             }
 
-            new_base_ptr = n64_realloc(file->base_ptr, capacity);
+            new_base_ptr = realloc(file->base_ptr, capacity);
             file->base_ptr = new_base_ptr;
             file->current_ptr = (u8 *) new_base_ptr + curr_offset;
             file->end_ptr = (u8 *) new_base_ptr + capacity;
         }
 
-        n64_memcpy(file->current_ptr, dst, len);
+        memcpy(file->current_ptr, dst, len);
         file->current_ptr = (u8 *) file->current_ptr + len;
     }
 }
@@ -164,7 +163,7 @@ void file_getNShorts(File *file, s16 *dst, s32 cnt) {
     }
 }
 
-n64_bool file_isNextByteExpected(File *file, s32 expected) {
+bool file_isNextByteExpected(File *file, s32 expected) {
     u8 saved_expected;
 
     saved_expected = expected;
@@ -193,7 +192,7 @@ n64_bool file_isNextByteExpected(File *file, s32 expected) {
     return FALSE;
 }
 
-n64_bool file_getByte_ifExpected(File *file, s32 expected, u8 *dst) {
+bool file_getByte_ifExpected(File *file, s32 expected, u8 *dst) {
     if (!file_isNextByteExpected(file, expected)) {
         return FALSE;
     } else {
@@ -202,7 +201,7 @@ n64_bool file_getByte_ifExpected(File *file, s32 expected, u8 *dst) {
     }
 }
 
-n64_bool file_getNBytes_ifExpected(File *file, s32 expected, void *dst, s32 cnt) {
+bool file_getNBytes_ifExpected(File *file, s32 expected, void *dst, s32 cnt) {
     if (!file_isNextByteExpected(file, expected)) {
         return FALSE;
     } else {
@@ -211,7 +210,7 @@ n64_bool file_getNBytes_ifExpected(File *file, s32 expected, void *dst, s32 cnt)
     }
 }
 
-n64_bool file_getFloat_ifExpected(File *file, s32 expected, f32 *dst) {
+bool file_getFloat_ifExpected(File *file, s32 expected, f32 *dst) {
     if (!file_isNextByteExpected(file, expected)) {
         return FALSE;
     } else {
@@ -220,7 +219,7 @@ n64_bool file_getFloat_ifExpected(File *file, s32 expected, f32 *dst) {
     }
 }
 
-n64_bool file_getNFloats_ifExpected(File *file, s32 expected, f32 *dst, s32 cnt) {
+bool file_getNFloats_ifExpected(File *file, s32 expected, f32 *dst, s32 cnt) {
     if (!file_isNextByteExpected(file, expected)) {
         return FALSE;
     } else {
@@ -229,7 +228,7 @@ n64_bool file_getNFloats_ifExpected(File *file, s32 expected, f32 *dst, s32 cnt)
     }
 }
 
-n64_bool file_getWord_ifExpected(File *file, s32 expected, s32 *dst) {
+bool file_getWord_ifExpected(File *file, s32 expected, s32 *dst) {
     if (!file_isNextByteExpected(file, expected)) {
         return FALSE;
     } else {
@@ -238,7 +237,7 @@ n64_bool file_getWord_ifExpected(File *file, s32 expected, s32 *dst) {
     }
 }
 
-n64_bool file_getNWords_ifExpected(File *file, s32 expected, s32 *dst, s32 cnt) {
+bool file_getNWords_ifExpected(File *file, s32 expected, s32 *dst, s32 cnt) {
     if (!file_isNextByteExpected(file, expected)) {
         return FALSE;
     } else {
@@ -247,7 +246,7 @@ n64_bool file_getNWords_ifExpected(File *file, s32 expected, s32 *dst, s32 cnt) 
     }
 }
 
-n64_bool file_get_ifExpected(File *file, s32 expected, void *dst, s32 len) {
+bool file_get_ifExpected(File *file, s32 expected, void *dst, s32 len) {
     if (!file_isNextByteExpected(file, expected)) {
         return FALSE;
     } else{
@@ -256,7 +255,7 @@ n64_bool file_get_ifExpected(File *file, s32 expected, void *dst, s32 len) {
     }
 }
 
-n64_bool file_getShort_ifExpected(File *file, s32 expected, s16 *dst) {
+bool file_getShort_ifExpected(File *file, s32 expected, s16 *dst) {
     if (!file_isNextByteExpected(file, expected)) {
         return FALSE;
     } else {
@@ -265,7 +264,7 @@ n64_bool file_getShort_ifExpected(File *file, s32 expected, s16 *dst) {
     }
 }
 
-n64_bool file_getNShorts_ifExpected(File *file, s32 expected, s16 *dst, s32 cnt) {
+bool file_getNShorts_ifExpected(File *file, s32 expected, s16 *dst, s32 cnt) {
     if (!file_isNextByteExpected(file, expected)) {
         return FALSE;
     } else {

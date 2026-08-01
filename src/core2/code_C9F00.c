@@ -1,15 +1,12 @@
 #include <ultra64.h>
-#include "bka_safe_base.h"
 #include "functions.h"
 #include "variables.h"
 
-extern BKCollisionTri *func_802E805C(BKCollisionList *arg0, BKVertexList *vtxList, f32 arg2[3], f32 arg3[3], f32 arg4, f32 arg5[3], f32 arg6[3], f32 arg7[3], s32 arg8);
-extern BKCollisionTri *func_802E9118(BKCollisionList *arg0, BKVertexList *vtxList, f32 arg2[3], f32 arg3[3], f32 arg4, f32 arg5[3], f32 arg6[3], f32 arg7, f32 arg8[3], s32 arg9, s32 arg10);
-extern BKCollisionTri *func_802E9DD8(BKCollisionList *arg0, BKVertexList *vtxList, f32 arg2[3], f32 arg3[3], f32 arg4, f32 arg5[3], f32 arg6, f32 arg7[3], s32 arg8);
-extern s32 func_802EA760(BKModelUnk14List *, s32, f32[3], f32[3], f32, s32, f32*, f32*);
-extern n64_bool func_80309DBC(f32[3], f32[3], f32, f32 sp54[3], s32, s32);
-extern BKCollisionList *model_getCollisionList(BKModelBin *);
-extern BKModelUnk14List *func_8033A12C(BKModelBin *);
+extern BKCollisionTriangle *collisionList_func_802E805C(BKCollisionList *arg0, BKVertexList *vtxList, f32 arg2[3], f32 arg3[3], f32 arg4, f32 arg5[3], f32 arg6[3], f32 arg7[3], s32 arg8);
+extern BKCollisionTriangle *func_802E9118(BKCollisionList *arg0, BKVertexList *vtxList, f32 arg2[3], f32 arg3[3], f32 arg4, f32 arg5[3], f32 arg6[3], f32 arg7, f32 arg8[3], s32 arg9, s32 arg10);
+extern BKCollisionTriangle *func_802E9DD8(BKCollisionList *arg0, BKVertexList *vtxList, f32 arg2[3], f32 arg3[3], f32 arg4, f32 arg5[3], f32 arg6, f32 arg7[3], s32 arg8);
+extern s32 bkmodelunk14list_func_802EA760(BKModelUnk14List *, s32, f32[3], f32[3], f32, s32, f32*, f32*);
+extern bool func_80309DBC(f32[3], f32[3], f32, f32 sp54[3], s32, s32);
 void func_80351954(Struct68s *arg);
 void func_80351AD0(Struct68s *arg0, enum asset_e model_id);
 typedef struct {
@@ -55,7 +52,7 @@ extern void func_80351FE0(void *, Struct68s *);
 void func_80351E60(Struct6Bs *, Struct68s *, f32);
 extern void chTumblar_update(void *, Struct68s *, f32);
 extern void func_8038B790(void *, Struct68s *, f32);
-extern void CCW_func_80387A40(void *, Struct68s *, f32);
+extern void chZubbaDocile_update(void *, Struct68s *, f32);
 extern void func_80352114(void *, Struct68s *, f32);
 
 Struct_Core2_C9F00_0 D_803725F4[] = {
@@ -64,14 +61,14 @@ Struct_Core2_C9F00_0 D_803725F4[] = {
     {chTumblar_init, chTumblar_update},
     {         NULL,          NULL}, 
     {         NULL, func_8038B790}, 
-    {func_80387940, CCW_func_80387A40}, 
-    {GV_func_80387960, CCW_func_80387A40}, 
-    {func_80387980, CCW_func_80387A40}, 
-    {func_803879A0, CCW_func_80387A40}, 
-    {func_803879C0, CCW_func_80387A40}, 
-    {CC_func_803879E0, CCW_func_80387A40}, 
-    {CC_func_80387A00, CCW_func_80387A40}, 
-    {CC_func_80387A20, CCW_func_80387A40}, 
+    {func_80387940, chZubbaDocile_update}, 
+    {GV_func_80387960, chZubbaDocile_update}, 
+    {func_80387980, chZubbaDocile_update}, 
+    {func_803879A0, chZubbaDocile_update}, 
+    {func_803879C0, chZubbaDocile_update}, 
+    {CC_func_803879E0, chZubbaDocile_update}, 
+    {CC_func_80387A00, chZubbaDocile_update}, 
+    {CC_func_80387A20, chZubbaDocile_update}, 
     {func_80351FE0, func_80352114}
 };
 
@@ -116,8 +113,8 @@ Actor *func_80350E90(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx) {
     return NULL;
 }
 
-BKCollisionTri * func_80350F7C(ActorMarker *marker, f32 arg1[3], f32 arg2[3], f32 arg3[3], s32 arg4) {
-    BKCollisionTri * sp4C;
+BKCollisionTriangle * func_80350F7C(ActorMarker *marker, f32 arg1[3], f32 arg2[3], f32 arg3[3], s32 arg4) {
+    BKCollisionTriangle * sp4C;
     Struct68s *temp_s0;
     BKVertexList *vtx_list;
     BKCollisionList *colision_list;
@@ -127,9 +124,9 @@ BKCollisionTri * func_80350F7C(ActorMarker *marker, f32 arg1[3], f32 arg2[3], f3
         return 0;
     }
 
-    colision_list = model_getCollisionList(temp_s0->unkC);
-    vtx_list = model_getVtxList(temp_s0->unkC);
-    sp4C = func_802E805C(colision_list, vtx_list, temp_s0->position, temp_s0->unk20, temp_s0->unk2C, arg1, arg2, arg3, arg4);
+    colision_list = modelbin_getCollisionList(temp_s0->unkC);
+    vtx_list = modelbin_getVtxList(temp_s0->unkC);
+    sp4C = collisionList_func_802E805C(colision_list, vtx_list, temp_s0->position, temp_s0->unk20, temp_s0->unk2C, arg1, arg2, arg3, arg4);
     if (sp4C != 0) {
         if (func_8029453C()) {
             D_80386180.unk20[0] = (s32) arg2[0];
@@ -141,7 +138,7 @@ BKCollisionTri * func_80350F7C(ActorMarker *marker, f32 arg1[3], f32 arg2[3], f3
     return sp4C;
 }
 
-BKCollisionTri *func_803510B4(ActorMarker *marker, f32 arg1[3], f32 arg2[3], f32 arg3, f32 arg4[3], s32 arg5, u32 flagFliter) {
+BKCollisionTriangle *func_803510B4(ActorMarker *marker, f32 arg1[3], f32 arg2[3], f32 arg3, f32 arg4[3], s32 arg5, u32 flagFliter) {
     s32 pad44;
     Struct68s *sp40;
     BKVertexList *vertex_list;
@@ -151,12 +148,12 @@ BKCollisionTri *func_803510B4(ActorMarker *marker, f32 arg1[3], f32 arg2[3], f32
     if ((sp40->unkC == NULL) || (sp40->unk30 & 1)) {
         return 0;
     }
-    collision_list = model_getCollisionList(sp40->unkC);
-    vertex_list = model_getVtxList(sp40->unkC);
+    collision_list = modelbin_getCollisionList(sp40->unkC);
+    vertex_list = modelbin_getVtxList(sp40->unkC);
     return func_802E9118(collision_list, vertex_list, sp40->position, sp40->unk20, sp40->unk2C, arg1, arg2, arg3, arg4, arg5, flagFliter);
 }
 
-BKCollisionTri *func_80351198(ActorMarker *marker, f32 arg1[3], f32 arg2, f32 arg3[3], s32 arg4) {
+BKCollisionTriangle *func_80351198(ActorMarker *marker, f32 arg1[3], f32 arg2, f32 arg3[3], s32 arg4) {
     s32 pad3C;
     Struct68s *sp38;
     BKVertexList *vtx_list;
@@ -166,8 +163,8 @@ BKCollisionTri *func_80351198(ActorMarker *marker, f32 arg1[3], f32 arg2, f32 ar
     if ((sp38->unkC == NULL) || (sp38->unk30 & 1)) {
         return 0;
     }
-    collision_list = model_getCollisionList(sp38->unkC);
-    vtx_list = model_getVtxList(sp38->unkC);
+    collision_list = modelbin_getCollisionList(sp38->unkC);
+    vtx_list = modelbin_getVtxList(sp38->unkC);
     return func_802E9DD8(collision_list, vtx_list, sp38->position, sp38->unk20, sp38->unk2C, arg1, arg2, arg3, arg4);
 }
 
@@ -180,7 +177,7 @@ Struct68s * func_8035126C(f32 position[3], f32 arg1[3], f32 arg2, s32 arg3, enum
     if (D_803861B0.unk8 == D_803861B0.unkC) {
         sp2C = D_803861B0.unk8 - D_803861B0.unk4;
         sp1C = sp2C * 2;
-        D_803861B0.unk4 = (Struct68s *) n64_realloc(D_803861B0.unk4, sp1C * sizeof(Struct68s));
+        D_803861B0.unk4 = (Struct68s *) realloc(D_803861B0.unk4, sp1C * sizeof(Struct68s));
         D_803861B0.unk8 = D_803861B0.unk4 + sp2C;
         D_803861B0.unkC = D_803861B0.unk4 + sp1C;
     }
@@ -234,7 +231,7 @@ void func_80351538(Struct68s *arg0){
     }
 }
 
-n64_bool func_803515EC(NodeProp *arg0) {
+bool func_803515EC(NodeProp *arg0) {
     Struct_Core2_C9F00_1 *phi_s0;
     s32 sp48[3];
     s32 sp44;
@@ -248,7 +245,7 @@ n64_bool func_803515EC(NodeProp *arg0) {
     } else {
         for(phi_s0 = D_803725C0; phi_s0->unk0 != 0; phi_s0++){
             if( (arg0->actorId == phi_s0->unk0) 
-                && ((phi_s0->mapId == NULL) || (gsworld_get_map() == phi_s0->mapId))
+                && ((phi_s0->mapId == NULL) || (gsworld_getMap() == phi_s0->mapId))
             ){
                 sp48[0] = (s32) arg0->position_x;
                 sp48[1] = (s32) arg0->position_y;
@@ -263,16 +260,16 @@ n64_bool func_803515EC(NodeProp *arg0) {
     return TRUE;
 }
 
-n64_bool func_80351700(Prop * arg0){
-    if (((*(u16*)BKA_TRANSLATE_ADDR(((s32)arg0 + 0xA)) << 0x1E) >> 0x1F)) {
+bool func_80351700(Prop * arg0){
+    if (((*(u16*)((s32)arg0 + 0xA) << 0x1E) >> 0x1F)) {
         return TRUE;
     }
     return TRUE;
 }
 
-n64_bool func_80351724(void * arg0){
+bool func_80351724(void * arg0){
     ActorProp *a_prop;
-    if (((*(u16*)BKA_TRANSLATE_ADDR(((s32)arg0 + 0xA)) << 0x1E) >> 0x1F) && ((*(u16*)BKA_TRANSLATE_ADDR(((s32)arg0 + 0xA)) << 0x1A) >> 0x1F)) {
+    if (((*(u16*)((s32)arg0 + 0xA) << 0x1E) >> 0x1F) && ((*(u16*)((s32)arg0 + 0xA) << 0x1A) >> 0x1F)) {
         a_prop = (ActorProp *)arg0;
         a_prop->isMirrored = FALSE;
         a_prop->isNotFeatherEggOrNote = TRUE;
@@ -325,11 +322,11 @@ s32 func_80351838(f32 position[3], s32 key_flag, s32 arg2) {
 }
 
 
-n64_bool func_803518C0(Struct68s *arg0){
+bool func_803518C0(Struct68s *arg0){
     return arg0 == D_80386180.unk0;
 }
 
-n64_bool func_803518D4(Struct68s *arg0){
+bool func_803518D4(Struct68s *arg0){
     return arg0 == D_80386180.unk2C;
 }
 
@@ -339,7 +336,7 @@ void func_803518E8(void){
     for(phi_s0 = D_803861B0.unk4; phi_s0 < D_803861B0.unk8; phi_s0++){
         func_803514F4(phi_s0);
     }
-    n64_free(D_803861B0.unk4);
+    free(D_803861B0.unk4);
 }
 
 void func_80351954(Struct68s *arg0){
@@ -352,7 +349,7 @@ void func_80351954(Struct68s *arg0){
 
 void func_80351998(void) {
 
-    D_803861B0.unk4 = (Struct68s*)n64_malloc(2*sizeof(Struct68s));
+    D_803861B0.unk4 = (Struct68s*)malloc(2*sizeof(Struct68s));
     D_803861B0.unk8 = D_803861B0.unk4;
     D_803861B0.unkC = D_803861B0.unk4 + 2;
 
@@ -412,10 +409,10 @@ void func_80351B28(Struct68s *arg0, f32 arg1[3]) {
     BKModelUnk14List *sp34;
 
     if(arg0->unkC != NULL){
-        sp34 = func_8033A12C(arg0->unkC);
+        sp34 = modelbin_getUnk14List(arg0->unkC);
         if(sp34 != NULL){
-            if(func_802EA760(sp34, 0, arg0->position, arg0->unk20, arg0->unk2C, 0, sp48, &sp38)){
-                func_802EA760(sp34, 0, arg1, arg0->unk20, arg0->unk2C, 0, sp3C, &sp38);
+            if(bkmodelunk14list_func_802EA760(sp34, 0, arg0->position, arg0->unk20, arg0->unk2C, 0, sp48, &sp38)){
+                bkmodelunk14list_func_802EA760(sp34, 0, arg1, arg0->unk20, arg0->unk2C, 0, sp3C, &sp38);
                 if(func_80309DBC(sp48, sp3C, sp38, sp54, 3, 0)){
                     return;
                 }

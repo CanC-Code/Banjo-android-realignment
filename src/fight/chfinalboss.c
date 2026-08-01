@@ -164,12 +164,12 @@ Actor *chfinalboss_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx) {
     Actor *this = marker_getActor(marker);
     ActorLocal_FinalBoss *local = (ActorLocal_FinalBoss *)&this->local;
 
-    func_8033A45C(3, local->unkD);
-    func_8033A45C(4, local->unkE);
-    func_8033A45C(5, local->unkC);
+    modelRender_setAppendageVisibility(3, local->unkD);
+    modelRender_setAppendageVisibility(4, local->unkE);
+    modelRender_setAppendageVisibility(5, local->unkC);
 
     if (local->phase == FINALBOSS_PHASE_1_BROOMSTICK) {
-        func_8033A25C(FALSE);
+        modelRender_func_8033A25C(FALSE);
     }
 
     return actor_draw(marker, gfx, mtx, vtx);
@@ -289,7 +289,7 @@ void chfinalboss_spawnBroomstickGlowParticles(Actor *this) {
             sprite_id = ASSET_713_SPRITE_SPARKLE_YELLOW;
         }
 
-        func_8034A174(this->marker->unk44, 7, position);
+        vec3fArray_get_vec3f(this->marker->unk44, 7, position);
 
         if (((sprite_id == ASSET_715_SPRITE_SPARKLE_RED) && ((time_delta & 1) != 0)) || ((sprite_id == ASSET_713_SPRITE_SPARKLE_YELLOW) && ((time_delta & 3) == 0))) {
             chfinalboss_createGreenGlowParticle(position, color);
@@ -317,7 +317,7 @@ void chfinalboss_func_80386B54(f32 *arg0, f32 arg1) {
     }
 }
 
-n64_bool chfinalboss_turnTowardPlayer(Actor *this, f32 arg1) {
+bool chfinalboss_turnTowardPlayer(Actor *this, f32 arg1) {
     this->yaw_ideal = (f32) subaddie_getYawToPlayer(this);
     subaddie_turnToYaw(this, arg1);
     if ((this->yaw_ideal < (this->yaw + arg1)) && ((this->yaw - arg1) < this->yaw_ideal)) {
@@ -326,7 +326,7 @@ n64_bool chfinalboss_turnTowardPlayer(Actor *this, f32 arg1) {
     return FALSE;
 }
 
-n64_bool chfinalboss_func_80386C68(Actor *this, f32 arg1) {
+bool chfinalboss_func_80386C68(Actor *this, f32 arg1) {
     f32 sp2C[3];
 
     chjinjonator_8039129C(sp2C);
@@ -356,7 +356,7 @@ void chfinalboss_func_80386CF8(Actor *actor) {
     sp4C[0] = sp28[0] + sp34[0];
     sp4C[1] = sp28[1] + sp34[1];
     sp4C[2] = sp28[2] + sp34[2];
-    func_8025727C(sp28[0], sp28[1], sp28[2], sp4C[0], sp4C[1], sp4C[2], &sp40[0], &sp40[1]);
+    ml_horizontal_and_vertical_angles(sp28[0], sp28[1], sp28[2], sp4C[0], sp4C[1], sp4C[2], &sp40[0], &sp40[1]);
     sp40[0] = 360.0f - sp40[0];
     sp40[2] = 0.0f;
     ncStaticCamera_setPositionAndRotation(sp4C, sp40);
@@ -460,7 +460,7 @@ void chfinalboss_throwObject(ActorMarker *marker, f32 arg1[3], f32 arg2, s32 arg
 void chfinalboss_throwFinalSpell(Actor *arg0) {
     f32 vec[3];
 
-    func_8034A174(arg0->marker->unk44, 0xA, vec);
+    vec3fArray_get_vec3f(arg0->marker->unk44, 0xA, vec);
     chfinalboss_throwObject(arg0->marker, vec, 3.0f, 1);
 }
 
@@ -469,7 +469,7 @@ s32 chfinalboss_throwFireball(Actor *this, f32 arg1) {
 
     if (actor_animationIsAt(this, 0.50f) != 0) {
         if (this->marker->unk14_21) {
-            func_8034A174(this->marker->unk44, 5, sp24);
+            vec3fArray_get_vec3f(this->marker->unk44, 5, sp24);
         } else {
             sp24[0] = this->position_x;
             sp24[1] = this->position_y;
@@ -488,7 +488,7 @@ void chfinalboss_func_803873DC(Actor *actor, f32 arg1, f32 arg2) {
     if (actor_animationIsAt(actor, 0.5f) != 0) {
         marker = actor->marker;
         if (marker->unk14_21) {
-            func_8034A174(marker->unk44, 6, vec);
+            vec3fArray_get_vec3f(marker->unk44, 6, vec);
         } else {
             vec[0] = actor->position[0];
             vec[1] = actor->position[1];
@@ -498,7 +498,7 @@ void chfinalboss_func_803873DC(Actor *actor, f32 arg1, f32 arg2) {
     }
 }
 
-n64_bool chfinalboss_flyTo(Actor *this, f32 arg1[3], f32 v_max, f32 arg3, f32 arg4, f32 arg5, f32 arg6) {
+bool chfinalboss_flyTo(Actor *this, f32 arg1[3], f32 v_max, f32 arg3, f32 arg4, f32 arg5, f32 arg6) {
     f32 dt;
     f32 diff[3];
     TUPLE(f32, pos) temp;
@@ -527,7 +527,7 @@ n64_bool chfinalboss_flyTo(Actor *this, f32 arg1[3], f32 v_max, f32 arg3, f32 ar
     this->velocity[1] += (diff[1] * dt);
     this->velocity[2] += (diff[2] * dt);
 
-    if (v_max < gu_sqrtf(LENGTH_SQ_VEC3F(this->velocity))) {
+    if (v_max < sqrtf(LENGTH_SQ_VEC3F(this->velocity))) {
         ml_vec3f_set_length(this->velocity, v_max);
     }  
 
@@ -652,7 +652,7 @@ void chfinalboss_func_80387B00(Actor *this) {
     this->velocity_z = this->position_z - sp28[2];
     this->velocity_y = 0;
     
-    local->unk14 = gu_sqrtf(
+    local->unk14 = sqrtf(
         (this->velocity_z * this->velocity_z) +
         ((this->velocity_x * this->velocity_x) +
         (this->velocity_y * (this->velocity_y)))
@@ -858,7 +858,7 @@ void chfinalboss_func_8038856C(Actor *actor, f32 *arg1) {
 
     marker = actor->marker;
     if (marker->unk14_21) {
-        func_8034A174(marker->unk44, 7, vec);
+        vec3fArray_get_vec3f(marker->unk44, 7, vec);
     } else {
         vec[0] = actor->position[0];
         vec[1] = actor->position[1];
@@ -1372,9 +1372,9 @@ void chfinalboss_phase3_update(ActorMarker *marker) {
                 func_80324CFC(0.0f, COMUSIC_43_ENTER_LEVEL_GLITTER, 0x7FFF);
             }
             if ((0.1 < sp34) && (sp34 < 0.8)) {
-                func_8034A174(this->marker->unk44, 8, D_803928B8);
+                vec3fArray_get_vec3f(this->marker->unk44, 8, D_803928B8);
                 chfinalboss_createSingleSpriteParticle(D_803928B8, 0x716);
-                func_8034A174(this->marker->unk44, 9, D_803928B8);
+                vec3fArray_get_vec3f(this->marker->unk44, 9, D_803928B8);
                 chfinalboss_createSingleSpriteParticle(D_803928B8, 0x716);
             }
             if (actor_animationIsAt(this, 0.38f) ) {
@@ -1978,7 +1978,7 @@ void chfinalboss_phase0_update(ActorMarker *marker) {
     return;
 }
 
-n64_bool chfinalboss_func_8038B834(ActorMarker *marker, ActorMarker *other_marker) {
+bool chfinalboss_func_8038B834(ActorMarker *marker, ActorMarker *other_marker) {
     Actor *this;
     ActorLocal_FinalBoss *local;
 
@@ -2144,7 +2144,7 @@ void chfinalboss_update(Actor *this){
         chfinalboss_func_80386654(1.0f, fight_D_80391380, fight_D_80391390);
         func_8028F784(1);
         func_8028F4B8(D_80391804, 2000.0f, -2800.0f);
-        func_8028FA14(0x93, 2);
+        code_7060_setVoidOutLocation(MAP_93_GL_DINGPOT, WARP_GL_TOWER_2_DINGPOT);
         func_8034C9B0(0);
         chfinalboss_func_80386698(2.0f);
         tmp_s0 = func_802F9AA8(SFX_9A_MECHANICAL_CLOSING);
@@ -2269,7 +2269,7 @@ void chfinalboss_setBossDefeated(void) {
     timed_setStaticCameraToNode(temp_f20 + sp40 + 2.88f, camera_node + 3);
 }
 
-void chfinalboss_setJinjoStatueActivated(n64_bool state) {
+void chfinalboss_setJinjoStatueActivated(bool state) {
     sFinalBossJinjoStatueActivated = state;
 }
 
@@ -2281,11 +2281,11 @@ s32 chfinalboss_func_8038C298() {
     return D_803927C7;
 }
 
-n64_bool chfinalboss_isJinjoSpawned() {
+bool chfinalboss_isJinjoSpawned() {
     return chFinalBossJinjoSpawned;
 }
 
-n64_bool chfinalboss_isJinjonatorSpawned() {
+bool chfinalboss_isJinjonatorSpawned() {
     return chFinalBossJinjonatorSpawned;
 }
 

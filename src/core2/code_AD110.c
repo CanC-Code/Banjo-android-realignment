@@ -466,7 +466,7 @@ CodeAD110Callback sRadiusTriggers[] ={
 vector(Struct_core2_AD110_0) *D_803835C0;
 
 /* .code */
-n64_bool func_803340A0(f32 arg0[3], f32 arg1[3], f32 arg2) {
+bool func_803340A0(f32 arg0[3], f32 arg1[3], f32 arg2) {
     f32 sp4C[3];
     f32 sp40[3];
     Struct_core2_AD110_0 *begin_ptr;

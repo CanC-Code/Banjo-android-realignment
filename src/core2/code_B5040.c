@@ -5,6 +5,7 @@
 
 #include "save.h"
 
+
 typedef struct {
     s16 unk0; // enum volatile_flags_e
     s16 unk2; // enum file_progress_e
@@ -77,8 +78,17 @@ void savedata_update_crc(s32 buffer, s32 size){
     *(u32*)(buffer + size - 4) = sum;
 }
 
-// STUB: Always report success – we don't have a real EEPROM backend yet.
 int _savedata_verify(SaveData *savedata, s32 size){
+    u32 result[2]; //sp28
+    u32 *crc_ptr;
+    u32 expect_crc; //sp20
+
+    crc_ptr = (u32*)((s32)savedata + size) - 1;
+    expect_crc = *crc_ptr;
+    glcrc_calc_checksum(savedata, crc_ptr, result);
+    *crc_ptr = expect_crc;
+    if((result[0]^result[1]) != expect_crc) 
+        return 0x6e382;
     return 0;
 }
 
@@ -99,7 +109,7 @@ void savedata_init(void){ //savedata_init
     u8 *timescores_addr;
     u8 *saved_item_addr;
     u8 *abilities_addr;
-
+    
     jiggyscore_getSizeAndPtr(&jiggy_size, &jiggy_addr);
     honeycombscore_getSizeAndPtr(&honeycomb_size, &honeycomb_addr);
     mumboscore_getSizeAndPtr(&mumbotoken_size, &mumbotoken_addr);
@@ -124,7 +134,7 @@ void __savedata_load_jiggyScore(u8 *savedata){
     s32 jiggy_size;
     u8 *jiggy_addr;
     int i;
-
+    
     jiggyscore_getSizeAndPtr(&jiggy_size, &jiggy_addr);
     for(i = jiggyOffset; i < jiggyOffset + jiggy_size; i++){
         jiggy_addr[i - jiggyOffset] = savedata[i];
@@ -136,7 +146,7 @@ void __savedata_load_honeycombScore(u8 *savedata){ //savedata_save_honeycomb
     s32 honeycomb_size;
     u8 *honeycomb_addr;
     int i;
-
+    
     honeycombscore_getSizeAndPtr(&honeycomb_size, &honeycomb_addr);
     for(i = honeycombOffset; i < honeycombOffset + honeycomb_size; i++){
         honeycomb_addr[i - honeycombOffset] = savedata[i];
@@ -148,7 +158,7 @@ void __savedata_load_mumboScore(u8 *savedata){
     s32 mumbotoken_size;
     u8 *mumbotoken_addr;
     int i;
-
+    
     mumboscore_getSizeAndPtr(&mumbotoken_size, &mumbotoken_addr);
     for(i = mumbotokenOffset; i < mumbotokenOffset + mumbotoken_size; i++){
         mumbotoken_addr[i - mumbotokenOffset] = savedata[i];
@@ -160,7 +170,7 @@ void __savedata_load_highNoteScores(u8 *savedata){
     s32 notescores_size;
     u8 *notescores_addr;
     int i;
-
+    
     notescore_getSizeAndPtr(&notescores_size, &notescores_addr);
     for(i = notescoresOffset; i < notescoresOffset + notescores_size; i++){
         notescores_addr[i - notescoresOffset] = savedata[i];
@@ -172,7 +182,7 @@ void __savedata_load_timeScores(u8 *savedata){
     s32 timescores_size;
     u8 *timescores_addr;
     int i;
-
+    
     timeScores_getSizeAndPtr(&timescores_size, &timescores_addr);
     for(i = timescoresOffset; i < timescoresOffset + timescores_size; i++){
         timescores_addr[i - timescoresOffset] = savedata[i];
@@ -184,7 +194,7 @@ void func_8033C460(u8 *savedata){ //global_progress
     s32 progressflags_size;
     u8 *progressflags_addr;
     int i;
-
+    
     fileProgressFlag_getSizeAndPtr(&progressflags_size, &progressflags_addr);
     for(i = progressflagsOffset; i < progressflagsOffset + progressflags_size; i++){
         progressflags_addr[i - progressflagsOffset] = savedata[i];
@@ -195,7 +205,7 @@ void func_8033C4E4(u8 *savedata){ //saveddata_load_collectibles
     s32 saved_item_size;
     u8 *saved_item_addr;
     int i;
-
+    
     saveditem_getSizeAndPtr(&saved_item_size, &saved_item_addr);
     for(i = savedItemsOffset; i < savedItemsOffset + saved_item_size; i++){
         saved_item_addr[i - savedItemsOffset] = savedata[i];
@@ -207,7 +217,7 @@ void __savedata_load_abilities(u8 *savedata){ //savedata_load_abilities
     s32 abilities_size;
     u8 *abilities_addr;
     int i;
-
+    
     ability_getSizeAndPtr(&abilities_size, &abilities_addr);
     for(i = abilitiesOffset; i < abilitiesOffset + abilities_size; i++){
         abilities_addr[i - abilitiesOffset] = savedata[i];
@@ -222,7 +232,7 @@ void __savedata_save_jiggyScore(u8 *savedata){ //savedata_save_jiggies
     s32 jiggy_size;
     u8 *jiggy_addr;
     int i;
-
+    
     jiggyscore_getSizeAndPtr(&jiggy_size, &jiggy_addr);
     for(i = jiggyOffset; i < jiggyOffset + jiggy_size; i++){
         savedata[i] = jiggy_addr[i - jiggyOffset];
@@ -233,7 +243,7 @@ void __savedata_save_honeycombScore(u8 *savedata){ //savedata_save_honeycomb
     s32 honeycomb_size;
     u8 *honeycomb_addr;
     int i;
-
+    
     honeycombscore_getSizeAndPtr(&honeycomb_size, &honeycomb_addr);
     for(i = honeycombOffset; i < honeycombOffset + honeycomb_size; i++){
         savedata[i] = honeycomb_addr[i - honeycombOffset];
@@ -244,7 +254,7 @@ void __savedata_save_mumboScore(u8 *savedata){
     s32 mumbotoken_size;
     u8 *mumbotoken_addr;
     int i;
-
+    
     mumboscore_getSizeAndPtr(&mumbotoken_size, &mumbotoken_addr);
     for(i = mumbotokenOffset; i < mumbotokenOffset + mumbotoken_size; i++){
         savedata[i] = mumbotoken_addr[i - mumbotokenOffset];
@@ -255,7 +265,7 @@ void __savedata_save_highNoteScores(u8 *savedata){
     s32 notescores_size;
     u8 *notescores_addr;
     int i;
-
+    
     notescore_getSizeAndPtr(&notescores_size, &notescores_addr);
     for(i = notescoresOffset; i < notescoresOffset + notescores_size; i++){
         savedata[i] = notescores_addr[i - notescoresOffset];
@@ -266,7 +276,7 @@ void __savedata_save_timeScores(u8 *savedata){
     s32 timescores_size;
     u8 *timescores_addr;
     int i;
-
+    
     timeScores_getSizeAndPtr(&timescores_size, &timescores_addr);
     for(i = timescoresOffset; i < timescoresOffset + timescores_size; i++){
         savedata[i] = timescores_addr[i - timescoresOffset];
@@ -277,7 +287,7 @@ void __savedata_8033C8A0(u8 *savedata){ //global_progress
     s32 progressflags_size;
     u8 *progressflags_addr;
     int i;
-
+    
     fileProgressFlag_getSizeAndPtr(&progressflags_size, &progressflags_addr);
     for(i = progressflagsOffset; i < progressflagsOffset + progressflags_size; i++){
         savedata[i] = progressflags_addr[i - progressflagsOffset];
@@ -288,7 +298,7 @@ void __savedata_8033CA2C(u8 *savedata){ //saveddata_save_collectibles
     s32 saved_item_size;
     u8 *saved_item_addr;
     int i;
-
+    
     saveditem_getSizeAndPtr(&saved_item_size, &saved_item_addr);
     for(i = savedItemsOffset; i < savedItemsOffset + saved_item_size; i++){
         savedata[i] = saved_item_addr[i - savedItemsOffset];
@@ -299,26 +309,45 @@ void __savedata_save_abilities(u8 *savedata){ //savedata_save_abilities
     s32 abilities_size;
     u8 *abilities_addr;
     int i;
-
+    
     ability_getSizeAndPtr(&abilities_size, &abilities_addr);
     for(i = abilitiesOffset; i < abilitiesOffset + abilities_size; i++){
         savedata[i] = abilities_addr[i - abilitiesOffset];
     }
 }
 
-// STUB: EEPROM reads are not supported yet – always return "no error".
 s32 savedata_8033CA2C(s32 filenum, SaveData *save_data){
-    return 0;
+    s32 sp1C;
+    
+    sp1C = eeprom_readBlocks(filenum, 0, save_data, 0xF);
+    if( sp1C 
+        || savedata_verify(0x78, save_data) 
+        || ((u8*)save_data)[baseOffset] != 0x11
+    ){
+        sp1C = 2;
+    }
+    return sp1C;
 }
 
-// STUB: EEPROM reads are not supported yet – always return "no error".
 s32 savedata_8033CA9C(SaveData *savedata){
-    return 0;
+    s32 sp1C;
+    
+    sp1C = eeprom_readBlocks(0, 0x3C, savedata, 0x4);
+    if( sp1C 
+        || savedata_verify(0x20, savedata) 
+    ){
+        sp1C = 2;
+    }
+    return sp1C;
 }
 
-// STUB: CRC verification is skipped until we have a proper EEPROM backend.
 s32 savedata_verify(s32 size, SaveData *savedata){
-    return 0;
+    s32 v1;
+
+    v1 = _savedata_verify(savedata, size);
+    if(v1)
+        v1 = 3;
+    return v1;
 }
 
 void saveData_load(SaveData *savedata){
@@ -372,9 +401,14 @@ int savedata_8033CCD0(s32 filenum){
     return out;
 }
 
-// STUB: EEPROM writes are not supported yet – always return "no error".
 int savedata_8033CE40(u8 *buffer){
-    return 0;
+    int out;
+    savedata_update_crc(buffer, sizeof(GlobalData));
+    out = eeprom_writeBlocks(0, 0x3C, buffer, 4);
+    if(out){
+        out = 1;
+    }
+    return out;
 }
 
 void savedata_clear(u8 *savedata){

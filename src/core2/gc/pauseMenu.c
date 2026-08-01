@@ -36,15 +36,15 @@ void func_802DC5B8(void);
 void func_802DC560(s32, s32);
 s32 controller_getStartButton(s32 controller_index);
 bool fileProgressFlag_get(enum file_progress_e);
-enum map_e gsworld_get_map(void);
+enum map_e gsworld_getMap(void);
 bool func_802FD2D4(void);
 bool func_802FC3C4(void);
 extern void func_8025A2B0(void);
 extern void func_8025A430(s32, s32, s32);
 extern void func_802DC528(s32, s32);
-extern void func_802F5060(enum asset_e);
-extern void func_802F5188(void);
-extern void func_802FACA4(enum item_e);
+extern void print_setBoldFontTexture(enum asset_e);
+extern void print_resetBoldFontTexture(void);
+extern void code_73640_printItemCount(enum item_e);
 extern void func_8033BD20(void *);
 
 enum gcpausemenu_state_e {
@@ -262,7 +262,7 @@ void gcpausemenu_80311A84(void) {
 
     itemPrint_reset();
     for (i = 0; i < 7; i++) {
-        func_802FACA4(D_8036C604[i]);
+        code_73640_printItemCount(D_8036C604[i]);
     }
 
     if (func_802FC3C4()) {
@@ -270,7 +270,7 @@ void gcpausemenu_80311A84(void) {
         func_802FAD64(ITEM_12_JINJOS);
     }
     else {
-        func_802FACA4(ITEM_12_JINJOS);
+        code_73640_printItemCount(ITEM_12_JINJOS);
     }
 
     if (func_802FD2D4()) {
@@ -278,7 +278,7 @@ void gcpausemenu_80311A84(void) {
         func_802FAD64(ITEM_16_LIFE);
     }
     else {
-        func_802FACA4(ITEM_16_LIFE);
+        code_73640_printItemCount(ITEM_16_LIFE);
     }
 }
 
@@ -312,21 +312,21 @@ char *gcpausemenu_TimeToA(int time) {
     s32 minutes;
     s32 seconds;
 
-    n64_strcpy(D_80383088, "");
+    strcpy(D_80383088, "");
     strIToA(D_80383088, time / 3600);
-    n64_strcat(D_80383088, ":");
+    strcat(D_80383088, ":");
     minutes = (time / 60) % 60;
     if (minutes < 10) {
-        n64_strcat(D_80383088, "0");
+        strcat(D_80383088, "0");
     }
     strIToA(D_80383088, minutes);
-    n64_strcat(D_80383088, ":");
+    strcat(D_80383088, ":");
     seconds = time % 60;
     if (seconds < 10) {
-        n64_strcat(D_80383088, "0");
+        strcat(D_80383088, "0");
     }
     strIToA(D_80383088, seconds);
-    n64_strcat(D_80383088, "");
+    strcat(D_80383088, "");
     return D_80383088;
 }
 
@@ -337,31 +337,31 @@ void gcpausemenu_printLevelTotals(enum level_e level) {
 
     //note ratio 2 string
     gcpausemenu_getLevelNoteScore(level, &val, &max);
-    n64_strcpy(D_8036C520[0].str, empty);
+    strcpy(D_8036C520[0].str, empty);
     strIToA(D_8036C520[0].str, val);
-    n64_strcat(D_8036C520[0].str, "/");
+    strcat(D_8036C520[0].str, "/");
     strIToA(D_8036C520[0].str, max);
-    n64_strcat(D_8036C520[0].str, empty);
+    strcat(D_8036C520[0].str, empty);
 
     //jiggy_ratio_2_string
     gcpausemenu_getLevelJiggyScore(level, &val, &max);
-    n64_strcpy(D_8036C520[1].str, empty);
+    strcpy(D_8036C520[1].str, empty);
     strIToA(D_8036C520[1].str, val);
-    n64_strcat(D_8036C520[1].str, "/");
+    strcat(D_8036C520[1].str, "/");
     strIToA(D_8036C520[1].str, max);
-    n64_strcat(D_8036C520[1].str, empty);
+    strcat(D_8036C520[1].str, empty);
 
     //honeycomb_ratio_2_string
     gcpausemenu_getLevelHoneycombScore(level, &val, &max);
-    n64_strcpy(D_8036C520[2].str, empty);
+    strcpy(D_8036C520[2].str, empty);
     strIToA(D_8036C520[2].str, val);
-    n64_strcat(D_8036C520[2].str, "/");
+    strcat(D_8036C520[2].str, "/");
     strIToA(D_8036C520[2].str, max);
-    n64_strcat(D_8036C520[2].str, empty);
+    strcat(D_8036C520[2].str, empty);
 
     //gametime_2_sting
-    n64_strcpy(D_8036C520[3].str, empty);
-    n64_strcat(D_8036C520[3].str, gcpausemenu_TimeToA(itemscore_timeScores_get(level)));
+    strcpy(D_8036C520[3].str, empty);
+    strcat(D_8036C520[3].str, gcpausemenu_TimeToA(itemscore_timeScores_get(level)));
 }
 
 void gcpausemenu_getTotalNoteScore(s32 *dst) {
@@ -382,25 +382,25 @@ void gcpausemenu_printTotals(void) {
 
     //note ratio 2 string
     gcpausemenu_getTotalNoteScore(&val);
-    n64_strcpy(D_8036C520[0].str, D_8036C61C);
+    strcpy(D_8036C520[0].str, D_8036C61C);
     strIToA(D_8036C520[0].str, val);
-    n64_strcat(D_8036C520[0].str, D_8036C61C);
+    strcat(D_8036C520[0].str, D_8036C61C);
 
     //jiggy_ratio_2_string
     gcpausemenu_getTotalJiggyScore(&val);
-    n64_strcpy(D_8036C520[1].str, D_8036C61C);
+    strcpy(D_8036C520[1].str, D_8036C61C);
     strIToA(D_8036C520[1].str, val);
-    n64_strcat(D_8036C520[1].str, D_8036C61C);
+    strcat(D_8036C520[1].str, D_8036C61C);
 
     //honeycomb_ratio_2_string
     gcpausemenu_getTotalHoneycombScore(&val);
-    n64_strcpy(D_8036C520[2].str, D_8036C61C);
+    strcpy(D_8036C520[2].str, D_8036C61C);
     strIToA(D_8036C520[2].str, val);
-    n64_strcat(D_8036C520[2].str, D_8036C61C);
+    strcat(D_8036C520[2].str, D_8036C61C);
 
     //gametime_2_sting
-    n64_strcpy(D_8036C520[3].str, D_8036C61C);
-    n64_strcat(D_8036C520[3].str, gcpausemenu_TimeToA(itemscore_timeScores_getTotal()));
+    strcpy(D_8036C520[3].str, D_8036C61C);
+    strcat(D_8036C520[3].str, gcpausemenu_TimeToA(itemscore_timeScores_getTotal()));
 }
 
 s32 gcpausemenu_levelToMenuPage(enum level_e level) {
@@ -506,7 +506,7 @@ void gcPauseMenu_setState(enum gcpausemenu_state_e next_state) {
             gcpausemenu_zoomboxes_initTotalsMenu();
 
             if (D_80383010.selection == gcpausemenu_levelToMenuPage(level_get())) {
-                func_802F5060(0x6e7);
+                print_setBoldFontTexture(SPRITE_BOLD_FONT_PINK_SPHERE_TEXTURE);
             }
 
             if (D_80383010.selection) {
@@ -552,7 +552,7 @@ void gcPauseMenu_setState(enum gcpausemenu_state_e next_state) {
 
         case PAUSE_STATE_B_TOTALS_DISPOSE:
             if (D_80383010.selection && D_80383010.selection == gcpausemenu_levelToMenuPage(level_get())) {
-                func_802F5188();
+                print_resetBoldFontTexture();
             }
 
             gcpausemenu_zoomboxes_free();
@@ -576,13 +576,13 @@ void gcPauseMenu_setState(enum gcpausemenu_state_e next_state) {
             D_80383010.unk3_5 = 1;
 
             if (D_80383010.selection && D_80383010.selection == gcpausemenu_levelToMenuPage(level_get())) {
-                func_802F5188();
+                print_resetBoldFontTexture();
             }
 
             D_80383010.selection = D_80383010.page;
 
             if (D_80383010.selection && D_80383010.selection == gcpausemenu_levelToMenuPage(level_get())) {
-                func_802F5060(0x6e7);
+                print_setBoldFontTexture(SPRITE_BOLD_FONT_PINK_SPHERE_TEXTURE);
             }
 
             if (D_80383010.selection) {
@@ -731,7 +731,7 @@ s32 gcpausemenu_initLargestPageIndex(void) {
     return largest_page_index;
 }
 
-n64_bool gcpausemenu_initReturnToLair(void) {
+bool gcpausemenu_initReturnToLair(void) {
     return TRUE;
 }
 
@@ -964,12 +964,12 @@ s32 gcPauseMenu_update(void) {
 
         case PAUSE_STATE_2_MENU: //open
             if (D_80383010.unk70_31 && !func_802FC3C4()) {
-                func_802FACA4(ITEM_12_JINJOS);
+                code_73640_printItemCount(ITEM_12_JINJOS);
                 D_80383010.unk70_31 = 0;
             }//L8031350C
 
             if (D_80383010.unk70_30 && !func_802FD2D4()) {
-                func_802FACA4(ITEM_16_LIFE);
+                code_73640_printItemCount(ITEM_16_LIFE);
                 D_80383010.unk70_30 = 0;
             }
 
@@ -1063,9 +1063,9 @@ s32 gcPauseMenu_update(void) {
                 case PAUSE_SELECTION_1_EXIT_TO_WITCH_S_LAIR://L80313908 //return to lair
                     volatileFlag_set(VOLATILE_FLAG_16, 1);
 
-                    if (gsworld_get_map() == MAP_8E_GL_FURNACE_FUN) {
+                    if (gsworld_getMap() == MAP_8E_GL_FURNACE_FUN) {
                         volatileFlag_set(VOLATILE_FLAG_0_IN_FURNACE_FUN_QUIZ, 0);
-                        transitionToMap(MAP_80_GL_FF_ENTRANCE, 2, 1);
+                        transitionToMap(MAP_80_GL_FF_ENTRANCE, WARP_GL_FURNACE_FUN_2_ENTRANCE_PAD, 1);
                     }
                     else {
                         transitionToMap(D_8036C560[level - 1].map, D_8036C560[level - 1].exit, 1);
@@ -1446,9 +1446,9 @@ void gcpausemenu_draw(Gfx **gfx, Mtx **mtx, Vtx **vtx) {
                 sp80[2] = 0.0f;
 
                 for (var_s0_2 = 0; var_s0_2 < 7; var_s0_2++) {
-                    func_8033A45C(var_s0_2 + 1, 0);
+                    modelRender_setAppendageVisibility(var_s0_2 + 1, 0);
                 }
-                func_8033A45C(i, 1);
+                modelRender_setAppendageVisibility(i, 1);
                 modelRender_setDepthMode(MODEL_RENDER_DEPTH_NONE);
                 modelRender_setAlpha(D_80383010.sns_alpha);
                 modelRender_draw(gfx, mtx, sp98, sp8C, 0.8f, sp80, D_80383010.sns_egg_model);

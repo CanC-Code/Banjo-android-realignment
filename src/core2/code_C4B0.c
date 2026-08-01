@@ -12,19 +12,19 @@ extern f32        floor_getYPosition(struct0*);
 extern void       func_8031C5FC(struct0 *, f32);
 extern void       func_80244FC0(f32 arg0[3], f32 arg1[3], f32 arg2, f32 arg3, s32 arg4, u32 arg5);
 extern s32        func_80244E54(f32[3], f32[3], f32 [3], u32, f32, f32);
-extern BKCollisionTri *func_802457C4(f32[3], f32[3], f32, f32, f32[3], s32, u32);
-extern BKCollisionTri *func_80320C94(f32[3], f32[3], f32, f32[3], s32, u32);
-extern BKCollisionTri *func_8031C5F4(struct0 *);
+extern BKCollisionTriangle *func_802457C4(f32[3], f32[3], f32, f32, f32[3], s32, u32);
+extern BKCollisionTriangle *func_80320C94(f32[3], f32[3], f32, f32[3], s32, u32);
+extern BKCollisionTriangle *func_8031C5F4(struct0 *);
 void func_80294378(s32 arg0);
 void func_80294384(s32 arg0);
 void func_80294390(void);
 
-BKCollisionTri *func_8029463C(void);
+BKCollisionTriangle *func_8029463C(void);
 
 typedef struct {
     f32 unk0[3];
     f32 unkC[3];
-    BKCollisionTri *unk18;
+    BKCollisionTriangle *unk18;
     f32 unk1C[3];
     f32 unk28[3];
     f32 unk34[3];
@@ -38,8 +38,8 @@ typedef struct {
 f32 D_8037C1F0[2];
 f32 D_8037C1F8[2];
 struct0 * D_8037C200;
-BKCollisionTri * D_8037C204;
-BKCollisionTri D_8037C208;
+BKCollisionTriangle * D_8037C204;
+BKCollisionTriangle D_8037C208;
 f32 D_8037C218[3];
 f32 D_8037C228[3];
 f32 D_8037C238[3];
@@ -61,8 +61,8 @@ s32 D_8037C284;
 /* .code */
 void func_80293440(void){
      f32 sp34[3];
-     f32 bottomY = climbGetBottomY();
-     f32 topY = climbGetTopY();
+     f32 bottomY = climb_getBottomY();
+     f32 topY = climb_getTopY();
      f32 sp28;
      f32 diff;
 
@@ -72,7 +72,7 @@ void func_80293440(void){
      if(D_8037C218[1] < bottomY)
           D_8037C218[1] = bottomY;
 
-     climbGetBottom(sp34);
+     climb_getBottom(sp34);
      func_80257F18(D_8037C218, sp34, &sp28);
      diff = mlDiffDegF(sp28, yaw_get());
      diff = mlAbsF(diff);
@@ -298,7 +298,7 @@ void func_80293F0C(void){
     f32 sp2C[3];
     
     playerPosition_get(sp44);
-    if(gsworld_get_map() == MAP_34_RBB_ENGINE_ROOM && ml_vec3f_inside_box_f(sp44, -900.0f, -940.0f, 200.0f, 900.0f, 940.0f, 800.0f)){
+    if(gsworld_getMap() == MAP_34_RBB_ENGINE_ROOM && ml_vec3f_inside_box_f(sp44, -900.0f, -940.0f, 200.0f, 900.0f, 940.0f, 800.0f)){
         func_8031C5FC(D_8037C200, 150.0f);
     } else{
         func_8031C608(D_8037C200);
@@ -400,7 +400,7 @@ void func_80294390(void) {
 
     sp1C = (void *)func_8029463C();
     if (sp1C != 0) {
-        if (func_803246B4(gsworld_get_map(), ((s32*)sp1C)[2]) == 3) {
+        if (func_803246B4(gsworld_getMap(), ((s32*)sp1C)[2]) == 3) {
             func_80294384(4);
         }
         else{
@@ -469,11 +469,11 @@ int func_80294560(void){
      return D_8037C280 == 3;
 }
 
-n64_bool floor_isCurrentFloorunk59(void){
+bool floor_isCurrentFloorunk59(void){
      return func_8031C594(D_8037C200);
 }
 
-n64_bool func_80294598(void) {
+bool func_80294598(void) {
     return (D_8037C248[0] != 0.0f) || (D_8037C248[1] != 0.0f) || (D_8037C248[2] != 0.0f);
 }
 
@@ -481,7 +481,7 @@ u32 func_80294610(u32 mask){
      return func_8031C59C(D_8037C200) & mask;
 }
 
-BKCollisionTri *func_8029463C(void){
+BKCollisionTriangle *func_8029463C(void){
      return func_8031C5F4(D_8037C200);
 }
 
@@ -501,11 +501,11 @@ void func_802946CC(void){
      func_8031C5EC(D_8037C200);
 }
 
-BKCollisionTri *func_802946F0(void){
+BKCollisionTriangle *func_802946F0(void){
      return D_8037C204;
 }
 
-n64_bool func_802946FC(f32 arg0[3][3], s32 arg1){
+bool func_802946FC(f32 arg0[3][3], s32 arg1){
      if(arg1 == 0){
           return 0;
      }

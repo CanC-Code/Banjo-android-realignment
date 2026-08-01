@@ -1,5 +1,4 @@
 #include <ultra64.h>
-#include "bka_safe_base.h"
 #include "core1/core1.h"
 
 #define IA8_I(ia) ((ia) >> 4)
@@ -126,7 +125,7 @@ void framebufferdraw_draw_CI8(s32 x, s32 y, BKSprite *sprite, s32 frame, s32 alp
     }
     palette = palette_unaligned;
     
-    chunk = (BKSpriteTextureBlock *)BKA_TRANSLATE_ADDR((palette + 0x100));
+    chunk = (BKSpriteTextureBlock *) (palette + 0x100);
     for (i_chunk = 0; i_chunk < sprite_frame->chunkCnt; i_chunk++){
         palette_unaligned = (u16 *) (chunk + 1);
         for (tmem = (u16 *) (chunk + 1); ((s32) tmem) % 8; tmem++){
@@ -166,7 +165,7 @@ void framebufferdraw_draw_CI8(s32 x, s32 y, BKSprite *sprite, s32 frame, s32 alp
 
 }
 
-void framebufferdraw_draw_RGBA16(s32 x, s32 y, BKSprite *sprite, s32 frame, n64_bool alpha_enabled) {
+void framebufferdraw_draw_RGBA16(s32 x, s32 y, BKSprite *sprite, s32 frame, bool alpha_enabled) {
     BKSpriteFrame *sprite_ptr;
     BKSpriteTextureBlock *chunk_ptr;
     s16 *tmem;
@@ -211,7 +210,7 @@ void framebufferdraw_draw_RGBA16(s32 x, s32 y, BKSprite *sprite, s32 frame, n64_
     }
 }
 
-void framebufferdraw_draw_I4(s32 x, s32 y, BKSprite *sprite, s32 frame, n64_bool aplha_enabled) {
+void framebufferdraw_draw_I4(s32 x, s32 y, BKSprite *sprite, s32 frame, bool aplha_enabled) {
     BKSpriteFrame *frame_ptr;
     BKSpriteTextureBlock *chunk_ptr;
     s16 *temp_v0;
@@ -264,7 +263,7 @@ void framebufferdraw_draw_I4(s32 x, s32 y, BKSprite *sprite, s32 frame, n64_bool
     }
 }
 
-void framebufferdraw_draw_IA4(s32 x, s32 y, BKSprite *sprite, s32 frame, n64_bool aplha_enabled) {
+void framebufferdraw_draw_IA4(s32 x, s32 y, BKSprite *sprite, s32 frame, bool aplha_enabled) {
     BKSpriteFrame *frame_ptr;
     BKSpriteTextureBlock *chunk_ptr;
     s16 *temp_v0;
@@ -373,7 +372,7 @@ void framebufferdraw_draw_I8(s32 x, s32 y, BKSprite *sprite, s32 frame, s32 alph
     }
 }
 
-void framebufferdraw_draw_IA8(s32 x, s32 y, BKSprite *sprite, s32 frame, n64_bool alpha_enabled) {
+void framebufferdraw_draw_IA8(s32 x, s32 y, BKSprite *sprite, s32 frame, bool alpha_enabled) {
     BKSpriteFrame *sprite_frame;
     BKSpriteTextureBlock *chunk_ptr;
     s16 *temp_a1;
@@ -497,7 +496,7 @@ void framebufferdraw_draw_RGBA32(s32 x, s32 y, BKSprite *sprite, s32 frame, s32 
 void framebufferdraw_stub1(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {} //signature may have more variables passed in
 void framebufferdraw_stub2(s32 arg0, s32 arg1, s32 arg2, s32 arg3) {} //signature may have more variables passed in
 
-void framebufferdraw_drawTexture_CI4(s32 x, s32 y, void *tmem, s32 w, s32 h, n64_bool alpha_enabled) {
+void framebufferdraw_drawTexture_CI4(s32 x, s32 y, void *tmem, s32 w, s32 h, bool alpha_enabled) {
     s32 ix;
     s32 iy;
     s32 icolor;
@@ -575,7 +574,7 @@ void framebufferdraw_func_80249DE0(s32 x, s32 y, s16 *arg2, s32 arg3, s32 arg4) 
     }
 }
 
-void framebufferdraw_func_80249F34(s32 x, s32 y, Struct84s* maskList, s32 maskIndex, s32 mX, s32 mY, s32 mW, s32 mH, s32 maskColor, s32 mStride, n64_bool dim, s32 replacementColor) {
+void framebufferdraw_func_80249F34(s32 x, s32 y, Struct84s* maskList, s32 maskIndex, s32 mX, s32 mY, s32 mW, s32 mH, s32 maskColor, s32 mStride, bool dim, s32 replacementColor) {
     BKSpriteTextureBlock* mask_texture;
     s32 ix;
     s32 iy;

@@ -6,8 +6,8 @@
 #include "core2/commonParticle.h"
 
 extern void func_802BE720(void);
-extern f32 func_8033A244(f32);
-extern void func_8033A280(f32);
+
+extern void modelRender_func_8033A280(f32);
 extern void func_80329904(ActorMarker *, s32, f32 *);
 
 /* .data */
@@ -29,7 +29,7 @@ enum jiggy_e getJiggyId(Actor *this) {
     s32 id;
     s32 position[3];
     
-    id = gsworld_get_map();
+    id = gsworld_getMap();
 
     position[0] = (s32)this->position[0];
     position[1] = (s32)this->position[1]; 
@@ -107,8 +107,8 @@ Actor *chjiggy_draw(ActorMarker *this, Gfx **gdl, Mtx **mptr, Vtx **vtx) {
         jiggyId = chjiggy_getJiggyId(jiggy_actor);
 
         if ((jiggyId == JIGGY_1C_CC_RINGS) || (jiggyId == JIGGY_1D_CC_SLOW_SAWBLADES)) {
-            func_8033A280(10.0f);
-            func_8033A244(30000.0f);
+            modelRender_func_8033A280(10.0f);
+            modelRender_func_8033A244(30000.0f);
         }
 
         jiggy_actor = actor_draw(this, gdl, mptr, vtx);
@@ -186,13 +186,13 @@ void chjiggy_update(Actor *this) {
 
             switch (chjiggy_getJiggyId(this)) {
                 case JIGGY_20_BGS_ELEVATED_WALKWAY:
-                    destroyJiggy(this, BGS_SPECIFIC_FLAG_WALKWAY_JIGGY, BGS_SPECIFIC_FLAG_WALKWAY_JIGGY_TIMER_RUNNING, STATIC_CAMERA_D_WALKWAY_JIGGY_DESTROY,
-                        BGS_SPECIFIC_FLAG_WALKWAY_JIGGY_SWITCH_PRESSED, BGS_SPECIFIC_FLAG_WALKWAY_JIGGY_RESET, VOLATILE_FLAG_AE_BGS_WALKWAY_JIGGY_MISSED);
+                    destroyJiggy(this, BGS_SPECIFIC_FLAG_4_WALKWAY_JIGGY, BGS_SPECIFIC_FLAG_3_WALKWAY_JIGGY_TIMER_RUNNING, STATIC_CAMERA_D_WALKWAY_JIGGY_DESTROY,
+                        BGS_SPECIFIC_FLAG_5_WALKWAY_JIGGY_SWITCH_PRESSED, BGS_SPECIFIC_FLAG_2_WALKWAY_JIGGY_RESET, VOLATILE_FLAG_AE_BGS_WALKWAY_JIGGY_MISSED);
                     break;
 
                 case JIGGY_25_BGS_MAZE:
-                    destroyJiggy(this, BGS_SPECIFIC_FLAG_MAZE_JIGGY, BGS_SPECIFIC_FLAG_MAZE_JIGGY_TIMER_RUNNING, STATIC_CAMERA_1E_MAZE_JIGGY_DESTROY, 
-                        BGS_SPECIFIC_FLAG_MAZE_JIGGY_SWITCH_PRESSED, BGS_SPECIFIC_FLAG_MAZE_JIGGY_RESET, VOLATILE_FLAG_AF_BGS_MAZE_JIGGY_MISSED);
+                    destroyJiggy(this, BGS_SPECIFIC_FLAG_D_MAZE_JIGGY, BGS_SPECIFIC_FLAG_C_MAZE_JIGGY_TIMER_RUNNING, STATIC_CAMERA_1E_MAZE_JIGGY_DESTROY, 
+                        BGS_SPECIFIC_FLAG_9_MAZE_JIGGY_SWITCH_PRESSED, BGS_SPECIFIC_FLAG_B_MAZE_JIGGY_RESET, VOLATILE_FLAG_AF_BGS_MAZE_JIGGY_MISSED);
                     break;
 
                 case JIGGY_2F_FP_XMAS_TREE:

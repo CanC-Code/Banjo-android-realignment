@@ -67,18 +67,18 @@ void func_802BEE2C(Gfx **gfx, Mtx **mtx, Vtx **vtx) {
     gcbound_draw(gfx);
 }
 
-n64_bool func_802BEF58(void){
+bool func_802BEF58(void){
     return D_8037DA80.unk8;
 }
 
-n64_bool func_802BEF64(void){
+bool func_802BEF64(void){
     return D_8037DA80.unkC;
 }
 
 void func_802BEF70(void){}
 
 void func_802BEF78(void){
-    D_8037DA80.unk0 = func_802BEDE0(gsworld_get_map());
+    D_8037DA80.unk0 = func_802BEDE0(gsworld_getMap());
     D_8037DA80.unk8 = 0;
     D_8037DA80.unkC = 0;
 }

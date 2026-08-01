@@ -3,7 +3,7 @@
 #include "variables.h"
 #include "core2/particle.h"
 
-extern n64_bool func_8024549C(f32[3], f32);
+extern bool func_8024549C(f32[3], f32);
 extern void func_802EFAB0(ParticleEmitter *, s32, f32);
 extern void func_802F0EAC(ParticleEmitter *, f32);
 extern ParticleEmitter *pem_getEmitterByIndex(u8);
@@ -38,7 +38,7 @@ Struct_Core2_6C3E0 D_80368B30[] = {
 u8 D_80380A60;
 
 /* .code */
-n64_bool __fxRipple_802F3370(f32 position[3], s32 *arg1, n64_bool arg2){
+bool __fxRipple_802F3370(f32 position[3], s32 *arg1, bool arg2){
     f32 sp1C;
 
     *arg1 = 0;
@@ -57,7 +57,7 @@ n64_bool __fxRipple_802F3370(f32 position[3], s32 *arg1, n64_bool arg2){
     return TRUE;
 }
 
-ParticleEmitter *__fxRipple_create(s32 arg0, f32 position[3], n64_bool arg2){
+ParticleEmitter *__fxRipple_create(s32 arg0, f32 position[3], bool arg2){
     s32 sp44;
     f32 spawn_position[3];
     ParticleEmitter *p_emitter;

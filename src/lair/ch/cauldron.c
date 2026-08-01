@@ -62,7 +62,7 @@ f32 D_803936A8[] = {0.293f, 0.376f, 0.42f, 0.453f, 0.488f, 0.522f, 0.556f, 0.59f
 f32 D_803936E4[] = {0.03f, 0.09f, 0.2f, 0.25f, 0.32f, 0.4f, 0.45f, 1.0f};
 
 /* .code */
-n64_bool func_8038A690(Actor *this) {
+bool func_8038A690(Actor *this) {
     if (this->actorTypeSpecificField != 3) {
         return subaddie_playerIsWithinCylinder(this, 400, 90);
     }
@@ -200,7 +200,7 @@ void __chWarpCauldron_dingpotDialogCallback(ActorMarker *marker, enum asset_e te
     fileProgressFlag_set(FILEPROG_F3_MET_DINGPOT, TRUE);
 }
 
-n64_bool lair_func_8038ADF0(s32 arg0, s32 arg1) {
+bool lair_func_8038ADF0(s32 arg0, s32 arg1) {
     s32 phi_v1;
 
     phi_v1 = arg1 - arg0;
@@ -248,14 +248,14 @@ void chWarpCauldron_update(Actor *this) {
                   && (func_802D67AC(-1) == MAP_16_GV_RUBEES_CHAMBER) 
                   && (func_802D680C(-1) == this->actorTypeSpecificField)
                 ) 
-                || (gsworld_get_exit() == D_80393620[this->actorTypeSpecificField - 1].unk2)
+                || (gsworld_getExit() == D_80393620[this->actorTypeSpecificField - 1].unk2)
             ) {
                 func_8028F85C(this->position);
                 this->unk10_12 = 1;
                 func_8038AB90(this, 5, 1, 0, 0.0f);
             }
             if (!fileProgressFlag_get(FILEPROG_F5_COMPLETED_A_WARP_CAULDRON_SET) && fileProgressFlag_get(chWarpCauldron_getPairedFileProgressFlagIndex(this))) {
-                if (func_802D677C(-1) != gsworld_get_map()) {
+                if (func_802D677C(-1) != gsworld_getMap()) {
                     gcdialog_showDialog(ASSET_F7A_DIALOG_UNKNOWN, 4, NULL, NULL, NULL, NULL);
                     fileProgressFlag_set(FILEPROG_F5_COMPLETED_A_WARP_CAULDRON_SET, 1);
                 }
@@ -435,8 +435,8 @@ Actor *chWarpCauldron_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx)
 
     this = marker_getActor(marker);
     if(this->modelCacheIndex == ACTOR_23B_WARP_CAULDRON) {
-        func_8033A45C(3, BOOL(this->unk38_0));
-        func_8033A45C(4, this->unk38_0 ? FALSE : TRUE);
+        modelRender_setAppendageVisibility(3, BOOL(this->unk38_0));
+        modelRender_setAppendageVisibility(4, this->unk38_0 ? FALSE : TRUE);
     }
     this = actor_draw(marker, gfx, mtx, vtx);
     if (marker->unk14_21 && this->unk38_0 && (getGameMode() != GAME_MODE_4_PAUSED)) {

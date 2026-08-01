@@ -1,19 +1,18 @@
 #include <ultra64.h>
-#include "bka_safe_base.h"
 #include "core1/core1.h"
 #include "functions.h"
 #include "variables.h"
 
 #include <core2/file.h>
-/* Redirected */ #include <n64_math.h>
+#include "math.h"
 #include "prop.h"
 
 extern void mapModel_getCubeBounds(s32 min[3], s32 max[3]);
 extern f32 func_803243D0(struct56s *arg0, f32 arg1[3]);
 extern void func_8032D510(Cube *, Gfx **, Mtx **, Vtx **);
 extern ActorProp *func_803322F0(Cube *, ActorMarker *, f32, s32, s32 *);
-extern BKCollisionTri *func_803319C0(Cube *cube, f32 position[3], f32 radius, f32 arg2[3], u32 flags);
-extern BKCollisionTri *func_80331638(Cube *cube, f32 volume_p1[3], f32 volume_p2[3], f32 radius, f32 arg2[3], s32, u32 flags);
+extern BKCollisionTriangle *func_803319C0(Cube *cube, f32 position[3], f32 radius, f32 arg2[3], u32 flags);
+extern BKCollisionTriangle *func_80331638(Cube *cube, f32 volume_p1[3], f32 volume_p2[3], f32 radius, f32 arg2[3], s32, u32 flags);
 
 typedef struct{
     s32 position[3];
@@ -39,7 +38,7 @@ void __code7AF80_func_80308F0C(Cube *cube);
 void func_80308EC8(void);
 
 extern ActorInfo D_803675F0;
-extern ActorInfo D_80367838;
+extern ActorInfo gWorldExitPad;
 
 /* .data */
 s32 sSpawnableActorSize = 0; //0x8036A9B0
@@ -108,6 +107,12 @@ s16  D_8036ABC0[] = {0x268, 0x26A, 0x26C, 0x26E, 0x270, 0x272, 0x274, 0x276, 0x2
 // used to index D_80382150
 s16  D_8036ABD4 = 0;
 
+#define CUBE_DIMENSIONS_START_INDICATOR   0x01
+#define CUBE_UNK_INDICATOR                0x02
+#define CUBE_START_INDICATOR              0x03
+#define CUBE_SEPARATOR_INDICATOR          0x01
+#define CUBE_SECTION_END_INDICATOR        0x00
+
 /* .bss */
 struct {
     Cube *cubes;
@@ -122,14 +127,6 @@ struct {
     Cube *unk40; // some other fallback cube?
     s32 unk44; // index of some sort
 } sCubeList;
-
-
-/* Automated Forward Decls */
-static Cube *__code7AF80_getCubeAtPosition(s32 position[3]);
-static BKCollisionTri *__code7AF80_func_803036A0(f32 volume_p1[3], f32 volume_p2[3], f32 arg2[3], u32 arg3);
-static BKCollisionTri *__code7AF80_func_80303960(f32 volume_p1[3], f32 volume_p2[3], f32 radius, f32 arg3[3], s32 arg4, u32 flags);
-static void __code7AF80_initCubeFromFile(Cube *cube, File* file_ptr);
-static void __code7AF80_defragStructCode27AF80(Struct_core2_7AF80_1 *this, s32 count);
 
 /* .code */
 void __7AF80_func_80301F10(Cube *cube, Gfx **gfx, Mtx **mtx, Vtx **vtx){
@@ -379,19 +376,19 @@ void func_80302C94(Gfx **gfx, Mtx **mtx, Vtx **vtx) {
     s32 sp38[3];
     f32 temp_f18;
 
+#if ANTI_TAMPER
     if (!mapSpecificFlags_validateCRC1())
         return;
+#endif
 
     func_8032D3A8();
     viewport_getPosition_vec3f(vp_position);
     viewport_getRotation_vec3f(vp_rotation);
-    func_80256664(vp_rotation);
+    ml_vec3f_clamp_deg360(vp_rotation);
     cube_positionToIndices(vp_cube_indices, vp_position);
-    vp_cube_indices[0] -= sCubeList.min[0];\
-    vp_cube_indices[1] -= sCubeList.min[1];\
-    vp_cube_indices[2] -= sCubeList.min[2];
+    TUPLE_DIFF(vp_cube_indices, sCubeList.min)
     func_80308EC8();
-    sp44[0] = sp44[1] = sp44[2] = 0;
+    TUPLE_SET(sp44, 0)
     sp38[0] = sCubeList.width[0] - 1;\
     sp38[1] = sCubeList.width[1] - 1;\
     sp38[2] = sCubeList.width[2] - 1;
@@ -578,12 +575,12 @@ void __code7AF80_pad_func_80303664(s32 arg0[3], s32 arg1[3]){
     arg1[2] = sCubeList.max[2];
 }
 
-static BKCollisionTri *__code7AF80_func_803036A0(f32 volume_p1[3], f32 volume_p2[3], f32 arg2[3], u32 arg3) {
+static BKCollisionTriangle *__code7AF80_func_803036A0(f32 volume_p1[3], f32 volume_p2[3], f32 arg2[3], u32 arg3) {
     s32 cube_indx[3];
     s32 min[3];
     s32 max[3];
-    BKCollisionTri *temp_v0;
-    BKCollisionTri *var_s5;
+    BKCollisionTriangle *temp_v0;
+    BKCollisionTriangle *var_s5;
 
     var_s5 = NULL;
     cube_volumeToIndices(min, max, volume_p1, volume_p2, sCubeList.margin);
@@ -604,12 +601,12 @@ static BKCollisionTri *__code7AF80_func_803036A0(f32 volume_p1[3], f32 volume_p2
     return var_s5;
 }
 
-BKCollisionTri *func_80303800(f32 volume_p1[3], f32 volume_p2[3], f32 arg2[3], u32 arg3) {
+BKCollisionTriangle *func_80303800(f32 volume_p1[3], f32 volume_p2[3], f32 arg2[3], u32 arg3) {
     s32 cube_indx[3];
     s32 min[3];
     s32 max[3];
-    BKCollisionTri *temp_v0;
-    BKCollisionTri *var_s5;
+    BKCollisionTriangle *temp_v0;
+    BKCollisionTriangle *var_s5;
 
     cube_volumeToIndices(min, max, volume_p1, volume_p2, sCubeList.margin);
     for(cube_indx[0] = min[0]; cube_indx[0] <= max[0]; cube_indx[0]++){
@@ -629,12 +626,12 @@ BKCollisionTri *func_80303800(f32 volume_p1[3], f32 volume_p2[3], f32 arg2[3], u
     return NULL;
 }
 
-static BKCollisionTri *__code7AF80_func_80303960(f32 volume_p1[3], f32 volume_p2[3], f32 radius, f32 arg3[3], s32 arg4, u32 flags) {
+static BKCollisionTriangle *__code7AF80_func_80303960(f32 volume_p1[3], f32 volume_p2[3], f32 radius, f32 arg3[3], s32 arg4, u32 flags) {
     s32 cube_indx[3];
     s32 min[3];
     s32 max[3];
-    BKCollisionTri *temp_v0;
-    BKCollisionTri *var_s5;
+    BKCollisionTriangle *temp_v0;
+    BKCollisionTriangle *var_s5;
     Cube *cube;
 
     var_s5 = NULL;
@@ -663,13 +660,12 @@ s32 D_803820B8[0x20]; //ActorProp *, (maybe Prop *)
 u8 pad_80382138[4];
 s32 D_8038213C;
 
-extern Cube *D_80382144;
-BKCollisionTri* __code7AF80_func_80303AF0(f32 position[3], f32 radius, f32 arg2[3], u32 arg3) {
+BKCollisionTriangle* __code7AF80_func_80303AF0(f32 position[3], f32 radius, f32 arg2[3], u32 arg3) {
     s32 cube_indx[3];
     s32 min[3];
     s32 max[3];
-    BKCollisionTri *temp_v0;
-    BKCollisionTri *var_s5;
+    BKCollisionTriangle *temp_v0;
+    BKCollisionTriangle *var_s5;
 
     var_s5 = NULL;
     cube_volumeToIndices(min, max, position, position, radius + sCubeList.margin);
@@ -713,7 +709,6 @@ void func_80303C54(Cube *cube, ActorMarker *marker, f32 arg2, s32 arg3, s32 *arg
     };
 }
 
-Cube *D_80382144;
 s32 D_80382148;
 s16 D_80382150[0x48];
 u32 D_803821E0[0x5B];
@@ -784,16 +779,16 @@ void cubeList_free(){
     for(iCube = sCubeList.cubes; iCube < sCubeList.cubes + sCubeList.cubeCnt; iCube++){
         cube_free(iCube);
     }
-    n64_free(sCubeList.cubes);
+    free(sCubeList.cubes);
     
     if(sCubeList.unk3C){
         cube_free(sCubeList.unk3C);
-        n64_free(sCubeList.unk3C);
+        free(sCubeList.unk3C);
     }
 
     if(sCubeList.unk40){
         cube_free(sCubeList.unk40);
-        n64_free(sCubeList.unk40);
+        free(sCubeList.unk40);
     }
     bitfield_free(D_8036A9E0);
     D_8036A9E0 = NULL;
@@ -814,7 +809,7 @@ void cubeList_init(){
     sCubeList.stride[0] = sCubeList.width[0];
     sCubeList.stride[1] = sCubeList.stride[0]*sCubeList.width[1];
     sCubeList.cubeCnt   = sCubeList.stride[1]*sCubeList.width[2];
-    sCubeList.cubes = (Cube *)n64_malloc(sCubeList.cubeCnt*sizeof(Cube));
+    sCubeList.cubes = (Cube *)malloc(sCubeList.cubeCnt*sizeof(Cube));
     for(indx[0] = sCubeList.min[0]; sCubeList.max[0] >= indx[0]; indx[0]++){
         for(indx[1] = sCubeList.min[1]; sCubeList.max[1] >= indx[1]; indx[1]++){
             for(indx[2] = sCubeList.min[2]; sCubeList.max[2] >= indx[2]; indx[2]++){
@@ -831,7 +826,7 @@ void cubeList_init(){
             }
         }
     }
-    sCubeList.unk3C = (Cube *)n64_malloc(sizeof(Cube));
+    sCubeList.unk3C = (Cube *)malloc(sizeof(Cube));
     sCubeList.unk3C->x = 16;
     sCubeList.unk3C->y = 16;
     sCubeList.unk3C->z = 16;
@@ -842,7 +837,7 @@ void cubeList_init(){
     sCubeList.unk3C->unk0_4 = 0;
 
 
-    sCubeList.unk40 = (Cube *)n64_malloc(sizeof(Cube));
+    sCubeList.unk40 = (Cube *)malloc(sizeof(Cube));
     sCubeList.unk40->x = 16;
     sCubeList.unk40->y = 16;
     sCubeList.unk40->z = 16;
@@ -855,31 +850,31 @@ void cubeList_init(){
     sSpawnableActorSize = 0;
     sSpawnableActorList = NULL;
 
-    if(gsworld_get_map() == MAP_21_CC_WITCH_SWITCH_ROOM){
+    if(gsworld_getMap() == MAP_21_CC_WITCH_SWITCH_ROOM){
         sCubeList.margin = 500.0f;
     }
-    else if(gsworld_get_map() == MAP_12_GV_GOBIS_VALLEY){
+    else if(gsworld_getMap() == MAP_12_GV_GOBIS_VALLEY){
         sCubeList.margin = 500.0f;
     }
-    else if(gsworld_get_map() == MAP_7F_FP_WOZZAS_CAVE){
+    else if(gsworld_getMap() == MAP_7F_FP_WOZZAS_CAVE){
         sCubeList.margin = 500.0f;
     }
-    else if(gsworld_get_map() == MAP_D_BGS_BUBBLEGLOOP_SWAMP){
+    else if(gsworld_getMap() == MAP_D_BGS_BUBBLEGLOOP_SWAMP){
         sCubeList.margin = 700.0f;
     }
-    else if(gsworld_get_map() == MAP_7_TTC_TREASURE_TROVE_COVE){
+    else if(gsworld_getMap() == MAP_7_TTC_TREASURE_TROVE_COVE){
         sCubeList.margin = 400.0f;
     }
-    else if(gsworld_get_map() == MAP_16_GV_RUBEES_CHAMBER){
+    else if(gsworld_getMap() == MAP_16_GV_RUBEES_CHAMBER){
         sCubeList.margin = 400.0f;
     }
-    else if(gsworld_get_map() == MAP_2_MM_MUMBOS_MOUNTAIN){
+    else if(gsworld_getMap() == MAP_2_MM_MUMBOS_MOUNTAIN){
         sCubeList.margin = 250.0f;
     }
-    else if(gsworld_get_map() == MAP_27_FP_FREEZEEZY_PEAK){
+    else if(gsworld_getMap() == MAP_27_FP_FREEZEEZY_PEAK){
         sCubeList.margin = 250.0f;
     }
-    else if(gsworld_get_map() == MAP_92_GV_SNS_CHAMBER){
+    else if(gsworld_getMap() == MAP_92_GV_SNS_CHAMBER){
         sCubeList.margin = 300.0f;
     }
     else{
@@ -895,19 +890,41 @@ void func_803045CC(s32 arg0, s32 arg1){}
 
 void func_803045D8(){}
 
+/*
+At this index in the file, we are looking at the start of a cube.
+
+0x01 (CUBE_SEPARATOR_INDICATOR)
+ - Indicates a seperator between cubes, so seeing one here means "empty cube".
+
+0x02 (CUBE_UNK_INDICATOR)
+ - Unknown ¯\_(ツ)_/¯
+
+0x03 (CUBE_START_INDICATOR)
+ - Indicates there are props within the cube and looks within the cube.
+*/
 static void __code7AF80_initCubeFromFile(Cube *cube, File* file_ptr) {
     s32 pad[3];
 
-    while(!file_isNextByteExpected(file_ptr, 1)) {
-        if (file_getNWords_ifExpected(file_ptr, 0, pad, 3)) {
+    while(!file_isNextByteExpected(file_ptr, CUBE_SEPARATOR_INDICATOR)) {
+        if (file_getNWords_ifExpected(file_ptr, CUBE_SECTION_END_INDICATOR, pad, 3))
+        {
             file_getNWords(file_ptr, pad, 3);
-        } else if (!file_getNWords_ifExpected(file_ptr, 2, &pad, 3) && file_isNextByteExpected(file_ptr, 3) 
-        ) {
+        }
+        else if (!file_getNWords_ifExpected(file_ptr, CUBE_UNK_INDICATOR, &pad, 3)
+                    && file_isNextByteExpected(file_ptr, CUBE_START_INDICATOR))
+        {
             code7AF80_initCubeFromFile(file_ptr, cube);
         }
     }
 }
 
+
+/*
+1) Gets the number of cubes in all directions (-x, -y, -z to x, y, z)
+2) Gets the list of props from all of the cubes
+3) Sets the initial bitfields of all of the cubes
+4) __code7AF80_func_80308984? ¯\_(ツ)_/¯
+*/
 void cubeList_fromFile(File *file_ptr) {
     s32 cube_position[3];
     s32 cube_position_from[3];
@@ -915,8 +932,11 @@ void cubeList_fromFile(File *file_ptr) {
     Cube *cube;
     NodeProp *iPtr;
 
-    file_getNWords_ifExpected(file_ptr, 1, cube_position_from, 3);
+    // Gets the dimensions of the cubes
+    file_getNWords_ifExpected(file_ptr, CUBE_DIMENSIONS_START_INDICATOR, cube_position_from, 3);
     file_getNWords(file_ptr, cube_position_to, 3);
+
+    // Gets the props within each of the cubes
     for(cube_position[0] = cube_position_from[0]; cube_position[0] <= cube_position_to[0]; cube_position[0]++){
         for(cube_position[1] = cube_position_from[1]; cube_position[1] <= cube_position_to[1]; cube_position[1]++){
             for(cube_position[2] = cube_position_from[2]; cube_position[2] <= cube_position_to[2]; cube_position[2]++){
@@ -924,7 +944,11 @@ void cubeList_fromFile(File *file_ptr) {
             }
         }
     }
-    file_isNextByteExpected(file_ptr, 0);
+
+    // Checks to make sure cube section ends correctly
+    file_isNextByteExpected(file_ptr, CUBE_SECTION_END_INDICATOR);
+
+    // Sets the bitfield of all of the cubes
     bitfield_setAll(D_8036A9E0, FALSE);
     for(cube_position[0] = cube_position_from[0]; cube_position[0] <= cube_position_to[0]; cube_position[0]++){
         for(cube_position[1] = cube_position_from[1]; cube_position[1] <= cube_position_to[1]; cube_position[1]++){
@@ -940,6 +964,8 @@ void cubeList_fromFile(File *file_ptr) {
             }
         }
     }
+
+    // ???
     __code7AF80_func_80308984();
 }
 
@@ -1074,7 +1100,7 @@ s32 nodeprop_getScale(NodeProp *nodeProp) {
     return nodeProp->scale;
 }
 
-n64_bool nodeprop_findPositionFromActorId(enum actor_e actor_id, s32 *position) {
+bool nodeprop_findPositionFromActorId(enum actor_e actor_id, s32 *position) {
     NodeProp *node_prop;
 
     node_prop = cubeList_findNodePropByActorIdAndPosition_s32(actor_id, NULL);
@@ -1087,7 +1113,7 @@ n64_bool nodeprop_findPositionFromActorId(enum actor_e actor_id, s32 *position) 
     return FALSE;
 }
 
-n64_bool nodeProp_findPositionFromActorId(enum actor_e actor_id, f32 *arg1) {
+bool nodeProp_findPositionFromActorId(enum actor_e actor_id, f32 *arg1) {
     s32 vec[3];
 
     if (nodeprop_findPositionFromActorId(actor_id, vec) == 0) {
@@ -1154,13 +1180,13 @@ s32 func_8030508C(s32 arg0, f32 arg1[3], s32 arg2) {
     phi_s0 = sCubeList.cubes;
     phi_s1 = 0;
     while(phi_s0 < &sCubeList.cubes[sCubeList.cubeCnt]){
-        phi_s1 += func_8032E5A8(phi_s0, arg0, (f32 *)BKA_TRANSLATE_ADDR((phi_s1*0xC + (s32)arg1)), arg2 - phi_s1);
+        phi_s1 += func_8032E5A8(phi_s0, arg0, (f32 *)(phi_s1*0xC + (s32)arg1), arg2 - phi_s1);
         phi_s0++;
     }
     return phi_s1;
 }
 
-n64_bool func_8030515C(f32 arg0[3], s32 arg1, s32 arg2, f32 (*arg3)(f32[3], f32[3])) {
+bool func_8030515C(f32 arg0[3], s32 arg1, s32 arg2, f32 (*arg3)(f32[3], f32[3])) {
     f32 sp50[20][3];
     f32 phi_f20;
     s32 phi_s1;
@@ -1187,15 +1213,15 @@ n64_bool func_8030515C(f32 arg0[3], s32 arg1, s32 arg2, f32 (*arg3)(f32[3], f32[
 
 }
 
-n64_bool func_80305248(f32 arg0[3], s32 arg1, s32 arg2){
+bool func_80305248(f32 arg0[3], s32 arg1, s32 arg2){
     return func_8030515C(arg0, arg1, arg2, ml_distanceSquared_vec3f);
 }
 
-n64_bool func_8030526C(f32 arg0[3], s32 arg1, s32 arg2){
+bool func_8030526C(f32 arg0[3], s32 arg1, s32 arg2){
     return func_8030515C(arg0, arg1, arg2, ml_vec3f_horizontal_distance_squared_zero_likely);
 }
 
-n64_bool func_80305290(n64_bool (* arg0)(NodeProp *), n64_bool (* arg1)(Prop *)){
+bool func_80305290(bool (* arg0)(NodeProp *), bool (* arg1)(Prop *)){
     Cube *phi_s0;
 
     phi_s0 = sCubeList.cubes;
@@ -1208,7 +1234,7 @@ n64_bool func_80305290(n64_bool (* arg0)(NodeProp *), n64_bool (* arg1)(Prop *))
     return TRUE;
 }
 
-n64_bool func_80305344(s32 arg0, u32 *arg1) {
+bool func_80305344(s32 arg0, u32 *arg1) {
     NodeProp *temp_v0;
 
     temp_v0 = cubeList_findNodePropByActorIdAndPosition_s32(arg0, NULL);
@@ -1220,19 +1246,19 @@ n64_bool func_80305344(s32 arg0, u32 *arg1) {
 }
 
 void spawnableActorList_new(void){
-    sSpawnableActorList = n64_malloc(0);
+    sSpawnableActorList = malloc(0);
     sSpawnableActorSize = 0;
 }
 
 void spawnableActorList_free(void){
-    n64_free(sSpawnableActorList);
+    free(sSpawnableActorList);
     sSpawnableActorList = NULL;
     sSpawnableActorSize = 0;
 }
 
 void spawnableActorList_add(ActorInfo *arg0, Actor *(*arg1)(s32[3], s32, ActorInfo *, u32), u32 arg2){
     sSpawnableActorSize++;
-    sSpawnableActorList = n64_realloc(sSpawnableActorList, sSpawnableActorSize*sizeof(ActorSpawn));
+    sSpawnableActorList = realloc(sSpawnableActorList, sSpawnableActorSize*sizeof(ActorSpawn));
     sSpawnableActorList[sSpawnableActorSize - 1].infoPtr = arg0;
     sSpawnableActorList[sSpawnableActorSize - 1].spawnFunc = arg1;
     sSpawnableActorList[sSpawnableActorSize - 1].unk8 = arg2;
@@ -1304,15 +1330,17 @@ void func_8030578C(void){
     int i;
     u32 sp40;
     Cube *iCube;
-    
+
+#if ANTI_TAMPER
     if(getGameMode() != GAME_MODE_7_ATTRACT_DEMO){
         osPiReadIo(0xE38, &sp40);
         sp40 ^= 0x828A;
         if( (sp40 & 0xffff)
             && (sSpawnableActorList != NULL)
         ){
+            // Replace World Exit Pad with empty actor if checksum fails
             for(i = 0; i < sSpawnableActorSize - 1; i++){
-                if(sSpawnableActorList[i].infoPtr == &D_80367838){
+                if(sSpawnableActorList[i].infoPtr == &gWorldExitPad){
                     sSpawnableActorList[i].infoPtr = &D_803675F0;
                     sSpawnableActorList[i].spawnFunc = actor_new;
                     sSpawnableActorList[i].unk8 = 0;
@@ -1321,6 +1349,8 @@ void func_8030578C(void){
             }
         }
     }//L80305850
+#endif
+
     for(iCube = sCubeList.cubes; iCube < sCubeList.cubes + sCubeList.cubeCnt; iCube++){
         func_80330208(iCube);
     }
@@ -1336,7 +1366,7 @@ s16 *func_80305924(void) {
     s16 *temp_a0;
     s16 *var_v0;
 
-    temp_a0 = (s16*) n64_malloc(D_8036ABA8 * sizeof(s16));
+    temp_a0 = (s16*) malloc(D_8036ABA8 * sizeof(s16));
     for(var_v1 = 0; var_v1 < D_8036ABA8; var_v1++){
         var_v0 = (new_var = temp_a0) + var_v1;
         *var_v0 = 0;
@@ -1377,26 +1407,26 @@ void func_80305990(s32 mode) {
 
 void code7AF80_freeTotalCounts(void){
     if(sProp1TotalCounts != NULL){
-        n64_free(sProp1TotalCounts);
+        free(sProp1TotalCounts);
         sProp1TotalCounts = NULL;
     }
 
     if(sProp2TotalCounts != NULL){
-        n64_free(sProp2TotalCounts);
+        free(sProp2TotalCounts);
         sProp2TotalCounts = NULL;
     }
 
     D_8036ABA8 = 0;
 }
 
-n64_bool func_80305C30(s32 arg0){
+bool func_80305C30(s32 arg0){
     if(!((arg0 >= 0) && (arg0 < D_8036ABA8)))
         return FALSE;
     
     return ((sProp1TotalCounts[arg0] != 0)) ? TRUE : FALSE;
 }
 
-n64_bool __code7AF80_pad_func_80305C84(s32 arg0){
+bool __code7AF80_pad_func_80305C84(s32 arg0){
     if(!((arg0 >= 0) && (arg0 < D_8036ABA8)))
         return FALSE;
     
@@ -1409,18 +1439,18 @@ void func_80305CD8(s32 idx, s32 count){
     }
 }
 
-n64_bool func_80305D14(void) {
+bool func_80305D14(void) {
     return BOOL(sProp2TotalCounts != NULL);
 }
 
 void func_80305D38(void){
-    D_8036A9BC = n64_malloc(0);
+    D_8036A9BC = malloc(0);
     D_8036A9B8 = 0;
 
-    D_8036A9C8 = n64_malloc(0);
+    D_8036A9C8 = malloc(0);
     D_8036A9C4 = 0;
 
-    D_8036A9D4 = n64_malloc(0);
+    D_8036A9D4 = malloc(0);
     D_8036A9D0 = 0;
 }
 
@@ -1431,9 +1461,9 @@ void func_80305D94(void){
     if(D_8036A9BC != NULL){
         end_ptr = &D_8036A9BC[D_8036A9B8];
         for(iPtr = D_8036A9BC; iPtr < end_ptr; iPtr++){
-            n64_free(iPtr->unk8);
+            free(iPtr->unk8);
         }
-        n64_free(D_8036A9BC);
+        free(D_8036A9BC);
         D_8036A9BC = NULL;
         D_8036A9B8 = 0;
     }
@@ -1441,9 +1471,9 @@ void func_80305D94(void){
     if(D_8036A9C8 != NULL){
         end_ptr = &D_8036A9C8[D_8036A9C4];
         for(iPtr = D_8036A9C8; iPtr < end_ptr; iPtr++){
-            n64_free(iPtr->unk8);
+            free(iPtr->unk8);
         }
-        n64_free(D_8036A9C8);
+        free(D_8036A9C8);
         D_8036A9C8 = NULL;
         D_8036A9C4 = 0;
     }
@@ -1451,16 +1481,16 @@ void func_80305D94(void){
     if(D_8036A9D4 != NULL){
         end_ptr = &D_8036A9D4[D_8036A9D0];
         for(iPtr = D_8036A9D4; iPtr < end_ptr; iPtr++){
-            n64_free(iPtr->unk8);
+            free(iPtr->unk8);
         }
-        n64_free(D_8036A9D4);
+        free(D_8036A9D4);
         D_8036A9D4 = NULL;
         D_8036A9D0 = 0;
     }
 }
 
 void __code7AF80_concatElementsAndRemoveEmpty(s32 *count, Struct_core2_7AF80_1 **arg1) {
-    n64_bool continue_loop;
+    bool continue_loop;
     Struct_core2_7AF80_2 *b_elem;
     Struct_core2_7AF80_1 *b_list;
     Struct_core2_7AF80_2 *a_elem;
@@ -1481,12 +1511,12 @@ void __code7AF80_concatElementsAndRemoveEmpty(s32 *count, Struct_core2_7AF80_1 *
                                 (a_elem->radius + b_elem->radius) * (a_elem->radius + b_elem->radius)
                             )) {
                                 //concat b_list to end of a_list
-                                a_list->unk8 = (Struct_core2_7AF80_2 *) n64_realloc(a_list->unk8, (a_list->count + b_list->count)*sizeof(Struct_core2_7AF80_2));
-                                n64_memcpy(a_list->unk8 + a_list->count, b_list->unk8, b_list->count * sizeof(Struct_core2_7AF80_2));
+                                a_list->unk8 = (Struct_core2_7AF80_2 *) realloc(a_list->unk8, (a_list->count + b_list->count)*sizeof(Struct_core2_7AF80_2));
+                                memcpy(a_list->unk8 + a_list->count, b_list->unk8, b_list->count * sizeof(Struct_core2_7AF80_2));
                                 a_list->count = (s32) (a_list->count + b_list->count);
                                 
                                 b_list->count = 0;
-                                n64_free(b_list->unk8);
+                                free(b_list->unk8);
                                 b_list->unk8 = NULL;
                                 
                                 b_list = a_list;
@@ -1505,7 +1535,7 @@ void __code7AF80_concatElementsAndRemoveEmpty(s32 *count, Struct_core2_7AF80_1 *
                 for(b_list = a_list + 1; (b_list < *arg1 + *count) && continue_loop; b_list++){
                     if (b_list->count != 0) { //B is not empty
                         //swap A an B
-                        n64_memcpy(a_list, b_list, sizeof(Struct_core2_7AF80_1));
+                        memcpy(a_list, b_list, sizeof(Struct_core2_7AF80_1));
                         b_list->count = 0;
                         b_list->unk8 = NULL;
 
@@ -1519,7 +1549,7 @@ void __code7AF80_concatElementsAndRemoveEmpty(s32 *count, Struct_core2_7AF80_1 *
         for(a_list = *arg1; (a_list < *arg1 + *count) && (a_list->count != 0); a_list++) { }
 
         *count = (a_list - *arg1); //count
-        *arg1 = (Struct_core2_7AF80_1 *)n64_realloc((void *) *arg1, *count * sizeof(Struct_core2_7AF80_1)); //ptr
+        *arg1 = (Struct_core2_7AF80_1 *)realloc((void *) *arg1, *count * sizeof(Struct_core2_7AF80_1)); //ptr
     }
 }
 
@@ -1590,7 +1620,7 @@ Struct_core2_7AF80_1 *func_803064C0(s32 arg0) {
 }
 
 // is within radius?
-n64_bool func_80306534(Struct_core2_7AF80_1 *arg0, s32 arg1, s32 position[3], s32 radius) {
+bool func_80306534(Struct_core2_7AF80_1 *arg0, s32 arg1, s32 position[3], s32 radius) {
     Struct_core2_7AF80_2 *iPtr;
 
     for(iPtr = arg0->unk8; iPtr < &arg0->unk8[arg0->count]; iPtr++){
@@ -1614,7 +1644,7 @@ void func_803065E4(s32 arg0, s32 position[3], s32 radius, s32 arg3, s32 arg4) {
     while(func_803063D8(arg0) != NULL){
         if (func_80306534(D_8036A9C0, arg0, position, radius)) {
             D_8036A9C0->count++;
-            D_8036A9C0->unk8 = n64_realloc(D_8036A9C0->unk8, D_8036A9C0->count * sizeof(Struct_core2_7AF80_2));
+            D_8036A9C0->unk8 = realloc(D_8036A9C0->unk8, D_8036A9C0->count * sizeof(Struct_core2_7AF80_2));
             temp_v1 = &D_8036A9C0->unk8[D_8036A9C0->count - 1];
             temp_v1->position[0] = position[0];
             temp_v1->position[1] = position[1];
@@ -1627,10 +1657,10 @@ void func_803065E4(s32 arg0, s32 position[3], s32 radius, s32 arg3, s32 arg4) {
         }
     }
     D_8036A9B8++;
-    D_8036A9BC = n64_realloc(D_8036A9BC, D_8036A9B8*sizeof(Struct_core2_7AF80_1));
+    D_8036A9BC = realloc(D_8036A9BC, D_8036A9B8*sizeof(Struct_core2_7AF80_1));
     D_8036A9BC[D_8036A9B8-1].count = 1;
     D_8036A9BC[D_8036A9B8-1].unk4 = arg0;
-    D_8036A9BC[D_8036A9B8-1].unk8 = n64_malloc(sizeof(Struct_core2_7AF80_2));
+    D_8036A9BC[D_8036A9B8-1].unk8 = malloc(sizeof(Struct_core2_7AF80_2));
     temp_v1 = (D_8036A9BC + D_8036A9B8-1)->unk8;
     temp_v1->position[0] = position[0];
     temp_v1->position[1] = position[1];
@@ -1659,7 +1689,7 @@ void func_8030688C(s32 arg0, s32 position[3], s32 radius, s32 arg3){
     while(func_8030644C(arg0) != NULL){
         if (func_80306534(D_8036A9CC, arg0, position, radius)) {
             D_8036A9CC->count++;
-            D_8036A9CC->unk8 = n64_realloc(D_8036A9CC->unk8, D_8036A9CC->count * sizeof(Struct_core2_7AF80_2));
+            D_8036A9CC->unk8 = realloc(D_8036A9CC->unk8, D_8036A9CC->count * sizeof(Struct_core2_7AF80_2));
             temp_v1 = &D_8036A9CC->unk8[D_8036A9CC->count - 1];
             temp_v1->position[0] = position[0];
             temp_v1->position[1] = position[1];
@@ -1670,10 +1700,10 @@ void func_8030688C(s32 arg0, s32 position[3], s32 radius, s32 arg3){
         }
     }
     D_8036A9C4++;
-    D_8036A9C8 = n64_realloc(D_8036A9C8, D_8036A9C4*sizeof(Struct_core2_7AF80_1));
+    D_8036A9C8 = realloc(D_8036A9C8, D_8036A9C4*sizeof(Struct_core2_7AF80_1));
     D_8036A9C8[D_8036A9C4-1].count = 1;
     D_8036A9C8[D_8036A9C4-1].unk4 = arg0;
-    D_8036A9C8[D_8036A9C4-1].unk8 = n64_malloc(sizeof(Struct_core2_7AF80_2));
+    D_8036A9C8[D_8036A9C4-1].unk8 = malloc(sizeof(Struct_core2_7AF80_2));
     temp_v1 = (D_8036A9C8 + D_8036A9C4-1)->unk8;
     temp_v1->position[0] = position[0];
     temp_v1->position[1] = position[1];
@@ -1689,7 +1719,7 @@ void func_80306AA8(s32 arg0, s32 position[3], s32 radius){
     while(func_803064C0(arg0) != NULL){
         if (func_80306534(D_8036A9D8, arg0, position, radius)) {
             D_8036A9D8->count++;
-            D_8036A9D8->unk8 = n64_realloc(D_8036A9D8->unk8, D_8036A9D8->count * sizeof(Struct_core2_7AF80_2));
+            D_8036A9D8->unk8 = realloc(D_8036A9D8->unk8, D_8036A9D8->count * sizeof(Struct_core2_7AF80_2));
             temp_v1 = &D_8036A9D8->unk8[D_8036A9D8->count - 1];
             temp_v1->position[0] = position[0];
             temp_v1->position[1] = position[1];
@@ -1700,10 +1730,10 @@ void func_80306AA8(s32 arg0, s32 position[3], s32 radius){
         }
     }
     D_8036A9D0++;
-    D_8036A9D4 = n64_realloc(D_8036A9D4, D_8036A9D0*sizeof(Struct_core2_7AF80_1));
+    D_8036A9D4 = realloc(D_8036A9D4, D_8036A9D0*sizeof(Struct_core2_7AF80_1));
     D_8036A9D4[D_8036A9D0-1].count = 1;
     D_8036A9D4[D_8036A9D0-1].unk4 = arg0;
-    D_8036A9D4[D_8036A9D0-1].unk8 = n64_malloc(sizeof(Struct_core2_7AF80_2));
+    D_8036A9D4[D_8036A9D0-1].unk8 = malloc(sizeof(Struct_core2_7AF80_2));
     temp_v1 = (D_8036A9D4 + D_8036A9D0-1)->unk8;
     temp_v1->position[0] = position[0];
     temp_v1->position[1] = position[1];
@@ -1712,7 +1742,7 @@ void func_80306AA8(s32 arg0, s32 position[3], s32 radius){
     temp_v1->unk10_3 = 0;
 }
 
-n64_bool __code7AF80_pad_func_80306C88(s32 arg0) {
+bool __code7AF80_pad_func_80306C88(s32 arg0) {
     Struct_core2_7AF80_1 *phi_v1;
 
     phi_v1 = D_8036A9BC;
@@ -1725,7 +1755,7 @@ n64_bool __code7AF80_pad_func_80306C88(s32 arg0) {
     return FALSE;
 }
 
-n64_bool __code7AF80_pad_func_80306CE4(s32 arg0) {
+bool __code7AF80_pad_func_80306CE4(s32 arg0) {
     Struct_core2_7AF80_1 *phi_v1;
 
     phi_v1 = D_8036A9C8;
@@ -1743,7 +1773,7 @@ s32 func_80306D40(s32 arg0){
     return phi_v1->unk4;
 }
 
-n64_bool __code7AF80_pad_func_80306D60(s32 arg0) {
+bool __code7AF80_pad_func_80306D60(s32 arg0) {
     Struct_core2_7AF80_1 *phi_v1;
 
     phi_v1 = D_8036A9D4;
@@ -1856,7 +1886,7 @@ s32 func_80307258(f32 arg0[3], s32 arg1, s32 arg2) {
     return -1;
 }
 
-n64_bool func_80307390(s32 arg0, s32 arg1) {
+bool func_80307390(s32 arg0, s32 arg1) {
     return (D_8036A9BC + arg0)->unk8[arg1].unk10_0;
 }
 
@@ -1935,7 +1965,7 @@ s32 func_80307504(f32 arg0[3], s32 arg1, s32 arg2, s32 arg3, s32 arg4) {
     return -1;
 }
 
-n64_bool func_803077FC(f32 arg0[3], s32 *arg1, s32 *arg2, s32 arg3, u32 arg4) {
+bool func_803077FC(f32 arg0[3], s32 *arg1, s32 *arg2, s32 arg3, u32 arg4) {
     s32 sp3C[3];
 
     sp3C[0] = (s32) arg0[0];
@@ -2166,81 +2196,95 @@ Cube *func_80308224(void){
     return D_8036A9DC;
 }
 
-void cubeList_sort(s32 absolute_positon) {
-    Cube *iCube;
-    for(iCube = sCubeList.cubes; iCube < sCubeList.cubes + sCubeList.cubeCnt; iCube++){
-        if (absolute_positon == 0) {
-            cube_sortRelative(iCube); //sort cube props (dist from viewport)
+void cubeList_sort(bool absolute_positon) {
+    Cube *cube;
+    for(cube = sCubeList.cubes; cube < sCubeList.cubes + sCubeList.cubeCnt; cube++) {
+        if (!absolute_positon) {
+            cube_sortRelative(cube); //sort cube props (dist from viewport)
         } else {
-            cube_sortAbsolute(iCube); //sort cube props (dist from origin)
+            cube_sortAbsolute(cube); //sort cube props (dist from origin)
         }
     }
 }
 
-n64_bool func_803082D8(Cube *arg0, s32 *arg1, n64_bool arg2, n64_bool arg3) {
-    Prop *var_v0;
-    n64_bool var_a0;
+/*
+Reads or writes the isNotFeatherEggOrNote flag of the given prop2 ID and advances ID
+Returns the previous flag value
+*/
+bool cube_getOrSetProp2Flag(Cube *this_cube, s32 *prop2_index, bool set_flag, bool value) {
+    // Notes
+    // * set_flag is 'SOME_NUM >= 1'
+    // * value is 'SOME_NUM & 1'
+    Prop *prop;
+    bool old_value;
 
-    var_v0 = arg0->prop2Ptr + *arg1;
-    while ((var_v0->isActorProp == 1) && (*arg1 < arg0->prop2Cnt)) {
-        (*arg1)++;
-        var_v0++;
+    prop = this_cube->prop2Ptr + *prop2_index;
+    while ((prop->isActorProp == 1) && (*prop2_index < this_cube->prop2Cnt)) {
+        (*prop2_index)++;
+        prop++;
     }
 
-    if (*arg1 >= arg0->prop2Cnt) {
-        *arg1 = 0;
+    if (*prop2_index >= this_cube->prop2Cnt) {
+        *prop2_index = 0;
         return FALSE;
     }
-    var_a0 = var_v0->isNotFeatherEggOrNote;
-    (*arg1)++;
-    if (arg2) {
-        var_v0->isNotFeatherEggOrNote = arg3;
+    old_value = prop->isNotFeatherEggOrNote;
+    (*prop2_index)++;
+    if (set_flag) {
+        prop->isNotFeatherEggOrNote = value;
     }
-    return var_a0;
+    return old_value;
 }
 
-s32 func_803083B0(s32 arg0) {
-    s32 var_v0;
-    Cube *var_s0;
-    static s32 D_80382140;
+// Iterates through the whole cube list and gets or sets the isNotFeatherEggOrNote flag of every prop
+// arg0: -2: read flag, -1: init, 0: clear flag, 1: set flag
+// return value: -1: end of props, 0: flag not set, 1: flag set
+s32 cubeList_getOrSetNextProp2Flags(s32 op) {
+    bool flag_value;
+    Cube *cube;
+    static s32 current_prop_id;
+    static Cube *next_cube;
 
-    if (arg0 == -1) {
-        var_s0 = sCubeList.cubes;
-        D_80382140 = 0;
-        D_80382144 = var_s0;
+    if (op == -1) {
+        // Reset counters
+        cube = sCubeList.cubes;
+        current_prop_id = 0;
+        next_cube = cube;
         return 0;
     }
    
-    var_s0 = *(Cube **)&D_80382144;
-    if (D_80382140 < var_s0->prop2Cnt) {
-        if (sCubeList.cubes && sCubeList.cubes && sCubeList.cubes );
-        var_v0 = func_803082D8(var_s0, &D_80382140, arg0 >= 0, arg0 & 1);
-        if (D_80382140 != 0) {
-            return var_v0;
+    cube = *(Cube **)&next_cube;
+
+    if (current_prop_id < cube->prop2Cnt) {
+        flag_value = cube_getOrSetProp2Flag(cube, &current_prop_id, op >= 0, op & 1);
+        if (current_prop_id != 0) {
+            return flag_value;
         }
     }
     
-    D_80382140 = 0;
-    while(D_80382140 == 0) {
-        do{
-            var_s0++;
-            if (var_s0 >= sCubeList.cubes + sCubeList.cubeCnt) {
-                D_80382144 = var_s0;
+    current_prop_id = 0;
+
+    while (current_prop_id == 0) {
+        do {
+            cube++;
+            if (cube >= sCubeList.cubes + sCubeList.cubeCnt) {
+                next_cube = cube;
                 return -1;
             }
-        }while (0 >= var_s0->prop2Cnt);
+        } while (0 >= cube->prop2Cnt);
 
-        var_v0 = func_803082D8(var_s0, &D_80382140, arg0 >= 0, arg0 & 1);
-
+        flag_value = cube_getOrSetProp2Flag(cube, &current_prop_id, op >= 0, op & 1);
     }
-    D_80382144 = var_s0;
-    return var_v0;
+
+    next_cube = cube;
+    
+    return flag_value;
 }
 
 enum actor_e func_803084F0(s32 arg0){
     s32 var_v1;
     switch (arg0) {
-        case 1: var_v1 = ACTOR_1_UNKNOWN; break;
+        case 0x1: var_v1 = ACTOR_1_UNKNOWN; break;
         case 0x2: var_v1 = ACTOR_2_UNKNOWN; break;
         case 0x3: var_v1 = ACTOR_15_UNKNOWN; break;
         case 0x4: var_v1 = ACTOR_76_UNKNOWN; break;
@@ -2360,7 +2404,7 @@ void cubeList_defrag() {
     }
 }
 
-n64_bool __code7AF80_pad_func_803088C8(s32 arg0) {
+bool __code7AF80_pad_func_803088C8(s32 arg0) {
     s32 i;
 
     for(i = 0; D_8036ABAC[i] != -1 && arg0 != D_8036ABAC[i] && arg0 != D_8036ABC0[i]; i++){
@@ -2375,7 +2419,7 @@ void __code7AF80_addCubeIndexToD_80382150(s32 cube_idx){
     D_8036ABD4++;
 }
 
-void __code7AF80_func_80308984(void) {
+static void __code7AF80_func_80308984(void) {
     Cube *iCube;
     s16 temp_s4;
     s32 unk8_range_min;
@@ -2468,13 +2512,13 @@ void func_80308EC8(void){
     }
 }
 
-void __code7AF80_func_80308F0C(Cube *cube) {
+static void __code7AF80_func_80308F0C(Cube *cube) {
     s32 indx;
 
     indx = cube - sCubeList.cubes;
     D_803821E0[indx >> 5] |= 1 << (indx & 0x1F);
 }
 
-n64_bool func_80308F54(s32 cube_index) {
+bool func_80308F54(s32 cube_index) {
     return BOOL(D_803821E0[cube_index >> 5] & (1 << (cube_index & 0x1F)));
 }

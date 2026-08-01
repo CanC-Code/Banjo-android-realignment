@@ -24,7 +24,7 @@ ActorAnimationInfo chMudHutAnimations[4] = {
     {ASSET_4E_ANIM_MUD_HUT_SMASH, 1000000.0f}
 };
 
-enum bundle_e D_80390B50[6] = {
+enum bundle_e chBGSMudHutDrops[6] = {
     BUNDLE_A_BGS_HUT_SHOCKSPRING_PAD,
     BUNDLE_A_BGS_HUT_SHOCKSPRING_PAD,
     BUNDLE_B_BGS_HUT_MUSIC_NOTE,
@@ -33,31 +33,43 @@ enum bundle_e D_80390B50[6] = {
     BUNDLE_C_BGS_HUT_JIGGY
 };
 
-ActorInfo gChMudHut = {MARKER_D5_BGS_MUD_HUT, ACTOR_C_MUD_HUT, ASSET_7D8_MODEL_MM_HUT_TOP, 0x01, chMudHutAnimations,
+ActorInfo gChMudHut = {
+    MARKER_D5_BGS_MUD_HUT, ACTOR_C_MUD_HUT, ASSET_7D8_MODEL_MM_HUT_TOP,
+    0x01, chMudHutAnimations,
     chMudHut_update, actor_update_func_80326224, chMudHut_draw,
     0, 0, 0.0f, 0
 };
 
+enum chBGSMudHutStates {
+    CH_BGS_MUDHUT_STATES_1_IDLE = 1,
+    CH_BGS_MUDHUT_STATES_2_BREAKING,
+    CH_BGS_MUDHUT_STATES_3_BROKEN
+};
+
 /* .code section */
-void func_8038EA30(void){
+#if ANTI_TAMPER
+void chMudHut_makeWadingBootsRunOutInstantly(void){
     if((getGameMode() != GAME_MODE_7_ATTRACT_DEMO) && (1.5 < player_stateTimer_get(STATE_TIMER_2_LONGLEG)) ){
         player_stateTimer_set(STATE_TIMER_2_LONGLEG, 1.5);
     }
 }
+#endif
 
-void func_8038EA90(void){
-    u32 sp1C;
-    osPiReadIo(0xD10, &sp1C);
-    if(sp1C = (u16)(sp1C-0x400)){
-        func_8038EA30();
+void chMudHut_checkBGSChecksums(void){
+#if ANTI_TAMPER
+    u32 rom_data;
+    osPiReadIo(0xD10, &rom_data);
+    if(rom_data = (u16)(rom_data-0x400)){
+        chMudHut_makeWadingBootsRunOutInstantly();
     }
+#endif
 }
 
 Actor *chMudHut_draw(ActorMarker *this, Gfx** gdl, Mtx** mtx, Vtx **vtx){
     Actor *thisActor;
 
     thisActor = marker_getActor(this);
-    func_8033A45C(1, thisActor->state == 1);
+    modelRender_setAppendageVisibility(1, thisActor->state == 1);
     if(thisActor->state == 3)
         return thisActor;
     
@@ -77,16 +89,16 @@ void chMudHut_update(Actor *this){
     
     f32 diffPos[3];
     f32 plyrPos[3];
-    s32 tmp;
+    s32 hut_id;
 
-    if(func_80334904() == 2){
+    if(gsworld_getUnk0() == 2){
         if(!this->initialized){
             this->marker->collidable = FALSE;
             this->initialized = TRUE;
         }
 
         switch(this->state){
-            case 1:
+            case CH_BGS_MUDHUT_STATES_1_IDLE:
                 this->marker->propPtr->unk8_3 = 1;
                 player_getPosition(plyrPos);
                 diffPos[0] = plyrPos[0] - this->position_x;
@@ -94,39 +106,39 @@ void chMudHut_update(Actor *this){
                 diffPos[2] = plyrPos[2] - this->position_z;
                 if( (150.0f < diffPos[1]) 
                     && (player_getActiveHitbox(this->marker) == HITBOX_1_BEAK_BUSTER) 
-                    && (func_8028F20C())
+                    && (player_isStableWithExtraSteps())
                     && (LENGTH_VEC3F(diffPos) < 350.f)
                 ){
-                    tmp = (s32)( (this->position_y - 600.f)/430.0f);
+                    hut_id = (s32)( (this->position_y - 600.f)/430.0f);
                     diffPos[0] = this->position_x;
                     diffPos[1] = this->position_y;
                     diffPos[2] = this->position_z;
                     diffPos[1] += 130.0;
 
                     sfx_playFadeShorthandDefault(SFX_5B_HEAVY_STUFF_FALLING, 1.0f, 28000, this->position, 0x12C, 0xBB8);
-                    subaddie_set_state(this, 2);
+                    subaddie_set_state(this, CH_BGS_MUDHUT_STATES_2_BREAKING);
                     this->marker->propPtr->unk8_3 = 0;
                     actor_playAnimationOnce(this);
-                    if(tmp == 5){
+                    if(hut_id == 5){
                         coMusicPlayer_playMusic(COMUSIC_2D_PUZZLE_SOLVED_FANFARE, 28000);
                     }
                     __spawnQueue_add_1((GenFunction_1)chMudHut_spawnExplosion, reinterpret_cast(s32, this->marker));
 
-                    if (tmp < 5) {
-                        __spawnQueue_add_4((GenFunction_4) spawnQueue_bundle_f32, D_80390B50[tmp], reinterpret_cast(s32, diffPos[0]), reinterpret_cast(s32, diffPos[1]), reinterpret_cast(s32, diffPos[2]));
+                    if (hut_id < 5) {
+                        __spawnQueue_add_4((GenFunction_4) spawnQueue_bundle_f32, chBGSMudHutDrops[hut_id], reinterpret_cast(s32, diffPos[0]), reinterpret_cast(s32, diffPos[1]), reinterpret_cast(s32, diffPos[2]));
                     }
                     else {
                         jiggy_spawn(JIGGY_23_BGS_HUTS, diffPos);
                     }
                 }
                 break;
-            case 2:
+            case CH_BGS_MUDHUT_STATES_2_BREAKING:
                 this->marker->propPtr->unk8_3 = 0;
                 if(0.99 < anctrl_getAnimTimer(this->anctrl)){
-                    this->state = 3;
+                    this->state = CH_BGS_MUDHUT_STATES_3_BROKEN;
                 }
                 break;
-            case 3:
+            case CH_BGS_MUDHUT_STATES_3_BROKEN:
                 this->marker->propPtr->unk8_3 = 0;
                 break;
         }

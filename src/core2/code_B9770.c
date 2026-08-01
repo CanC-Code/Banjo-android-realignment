@@ -3,7 +3,7 @@
 #include "variables.h"
 
 extern void sfxsource_setSampleRate(u8, s32);
-extern n64_bool func_80323240(struct56s *, f32, f32[3]);
+extern bool func_80323240(struct56s *, f32, f32[3]);
 extern f32  func_803234FC(struct56s *, f32, f32);
 extern f32  func_80323540(struct56s *, f32, f32, f32);
 extern f32  func_803237E8(struct56s *);
@@ -178,7 +178,7 @@ f32 func_80340700(f32 value, f32 min, f32 max) {
          : value;
 }
 
-n64_bool func_80340748(s32 arg0, s32 arg1, s32 arg2, f32 arg3[3], s32 arg4, s32 arg5, s32 arg6){
+bool func_80340748(s32 arg0, s32 arg1, s32 arg2, f32 arg3[3], s32 arg4, s32 arg5, s32 arg6){
     return FALSE;
 }
 
@@ -378,10 +378,10 @@ void func_803411B0(void){
     s32 tmp;
 
     D_80371E80 = 0;
-    D_80371E70 = n64_malloc(0);
-    D_80371E74 = n64_malloc(0);
+    D_80371E70 = malloc(0);
+    D_80371E74 = malloc(0);
     D_80371E78 = 0;
-    D_803858A0 = n64_malloc(128 * sizeof(s16));
+    D_803858A0 = malloc(128 * sizeof(s16));
 
     for (spE0 = 0; spE0 < 128; spE0++) {
         D_803858A0[spE0] = 0;
@@ -393,7 +393,7 @@ void func_803411B0(void){
         return;
     }
 
-    spD8 = (Struct_glspline_803411B0 *) n64_malloc(spE4 * sizeof(Struct_glspline_803411B0));
+    spD8 = (Struct_glspline_803411B0 *) malloc(spE4 * sizeof(Struct_glspline_803411B0));
 
     for (spE0 = 0; spE0 < spE4; spE0++) {
         (spD8 + spE0)->unk0 = -1;
@@ -458,12 +458,12 @@ void func_803411B0(void){
             }
 
             tmp = var_s7 * 3;
-            spB4 = (struct56s *) n64_malloc(8 + tmp * sizeof(f32));
+            spB4 = (struct56s *) malloc(8 + tmp * sizeof(f32));
             spA4 = (f32 *) spB4;
             spB4->unk0 = var_s7;
             spB4->unk4 = 0;
 
-            spA8 = (SplineList *) n64_malloc(4 + var_s0 * sizeof(Union_glspline));
+            spA8 = (SplineList *) malloc(4 + var_s0 * sizeof(Union_glspline));
             spA8->unk0 = var_s0;
 
             var_s1_2 = &spA8->spline[0];
@@ -476,7 +476,7 @@ void func_803411B0(void){
                     temp_v0_16 = func_803080C8(a0);
                     temp_v0_16->t1.unk8.pad_bit7 = D_80371E78;
 
-                    n64_memcpy(var_s1_2, temp_v0_16, sizeof(Union_glspline));
+                    memcpy(var_s1_2, temp_v0_16, sizeof(Union_glspline));
 
                     var_s1_2++;
                     var_s2--;
@@ -492,9 +492,9 @@ void func_803411B0(void){
                     var_s1_2 = var_s0_2 + 1;
 
                     if (var_s0_2->common.unk0 > var_s1_2->common.unk0) {
-                        n64_memcpy(&sp80, var_s0_2, sizeof(Union_glspline));
-                        n64_memcpy(var_s0_2, var_s1_2, sizeof(Union_glspline));
-                        n64_memcpy(var_s1_2, &sp80, sizeof(Union_glspline));
+                        memcpy(&sp80, var_s0_2, sizeof(Union_glspline));
+                        memcpy(var_s0_2, var_s1_2, sizeof(Union_glspline));
+                        memcpy(var_s1_2, &sp80, sizeof(Union_glspline));
                         var_s2++;
                     }
                 }
@@ -517,7 +517,7 @@ void func_803411B0(void){
         }
     }
 
-    n64_free(spD8);
+    free(spD8);
 }
 
 //glspline_free
@@ -537,12 +537,12 @@ void func_80341A54(void) {
     }
 
     for(var_s0 = 0; var_s0 < D_80371E78; var_s0++){
-        n64_free(D_80371E70[var_s0]);
-        n64_free(D_80371E74[var_s0]);
+        free(D_80371E70[var_s0]);
+        free(D_80371E74[var_s0]);
     }
-    n64_free(D_80371E70);
-    n64_free(D_80371E74);
-    n64_free(D_803858A0);
+    free(D_80371E70);
+    free(D_80371E74);
+    free(D_803858A0);
     D_80371E70 = NULL;
     D_80371E74 = NULL;
     D_80371E78 = 0;
@@ -560,10 +560,10 @@ s32 func_80341BC8(struct56s *arg0, SplineList * arg1) {
     void *temp_v0_2;
 
     D_80371E78++;
-    D_80371E70 = (struct56s **)n64_realloc(D_80371E70, D_80371E78 * sizeof(struct56s *));
+    D_80371E70 = (struct56s **)realloc(D_80371E70, D_80371E78 * sizeof(struct56s *));
 
     D_80371E70[D_80371E78 - 1] = arg0;
-    D_80371E74 = (SplineList **)n64_realloc(D_80371E74, D_80371E78 * sizeof(SplineList *));
+    D_80371E74 = (SplineList **)realloc(D_80371E74, D_80371E78 * sizeof(SplineList *));
     D_80371E74[D_80371E78 - 1] = arg1;
     return D_80371E78 - 1;
 }
@@ -776,7 +776,7 @@ s32 func_803422D4(Actor *arg0, Union_glspline *arg1, SplineList *arg2){
 
         switch (arg1->t0.unk4.common.bit3) {
             case 1:
-                func_80250530(0, arg1->t0.unk4.common.bit31, 3.0f);
+                musicSlot_stepToChannelMask(0, arg1->t0.unk4.common.bit31, 3.0f);
                 break;
 
             case 2:
@@ -1141,7 +1141,7 @@ s32 func_80343694(Actor *actor, s32 indx, s32 begin, s32 end, s32 count, s32 str
     SplineList *temp_s5;
     Union_glspline *start_ptr;
     Union_glspline *end_ptr;
-    n64_bool var_v1;
+    bool var_v1;
     f32 sp48;
     Union_glspline *i_ptr;
 
@@ -1207,8 +1207,8 @@ s32 func_803438E0(Actor *actor, s32 arg1, s32 arg2, s32 arg3) {
                 actor->unk54 = 0.0f;
             }
         }
-        if ((actor->unk138_3 != 0) && func_802501A0(0, actor->unk138_3 + 0x69, 0)) {
-            func_80250170(0, actor->unk138_3 + 0x69, 0);
+        if ((actor->unk138_3 != 0) && musicSlot_func_802501A0(0, actor->unk138_3 + 0x69, NULL)) {
+            musicSlot_func_80250170(0, actor->unk138_3 + 0x69, 0);
             actor->unk138_3 = 0;
         }
     }
@@ -1310,6 +1310,6 @@ void glspline_defrag(void) {
     }
 }
 
-n64_bool func_80344040(Actor *this){
+bool func_80344040(Actor *this){
     return func_80323240(D_80371E70[this->unk44_14], this->unk48, this->position);
 }

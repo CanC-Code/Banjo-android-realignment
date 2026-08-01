@@ -1,5 +1,3 @@
-// File: Banjo-android-realignment/src/core2/code_B3A80.c
-
 #include <ultra64.h>
 #include "functions.h"
 #include "variables.h"
@@ -17,7 +15,7 @@ f32 D_803709E0[] = {
 s32 assetCacheCurrentSize = 0;
  u8 assetCacheLength = 0; //assetCache_size;
  u8 assetCacheCurrentIndex = 0;
- u8 D_80370A1C = 0;
+ u8 D_80370A1C = FALSE;
 
 
 /* .bss */
@@ -179,7 +177,7 @@ void func_8033B020(void *ptr){
     }
 }
 
-n64_bool func_8033B0D0(void *arg0) {
+bool func_8033B0D0(void *arg0) {
     struct21s *start_ptr;
     struct21s *end_ptr;
     struct21s *iPtr;
@@ -224,19 +222,24 @@ void func_8033B1BC(void){
 }
 
 void func_8033B268(void){
+#if VERSION == VERSION_USA_1_0
     D_80383CE0[0] = (vector(struct21s) *)defrag(D_80383CE0[0]);
     D_80383CE0[1] = (vector(struct21s) *)defrag(D_80383CE0[1]);
+#else
+    D_80383CE0[0] = (vector(struct21s) *)vector_defrag(D_80383CE0[0]);
+    D_80383CE0[1] = (vector(struct21s) *)vector_defrag(D_80383CE0[1]);
+#endif
 }
 
 void func_8033B2A4(s32 arg0) {
-    assetCachePtrList[assetCacheLength] = n64_malloc(arg0);
+    assetCachePtrList[assetCacheLength] = malloc(arg0);
     D_80383CD4[assetCacheLength] = NULL;
     assetCacheDependencyCount[assetCacheLength] = 1;
     assetCacheAssetIdList[assetCacheLength] = -1;
     assetCacheLength += 1;
 }
 
-n64_bool codeB3A80_releaseSprite(BKSprite **sprite_ptr, BKSpriteDisplayData **sprite_gfx_ptr)
+bool codeB3A80_releaseSprite(BKSprite **sprite_ptr, BKSpriteDisplayData **sprite_gfx_ptr)
 {
     BKSprite *sprite;
     if ((*sprite_ptr) == NULL)
@@ -249,7 +252,7 @@ n64_bool codeB3A80_releaseSprite(BKSprite **sprite_ptr, BKSpriteDisplayData **sp
     return TRUE;
 }
 
-n64_bool func_8033B388(BKSprite **sprite_ptr, BKSpriteDisplayData **arg1){
+bool func_8033B388(BKSprite **sprite_ptr, BKSpriteDisplayData **arg1){
     if(*sprite_ptr == NULL)
         return FALSE;
     
@@ -274,7 +277,7 @@ s32 assetcache_release(void * arg0){
         if(assetCacheDependencyCount[i] == 1){
             if(D_80383CD4[i])
                 func_803449DC(D_80383CD4[i]);
-            n64_free(arg0);
+            free(arg0);
             assetCacheLength--;
             assetCacheDependencyCount[i] = assetCacheDependencyCount[assetCacheLength];
             assetCachePtrList[i] = assetCachePtrList[assetCacheLength];
@@ -308,7 +311,7 @@ void func_8033B5FC(void){
 }
 
 void func_8033B61C(void){
-    func_80254008();
+    core1_15B30_sendMesg3ToRenderThread();
     func_8033B1BC();
     func_8033B1BC();
 }
@@ -329,7 +332,7 @@ s32 asset_getSize(s32 arg0){
     return assetSectionRomMetaList[arg0+1].offset - assetSectionRomMetaList[arg0].offset;
 }
 
-n64_bool asset_isCompressed(enum asset_e arg0){ //asset_compressed?
+bool asset_isCompressed(enum asset_e arg0){ //asset_compressed?
     return (assetSectionRomMetaList[arg0].compFlag & 1) !=0;
 }
 
@@ -346,8 +349,8 @@ BKSprite *codeB3A80_getSprite(enum asset_e sprite_id, BKSpriteDisplayData **arg1
     return s0;
 }
 
-void func_8033B788(void ){
-    D_80370A1C = 1;
+void assetcache_func_8033B788(void) {
+    D_80370A1C = TRUE;
 }
 
 void *assetcache_get(enum asset_e assetId) {
@@ -358,10 +361,10 @@ void *assetcache_get(enum asset_e assetId) {
     void *uncompressed_file;//sp34
     u8 sp33; //sp33
     void *compressed_file;//sp2C
-    s32 sp28;//sp28
+    bool sp28;
     
-    sp28 = (s32 )D_80370A1C;
-    D_80370A1C = (u8)0U;
+    sp28 = D_80370A1C;
+    D_80370A1C = FALSE;
     for(i = 0; i < assetCacheLength && assetId != assetCacheAssetIdList[i]; i++);
     assetCacheCurrentIndex = i;
     if(i == 0x96)
@@ -387,27 +390,27 @@ void *assetcache_get(enum asset_e assetId) {
         
         if (func_8025498C((u32)comp_size + uncomp_size) && !sp28) {
             sp33 = 1;
-            uncompressed_file = n64_malloc((u32)comp_size + uncomp_size);
+            uncompressed_file = malloc((u32)comp_size + uncomp_size);
             compressed_file = (void *)((s32) uncompressed_file + uncomp_size);
         } else {
             sp33 = 2;
-            if (sp28 != 0) {
+            if (sp28) {
                 func_80254C98();
             }
-            uncompressed_file = n64_malloc(uncomp_size);
-            compressed_file = n64_malloc(comp_size);
+            uncompressed_file = malloc(uncomp_size);
+            compressed_file = malloc(comp_size);
         }
     } else { //uncompressed
-        uncompressed_file = n64_malloc(comp_size);
+        uncompressed_file = malloc(comp_size);
         compressed_file = uncompressed_file;
     }
     piMgr_read(compressed_file, assetSectionRomMetaList[assetId].offset + D_80383CCC, sp3C);
     if(assetSectionRomMetaList[assetId].compFlag & 0x0001){//decompress
         rarezip_inflate(compressed_file, uncompressed_file);
-        n64_realloc(uncompressed_file, assetCacheCurrentSize);
+        realloc(uncompressed_file, assetCacheCurrentSize);
         osWritebackDCache(uncompressed_file, assetCacheCurrentSize);
         if (sp33 == 2) {
-            n64_free(compressed_file);
+            free(compressed_file);
         }
     }
     assetCacheCurrentIndex = assetCacheLength;
@@ -428,42 +431,21 @@ void assetCache_resizeAsset(void *assetPtr, s32 size){
     s32 i;
 
     for(i = 0; i < assetCacheLength  && assetPtr != assetCachePtrList[i]; i++);
-    assetCachePtrList[i] = n64_realloc(assetPtr, size);
+    assetCachePtrList[i] = realloc(assetPtr, size);
 }
 
-// =======================================================================
-// FIXED: assetCache_init now uses the literal ROM offset 0x5E90 for the
-// assets segment instead of (u32)assets_ROM_START.
-//
-// On the original N64, (u32)assets_ROM_START returns the linker-defined
-// virtual address of the assets_ROM_START symbol (e.g. 0x80105E90), which
-// piMgr_read maps back to the physical ROM offset 0x5E90.
-//
-// On Android, there is no linker script, so (u32)assets_ROM_START returns
-// the host address of a 4-byte int variable — completely wrong. We use
-// the literal ROM offset from decompressed.us.v10.yaml instead.
-//
-// Verified against the splat YAML:
-//   - name: assets
-//     start: 0x5E90
-// =======================================================================
 void assetCache_init(void){
-    D_80370A1C = 0;
+    D_80370A1C = FALSE;
     func_8033B180();
-    assetCachePtrList = (void **)n64_malloc(150*sizeof(void*));
-    D_80383CD4 = n64_malloc(600);
-    assetCacheDependencyCount = (u8*)n64_malloc(150*sizeof(u8));
-    assetCacheAssetIdList = (s16 *)n64_malloc(150*sizeof(s16));
+    assetCachePtrList = (void **)malloc(150*sizeof(void*));
+    D_80383CD4 = malloc(600);
+    assetCacheDependencyCount = (u8*)malloc(150*sizeof(u8));
+    assetCacheAssetIdList = (s16 *)malloc(150*sizeof(s16));
     assetCacheLength = 0;
-    assetSectionRomHeader = (AssetROMHead *)n64_malloc(sizeof(AssetROMHead));
-
-    // FIXED: Use literal ROM offset instead of symbol address.
-    // Original code: D_80383CC8 = (u32)assets_ROM_START;
-    // The assets segment starts at ROM offset 0x5E90 (from decompressed.us.v10.yaml).
-    D_80383CC8 = 0x5E90;  // ROM offset of assets segment
-
+    assetSectionRomHeader = (AssetROMHead *)malloc(sizeof(AssetROMHead));
+    D_80383CC8 = (u32)assets_ROM_START;
     piMgr_read(assetSectionRomHeader, D_80383CC8, sizeof(AssetROMHead));
-    assetSectionRomMetaList = (AssetFileMeta *)n64_malloc(assetSectionRomHeader->count*sizeof(AssetFileMeta));
+    assetSectionRomMetaList = (AssetFileMeta *)malloc(assetSectionRomHeader->count*sizeof(AssetFileMeta));
     piMgr_read(assetSectionRomMetaList, D_80383CC8 + sizeof(AssetROMHead),assetSectionRomHeader->count*sizeof(AssetFileMeta));
     D_80383CCC = D_80383CC8 + sizeof(AssetROMHead) + assetSectionRomHeader->count*sizeof(AssetFileMeta);
 }
@@ -536,7 +518,7 @@ s32 code_B3A80_func_8033BDAC(enum asset_e id, void *dst, s32 size) {
         }
         else if(size >= var_s0) {
             sp2B = 2;
-            comp_ptr = (s32)n64_malloc(comp_ptr);
+            comp_ptr = (s32)malloc(comp_ptr);
         }
         else{
             return 0;
@@ -560,7 +542,7 @@ s32 code_B3A80_func_8033BDAC(enum asset_e id, void *dst, s32 size) {
         rarezip_inflate(comp_ptr, dst);
         osWritebackDCache(dst, assetCacheCurrentSize);
         if (sp2B == 2) {
-            n64_free((void *)comp_ptr);
+            free((void *)comp_ptr);
         }
     }
     return var_s0;

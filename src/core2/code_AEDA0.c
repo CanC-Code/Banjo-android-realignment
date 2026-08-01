@@ -1,12 +1,11 @@
 #include <ultra64.h>
-#include "bka_safe_base.h"
 #include "core1/core1.h"
 #include "functions.h"
 #include "variables.h"
 
 void func_803382D8(s32 arg0);
 void codeAEDA0_setSpriteDrawMode(s32 arg0);
-void spriteRender_set1Primative(n64_bool boolean);
+void spriteRender_set1Primative(bool boolean);
 void func_803382FC(s32 arg0);
 void func_80338308(s32 arg0, s32 arg1);
 BKSpriteTextureBlock *func_8033EFB0(Struct84s *arg0, s32 arg1);
@@ -267,12 +266,12 @@ void spriteRender_drawWithSegment(Gfx **gfx, Vtx **vtx, BKSprite *sprite, u32 fr
         gDPSetTextureLUT((*gfx)++, G_TT_RGBA16);
         palette_mem = ALIGN(frame_ptr + 1, 8);
         gDPLoadTLUT_pal16((*gfx)++, 0, palette_mem);
-        var_t2 = (BKSpriteTextureBlock *)BKA_TRANSLATE_ADDR((palette_mem + 0x20));
+        var_t2 = (BKSpriteTextureBlock *)(palette_mem + 0x20);
     } else if (sprite->type & SPRITE_TYPE_CI8) {
         gDPSetTextureLUT((*gfx)++, G_TT_RGBA16);
         palette_mem = ALIGN(frame_ptr + 1, 8);
         gDPLoadTLUT_pal256((*gfx)++, palette_mem);
-        var_t2 = (BKSpriteTextureBlock *)BKA_TRANSLATE_ADDR((palette_mem + 0x200));
+        var_t2 = (BKSpriteTextureBlock *)(palette_mem + 0x200);
     }
     
 //start new vtx seg
@@ -490,7 +489,7 @@ void codeAEDA0_setSpriteDrawMode(s32 arg0){
     D_80383634 = arg0;
 }
 
-void spriteRender_set1Primative(n64_bool boolean){
+void spriteRender_set1Primative(bool boolean){
     D_80383638 = boolean;
 }
 

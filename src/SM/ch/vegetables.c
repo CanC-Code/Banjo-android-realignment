@@ -47,7 +47,7 @@ ActorInfo gChVegetablesTopperA = {
 };
 
 ActorInfo gChVegetablesTopperB = {
-    MARKER_1E6_TOPPER_THE_CARROT_B, ACTOR_TOPPER_THE_CARROT_B, ASSET_4ED_MODEL_TOPPER,
+    MARKER_1E6_TOPPER_THE_CARROT_B, ACTOR_36F_TOPPER_THE_CARROT_B, ASSET_4ED_MODEL_TOPPER,
     1, sChCarrotAnimations, __chVegetables_update, actor_update_func_80326224, __chVegetables_draw,
     2000, 0, 1.0f, 0
 };
@@ -67,7 +67,7 @@ ActorInfo gChVegetablesBawlA = {
 };
 
 ActorInfo gChVegetablesBawlB = {
-    MARKER_1E7_BAWL_THE_ONION_B, ACTOR_BAWL_THE_ONION_B, ASSET_4EF_MODEL_BAWL,
+    MARKER_1E7_BAWL_THE_ONION_B, ACTOR_36E_BAWL_THE_ONION_B, ASSET_4EF_MODEL_BAWL,
     1, sChOnionAnimations, __chVegetables_update, actor_update_func_80326224, __chVegetables_draw,
     0, 0, 1.0f, 0
 };
@@ -87,7 +87,7 @@ ActorInfo gChVegetablesCollywobbleA = {
 };
 
 ActorInfo gChVegetablesCollywobbleB = {
-    MARKER_1E8_COLLYWOBBLE_THE_CAULIFLOWER_B, ACTOR_COLLYWOBBLE_B, ASSET_4EE_MODEL_COLLYWOBBLE,
+    MARKER_1E8_COLLYWOBBLE_THE_CAULIFLOWER_B, ACTOR_36D_COLLYWOBBLE_B, ASSET_4EE_MODEL_COLLYWOBBLE,
     1, sChCauliflowerAnimations, __chVegetables_update, actor_update_func_80326224, __chVegetables_draw,
     0, 0, 2.0f, 0
 };
@@ -149,22 +149,9 @@ static ParticleSettingsVelocityAccelerationPosition sD_8038AF0C = {
     {{-100.0f, -100.0f, -100.0f}, {100.0f, 100.0f, 100.0f}}, 
 };
 
-
-/* Automated Forward Decls */
-static void __chVegetables_setSpriteDustParticles(ParticleEmitter *emitter, f32 *position, s32 emit_count);
-static void __chVegetables_setParticlesForModel(ParticleEmitter *emitter, f32 *position, s32 emit_count, enum asset_e model_id);
-static void __chVegetables_setParticlesForModel2(ParticleEmitter *emitter, f32 *position, s32 emit_count, enum asset_e model_id);
-static void __chVegetables_setParticlesForHittingEnemyModel(ParticleEmitter *emitter, f32 position[3], s32 emit_count, enum asset_e model_id);
-static void __chVegetables_vegetableDeathParticles(Actor* this);
-static void __chVegetables_vegetableMarkerDeathParticles(ActorMarker* marker, ActorMarker* other_marker);
-static void __chVegetables_moveVegetable(Actor* this);
-static void __chVegetables_elevateAndMoveVegetable(Actor* this);
-static n64_bool __chVegetables_func_80387FA8(Actor* this, sChVegetable* local, s32 yaw, s32 arg3);
-
 /* .code */
 static void __chVegetables_setSpriteDustParticles(ParticleEmitter *emitter, f32 *position, s32 emit_count) {
-    s32 sp24[3];
-    n64_memcpy(sp24, sChVegetablesParticleRGB, 3 * sizeof(s32));
+    s32 sp24[3] = sChVegetablesParticleRGB;
     particleEmitter_setRGB(emitter, sp24);
     particleEmitter_setSprite(emitter, ASSET_700_SPRITE_DUST);
     particleEmitter_setStartingFrameRange(emitter, 0, 7);
@@ -252,9 +239,9 @@ static Actor* __chVegetables_draw(ActorMarker* marker, Gfx **gdl, Mtx **mptr, Vt
     Actor* actor = marker_getActor(marker);
 
     if (actor->has_met_before)
-        func_8033A470(3, 7);
+        modelRender_func_8033A470(3, 7);
     else
-        func_8033A45C(3, 0);
+        modelRender_setAppendageVisibility(3, 0);
 
     return actor_draw(marker, gdl, mptr, arg3);
 }
@@ -288,7 +275,7 @@ static void __chVegetables_elevateAndMoveVegetable(Actor* this) {
 }
 
 // determine some kind of position logic
-static n64_bool __chVegetables_func_80387FA8(Actor* this, sChVegetable* local, s32 yaw, s32 arg3) {
+static bool __chVegetables_func_80387FA8(Actor* this, sChVegetable* local, s32 yaw, s32 arg3) {
     f32 sp24[3];
     f32 sp18[3];
     
@@ -455,7 +442,7 @@ static void __chVegetables_update(Actor* this) {
                 this->velocity_x += sp6C[0]*sp78;
                 this->velocity_y += sp6C[1]*sp78;
                 this->velocity_z += sp6C[2]*sp78;
-                if (gu_sqrtf(this->velocity_z*this->velocity_z + (this->velocity_x*this->velocity_x + this->velocity_y*this->velocity_y)) > 50.0f) {
+                if (sqrtf(this->velocity_z*this->velocity_z + (this->velocity_x*this->velocity_x + this->velocity_y*this->velocity_y)) > 50.0f) {
                     ml_vec3f_set_length(this->velocity, 50.0f);
                 }
                 if (ml_vec3f_distance(this->position, this->unk1C) < 20.0f) {

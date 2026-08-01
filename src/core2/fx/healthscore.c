@@ -136,7 +136,7 @@ void fxhealthscore_draw(enum item_e item_id, struct8s *arg1, Gfx **gfx, Mtx **mt
     viewport_setRenderViewportAndPerspectiveMatrix(gfx, mtx);
 }
 
-n64_bool func_803012B8(f32 arg0, s32 arg1, s32 arg2){
+bool func_803012B8(f32 arg0, s32 arg1, s32 arg2){
     if(arg1 == 0)
         return TRUE;
     

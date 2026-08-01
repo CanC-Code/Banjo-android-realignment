@@ -97,7 +97,7 @@ s16 animCache_getNew(void){
     return indx;
 }
 
-n64_bool animCache_inUse(s16 index){
+bool animCache_inUse(s16 index){
     return (D_80379E20[index].bone_xform) ? 1 : 0; 
 }
 

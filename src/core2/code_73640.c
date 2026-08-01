@@ -2,7 +2,7 @@
 #include "functions.h"
 #include "variables.h"
 
-/* Redirected */ #include <n64_time.h>
+#include "time.h"
 
 #define _73640_MAX(s,t) ((s < t)? t: s)
 #define _73640_MIN(s,t) ((s > t)? t: s)
@@ -182,13 +182,13 @@ void itemPrint_update(void) {
 }
 
 
-void itemPrint_draw(Gfx **gdl, Mtx ** mptr, Vtx **vptr){
+void itemPrint_draw(Gfx **gfx, Mtx **mtx, Vtx **vtx) {
     s32 i;
     if(D_803810B0 && level_get() != LEVEL_D_CUTSCENE){
         for(i = 0; i < 0x2C; i++){
             if(!func_802E4A08() || i < 6){
                 if(func_802FB0D4(D_803692F8[i].unk14)){
-                    D_803692F8[i].unk8(i, D_803692F8[i].unk14, gdl, mptr, vptr);
+                    D_803692F8[i].unk8(i, D_803692F8[i].unk14, gfx, mtx, vtx);
                 }
             }
         }
@@ -204,7 +204,7 @@ void func_802FAC3C(void){
 }
 
 
-void func_802FACA4(enum item_e item_id){
+void code_73640_printItemCount(enum item_e item_id){
     if(func_802FB0D4(D_803692F8[item_id].unk14) == 2 || item_id < 6 || item_id == ITEM_17_AIR ){
         itemPrintValues[item_id] += ((f32)item_getCount(item_id) - itemPrintValues[item_id] )*0.7;
     }
@@ -219,7 +219,7 @@ s32 func_802FAD9C(enum item_e item_id){
     return (func_802FB0D4(D_803692F8[item_id].unk14) == 2);
 }
 
-n64_bool func_802FADD4(enum item_e item_id){
+bool func_802FADD4(enum item_e item_id){
     s32 v0 = func_802FB0D4(D_803692F8[item_id].unk14);
     return (v0 == 2)||(v0 == 1);
 }

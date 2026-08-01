@@ -1,40 +1,11 @@
 #include <ultra64.h>
 #include "functions.h"
 #include "variables.h"
-
-
+#include "actor.h"
 
 extern void func_802DABA0(ParticleEmitter *, f32[3], f32, enum asset_e);
-extern void func_8033A45C(s32, s32);
-extern void func_802DB548(void);
-
-enum ccw_season_e
-{
-    SPRING,
-    SUMMER,
-    AUTUMN,
-    WINTER
-};
-
-typedef struct {
-    f32 unk0;
-    f32 unk4;
-    u8 unk8;
-    u8 unk9;
-    u8 unkA;
-    u8 unkB;
-    u32 yaw:3;
-    u32 unkC_28:1;
-    u32 season:28;
-    s16 unk10;
-    s16 unk12;
-    f32 unk14;
-    u8 pad18[0x18];
-    void (*unk30)(void);
-    void (*unk34)(ActorMarker *, s32);
-    u8 pad38[4];
-    f32 unk3C;
-} ActorLocal_CCW_8050;
+extern void modelRender_setAppendageVisibility(s32, s32);
+extern void humanoidBaddie_ow(void);
 
 void chgrublinhood_update(Actor *this);
 Actor *chgrublinhood_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
@@ -42,16 +13,16 @@ Actor *chgrublinhood_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx);
 /* .data */
 ActorAnimationInfo chGrublinHood_animations[] = {
     {0x000, 0.0f},
-    {0x243, 4.0f},
-    {0x243, 0.7f},
-    {0x245, 0.7f},
-    {0x244, 0.9f},
-    {0x246, 1.6f},
-    {0x243, 1.5f},
-    {0x245, 0.5f},
-    {0x243, 1.5f},
-    {0x243, 1e+06f},
-    {0x243, 1e+06f}
+    {ASSET_243_ANIM_GRUBLIN_HOOD_IDLE_WALK,   4.0f},
+    {ASSET_243_ANIM_GRUBLIN_HOOD_IDLE_WALK,   0.7f},
+    {ASSET_245_ANIM_GRUBLIN_HOOD_CHASE,       0.7f},
+    {ASSET_244_ANIM_GRUBLIN_HOOD_ALERT,       0.9f},
+    {ASSET_246_ANIM_GRUBLIN_HOOD_DIE,         1.6f},
+    {ASSET_243_ANIM_GRUBLIN_HOOD_IDLE_WALK,   1.5f},
+    {ASSET_245_ANIM_GRUBLIN_HOOD_CHASE,       0.5f},
+    {ASSET_243_ANIM_GRUBLIN_HOOD_IDLE_WALK,   1.5f},
+    {ASSET_243_ANIM_GRUBLIN_HOOD_IDLE_WALK, 1e+06f},
+    {ASSET_243_ANIM_GRUBLIN_HOOD_IDLE_WALK, 1e+06f}
 };
 
 ActorInfo chGrublinHood = {
@@ -94,59 +65,59 @@ void __chgrublinhood_die(ActorMarker* marker, s32 arg1) {
 
 Actor *chgrublinhood_draw(ActorMarker *marker, Gfx **gfx, Mtx **mtx, Vtx **vtx){
     Actor *this;
-    ActorLocal_CCW_8050 *local;
+    Humanoid_Baddies_Actor *local;
 
     this = marker_getActor(marker);
-    local = (ActorLocal_CCW_8050 *)&this->local;
-    func_8033A45C(3,  (local->season == SUMMER) ? 1 : 2);
-    func_8033A45C(4,  (local->season == SUMMER) ? 1 : 2);
-    func_8033A45C(5,   (local->season < AUTUMN) ? 1 : 2);
-    func_8033A45C(6,   (local->season < AUTUMN) ? 1 : 2);
-    func_8033A45C(7,   (local->season < AUTUMN) ? 1 : 2);
-    func_8033A45C(8,   (local->season < AUTUMN) ? 1 : 2);
-    func_8033A45C(9,  (local->season == SUMMER) ? 1 : 0);
-    func_8033A45C(10,  (local->season < AUTUMN) ? 0 : (local->season == AUTUMN) ? 1 : 2);
-    func_8033A45C(11,  (local->season < AUTUMN) ? 0 : (local->season == AUTUMN) ? 1 : 2);
-    func_8033A45C(12, (local->season == WINTER) ? 2 : 1);
-    func_8033A45C(13, (local->season == WINTER) ? 1 : 0);
-    func_8033A45C(14,      (this->has_met_before)? FALSE : TRUE);
+    local = (Humanoid_Baddies_Actor *)&this->local;
+    modelRender_setAppendageVisibility(3,  (local->baddieSpecific == CCW_SEASON_1_SUMMER) ? 1 : 2);
+    modelRender_setAppendageVisibility(4,  (local->baddieSpecific == CCW_SEASON_1_SUMMER) ? 1 : 2);
+    modelRender_setAppendageVisibility(5,  (local->baddieSpecific <  CCW_SEASON_2_AUTUMN) ? 1 : 2);
+    modelRender_setAppendageVisibility(6,  (local->baddieSpecific <  CCW_SEASON_2_AUTUMN) ? 1 : 2);
+    modelRender_setAppendageVisibility(7,  (local->baddieSpecific <  CCW_SEASON_2_AUTUMN) ? 1 : 2);
+    modelRender_setAppendageVisibility(8,  (local->baddieSpecific <  CCW_SEASON_2_AUTUMN) ? 1 : 2);
+    modelRender_setAppendageVisibility(9,  (local->baddieSpecific == CCW_SEASON_1_SUMMER) ? 1 : 0);
+    modelRender_setAppendageVisibility(10, (local->baddieSpecific <  CCW_SEASON_2_AUTUMN) ? 0 : (local->baddieSpecific == CCW_SEASON_2_AUTUMN) ? 1 : 2);
+    modelRender_setAppendageVisibility(11, (local->baddieSpecific <  CCW_SEASON_2_AUTUMN) ? 0 : (local->baddieSpecific == CCW_SEASON_2_AUTUMN) ? 1 : 2);
+    modelRender_setAppendageVisibility(12, (local->baddieSpecific == CCW_SEASON_3_WINTER) ? 2 : 1);
+    modelRender_setAppendageVisibility(13, (local->baddieSpecific == CCW_SEASON_3_WINTER) ? 1 : 0);
+    modelRender_setAppendageVisibility(14, (this->has_met_before)? FALSE : TRUE);
     return actor_draw(marker, gfx, mtx, vtx);
 }
 
 void __chgrublinhood_initialize(Actor *this){
-    ActorLocal_CCW_8050 *local = (ActorLocal_CCW_8050 *)&this->local;
+    Humanoid_Baddies_Actor *local = (Humanoid_Baddies_Actor *)&this->local;
 
     local->unk8 = 6;
     local->unk9 = 0xC;
     local->unkA = 0x10;
     local->unkB = 8;
     local->yaw = 1;
-    local->unk10 = 0x29;
-    local->unk12 = 25000;
-    local->unkC_28 = 1;
-    local->unk30 = func_802DB548;
-    local->unk34 = __chgrublinhood_die;
+    local->foundPlayerSfx = SFX_29_GRUBLIN_NYAHAHA;
+    local->foundPlayerSampleRate = 25000;
+    local->unkC_28 = TRUE;
+    local->hitFunction = humanoidBaddie_ow;
+    local->dieFunction = __chgrublinhood_die;
     local->unk0 = 5.0f;
     local->unk4 = 8.0f;
-    local->unk14 = 1.0f;
-    local->unk3C = 1.5f;
+    local->foundPlayerVolume = 1.0f;
+    local->damageVolume = 1.5f;
 }
 
 enum ccw_season_e __get_current_season(Actor *this){
-    switch(gsworld_get_map()){
+    switch(gsworld_getMap()){
         case MAP_43_CCW_SPRING: //// 8038E930
         case MAP_4A_CCW_SPRING_MUMBOS_SKULL:// 8038E930
         case MAP_5B_CCW_SPRING_ZUBBA_HIVE:// 8038E930
         case MAP_5E_CCW_SPRING_NABNUTS_HOUSE:// 8038E930
         case MAP_65_CCW_SPRING_WHIPCRACK_ROOM:// 8038E930
-            return SPRING;
+            return CCW_SEASON_0_SPRING;
 
         case MAP_44_CCW_SUMMER:// 8038E938
         case MAP_4B_CCW_SUMMER_MUMBOS_SKULL:// 8038E938
         case MAP_5A_CCW_SUMMER_ZUBBA_HIVE:// 8038E938
         case MAP_5F_CCW_SUMMER_NABNUTS_HOUSE:// 8038E938
         case MAP_66_CCW_SUMMER_WHIPCRACK_ROOM:// 8038E938
-            return SUMMER;
+            return CCW_SEASON_1_SUMMER;
         
         case MAP_45_CCW_AUTUMN:// 8038E940
         case MAP_4C_CCW_AUTUMN_MUMBOS_SKULL:// 8038E940
@@ -154,7 +125,7 @@ enum ccw_season_e __get_current_season(Actor *this){
         case MAP_60_CCW_AUTUMN_NABNUTS_HOUSE:// 8038E940
         case MAP_63_CCW_AUTUMN_NABNUTS_WATER_SUPPLY:// 8038E940
         case MAP_67_CCW_AUTUMN_WHIPCRACK_ROOM:// 8038E940
-            return AUTUMN;
+            return CCW_SEASON_2_AUTUMN;
         
         case MAP_46_CCW_WINTER:// 8038E948
         case MAP_4D_CCW_WINTER_MUMBOS_SKULL:// 8038E948
@@ -162,28 +133,28 @@ enum ccw_season_e __get_current_season(Actor *this){
         case MAP_62_CCW_WINTER_HONEYCOMB_ROOM:// 8038E948
         case MAP_64_CCW_WINTER_NABNUTS_WATER_SUPPLY:// 8038E948
         case MAP_68_CCW_WINTER_WHIPCRACK_ROOM:// 8038E948
-            return WINTER;
+            return CCW_SEASON_3_WINTER;
         
         default:
-            return SPRING;
-        
+            return CCW_SEASON_0_SPRING;
     }
 }
 
 void chgrublinhood_update(Actor *this) {
-    ActorLocal_CCW_8050 *local;
+    Humanoid_Baddies_Actor *local;
     f32 temp_a0;
     
-    local = (ActorLocal_CCW_8050 *)&this->local;
+    local = (Humanoid_Baddies_Actor *)&this->local;
 
     if (!this->volatile_initialized) {
         __chgrublinhood_initialize(this);
-        local->season = __get_current_season(this);
+        local->baddieSpecific = __get_current_season(this);
     }
 
-    if(local->season < 4){
-        func_802DB5A0(this);
-        if (this->state == 5) {
+    // This should always be true?
+    if(local->baddieSpecific < 4){
+        humanoidBaddie_update(this);
+        if (this->state == CHHUMANOIDBADDIE_STATE_5_DIE) {
             if (actor_animationIsAt(this, 0.18f)) {
                 sfx_playFadeShorthandDefault(SFX_2_CLAW_SWIPE, 1.0f, 28000, this->position, 1250, 2500);
             }

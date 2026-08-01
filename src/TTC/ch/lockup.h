@@ -1,14 +1,3 @@
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-#include <n64_types.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 #define LOCKUP_WITH_JIGGY_ID 0xA
 
 #define LOCKUP_CYCLE_TICKS_SLOW 0x1E
@@ -31,8 +20,3 @@ enum ch_lockup_states_e {
     CH_LOCKUP_STATE_CLOSING  = 4,
     CH_LOCKUP_STATE_CLOSING2 = 5
 };
-
-
-#ifdef __cplusplus
-}
-#endif

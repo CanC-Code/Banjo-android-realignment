@@ -5,11 +5,7 @@
 f32 D_8037C680; //roll
 f32 D_8037C684; //roll_ideal
 f32 D_8037C688; //roll_angular_velocity_limit
-f32 D_8037C68C; 
-/* Automated Forward Decls */
-static void __roll_update(f32 limit, f32 step_percent);
-
-//roll_ideal
+f32 D_8037C68C; //roll_ideal
 
 static void __roll_update(f32 limit, f32 step_percent){
         f32 diff;

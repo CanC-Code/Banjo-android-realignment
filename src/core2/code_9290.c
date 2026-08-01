@@ -22,7 +22,7 @@ void func_8029026C(s32 arg0, s32 arg1){
     func_80303F6C(arg0, arg1);
 }
 
-void func_8029028C(n64_bool arg0){
+void func_8029028C(bool arg0){
     D_8037C02C = arg0;
 }
 
@@ -30,7 +30,7 @@ void func_80290298(void) {
     s32 sp24;
     s32 sp30;
     s32 pad2C;
-    n64_bool is_pumpkin;
+    bool is_pumpkin;
 
     is_pumpkin = player_getTransformation() == TRANSFORM_3_PUMPKIN;
     sp30 = (func_8028B528() && !is_pumpkin) ? 6 : 1;

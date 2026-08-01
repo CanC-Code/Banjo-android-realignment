@@ -160,7 +160,7 @@ void gcparade_8031ABA0(void) {
 void gcparade_8031ABF8(void) {
     D_803830F0.unk8 = gameSelect_getGameNumber();
     func_8030AFD8(1);
-    mapSavestate_free_all();
+    mapSavestate_clearAll();
     levelSpecificFlags_clear();
     func_80347A7C();
     debugScoreStates();
@@ -280,7 +280,7 @@ void gcparade_print(s32 index){
 void gcparade_update(void) {
     s32 sp34;
 
-    if ((gsworld_get_map() == MAP_96_CS_END_BEACH_1) && mapSpecificFlags_get(4)) {
+    if ((gsworld_getMap() == MAP_96_CS_END_BEACH_1) && mapSpecificFlags_get(4)) {
         mapSpecificFlags_set(4, FALSE);
         gcparade_beginFinalParade();
         return;
@@ -290,7 +290,7 @@ void gcparade_update(void) {
         switch (D_803830F0.state) {
             case PARADE_STATE_3_WARP:
                 if (D_803830F0.unk5 == 0) {
-                    if (gsworld_get_map() == D_803830F0.parade_element->map) {
+                    if (gsworld_getMap() == D_803830F0.parade_element->map) {
                         if (D_803830F0.parade_id == 0) {
                             sp34 = 0xA0;
                             if (D_803830F0.parade_element->exit >= 0) 

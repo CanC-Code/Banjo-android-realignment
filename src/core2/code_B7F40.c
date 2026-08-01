@@ -28,13 +28,13 @@ void dummy_func_8033EF18(s32 arg0, s32 arg1){
 
 void unallocUnusedBlock(void){
     if(gUnusedBlock){
-        n64_free(gUnusedBlock);
+        free(gUnusedBlock);
     }
     gUnusedBlock = NULL;
 }
 
 void allocUnusedBlock(void){
-    gUnusedBlock = n64_malloc(80);
+    gUnusedBlock = malloc(80);
 }
 
 void dummy_func_8033EF7C(s32 arg0){

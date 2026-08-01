@@ -8,24 +8,24 @@
 u8* quizQuestionAskedBitfield;
 
 /* .code */
-n64_bool quizQuestionAskedBitfield_get(s32 index){
+bool quizQuestionAskedBitfield_get(s32 index){
     return bitfieldarray_getBit(quizQuestionAskedBitfield, index);
 }
 
 void quizQuestionAskedBitfield_free(void){
-    n64_free(quizQuestionAskedBitfield);
+    free(quizQuestionAskedBitfield);
     quizQuestionAskedBitfield = NULL;
 }
 
 void quizQuestionAskedBitfield_init(void){
     int i;
-    quizQuestionAskedBitfield =(u8*) n64_malloc(FF_QUESTION_ASKED_BITFIELD_SIZE);
+    quizQuestionAskedBitfield =(u8*) malloc(FF_QUESTION_ASKED_BITFIELD_SIZE);
     for(i = 0; i < FF_QUESTION_ASKED_BITFIELD_SIZE; i++){
         quizQuestionAskedBitfield[i] = 0;
     }
 }
 
-void quizQuestionAskedBitfield_set(s32 index, n64_bool value){
+void quizQuestionAskedBitfield_set(s32 index, bool value){
     bitfieldarray_setBit(quizQuestionAskedBitfield, index, value);
 }
 

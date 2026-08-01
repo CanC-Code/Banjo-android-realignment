@@ -1,6 +1,5 @@
 #include "core2/statetimer.h"
-#include <n64_types.h>
-/* Redirected */ #include <n64_time.h>
+#include "time.h"
 
 typedef struct{
     f32 now;
@@ -19,15 +18,15 @@ f32 stateTimer_getPrevious(enum state_timer_e timer_id){
     return stateTimerList[timer_id].previous;
 }
 
-n64_bool stateTimer_isActive(enum state_timer_e timer_id){
+bool stateTimer_isActive(enum state_timer_e timer_id){
     return stateTimerList[timer_id].now != 0.0f;
 }
 
-n64_bool stateTimer_isDone(enum state_timer_e timer_id){
+bool stateTimer_isDone(enum state_timer_e timer_id){
     return stateTimerList[timer_id].now == 0.0f;
 }
 
-n64_bool stateTimer_isAt(enum state_timer_e timer_id, f32 value){
+bool stateTimer_isAt(enum state_timer_e timer_id, f32 value){
     return (stateTimerList[timer_id].now < value) && (value <= stateTimerList[timer_id].previous);
 }
 

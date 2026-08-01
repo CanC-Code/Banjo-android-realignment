@@ -44,9 +44,9 @@ extern Struct_core2_C4320_0 D_80371F44[] = {
 extern Struct_core2_C4320_0 D_80371F70 = {MAP_41_FP_BOGGYS_IGLOO, 6, 0x5D, 7, 8, 3};
 
 extern Struct_core2_C4320_0 D_80371F78[] ={
-    {MAP_7_TTC_TREASURE_TROVE_COVE, 0, 0x5F, 6, 9, 9},
-    {MAP_27_FP_FREEZEEZY_PEAK,      0, 0x5F, 9, 9, 9},
-    {MAP_12_GV_GOBIS_VALLEY,        0, 0x5F, 9, 5, 9}
+    {MAP_7_TTC_TREASURE_TROVE_COVE, 0, VER_SELECT(0x5F, 0x5E, 0, 0), 6, 9, 9},
+    {MAP_27_FP_FREEZEEZY_PEAK,      0, VER_SELECT(0x5F, 0x5E, 0, 0), 9, 9, 9},
+    {MAP_12_GV_GOBIS_VALLEY,        0, VER_SELECT(0x5F, 0x5E, 0, 0), 9, 5, 9}
 };
 
 extern s32 D_80371F8C = 0xA; //attract demo count
@@ -73,7 +73,7 @@ s32 D_80386110;                   //current attract demo index
 Struct_core2_C4320_0 *D_80386114; //current attract demo ptr
 s32 D_80386118;
 s32 D_8038611C;
-n64_bool D_80386120;
+bool D_80386120;
 s32 D_80386124; //stored_gameFile_index
 f32 D_80386128;
 
@@ -257,7 +257,7 @@ void func_8034BA20(void) {
     func_802E412C(1, 5);
     func_802E40A8(MAP_97_CS_END_BEACH_2, 0);
     func_802E40C4(1);
-    if (func_8025AD7C(5)) {
+    if (comusic_isTrackQueued(5)) {
         func_8025A7DC(5);
     }
     D_80386110 = 0;
@@ -281,14 +281,14 @@ s32 func_8034BAFC(void){
     return D_80386124;
 }
 
-void func_8034BB08(n64_bool arg0) {
+void func_8034BB08(bool arg0) {
     D_80386120 = arg0;
     func_802E412C(1, 3);
-    func_802E40A8(MAP_8C_SM_BANJOS_HOUSE, 2);
+    func_802E40A8(MAP_8C_SM_BANJOS_HOUSE, WARP_SM_BANJOS_HOUSE_2_BOTTLES);
     func_802E40C4(1);
 }
 
-n64_bool func_8034BB48(void) {
+bool func_8034BB48(void) {
     if (D_80386120 && gctransition_done()) {
         D_80386120 = FALSE;
         return TRUE;

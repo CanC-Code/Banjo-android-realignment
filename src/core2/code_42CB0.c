@@ -12,13 +12,15 @@ typedef struct{
 void chHoneycomb_update(Actor *this);
 
 /* .data */
-ActorInfo D_80366C80 = { MARKER_53_EMPTY_HONEYCOMB, ACTOR_47_EMPTY_HONEYCOMB, ASSET_361_MODEL_EMPTY_HONEYCOMB, 
+ActorInfo chEmptyHoneycomb = {
+    MARKER_53_EMPTY_HONEYCOMB, ACTOR_47_EMPTY_HONEYCOMB, ASSET_361_MODEL_EMPTY_HONEYCOMB, 
     0, NULL, 
     chHoneycomb_update, actor_update_func_80326224, actor_draw, 
     0, 0, 0.8f, 0
 };
 
-ActorInfo D_80366CA4 = { MARKER_55_HONEYCOMB, ACTOR_50_HONEYCOMB, ASSET_363_MODEL_HONEYCOMB, 
+ActorInfo chHoneycomb = {
+    MARKER_55_HONEYCOMB, ACTOR_50_HONEYCOMB, ASSET_363_MODEL_HONEYCOMB, 
     0, NULL, 
     chHoneycomb_update, actor_update_func_80326224, actor_draw, 
     0, 0, 0.8f, 0
@@ -36,7 +38,7 @@ enum honeycomb_e func_802C9C40(Actor *this){
     s32 tmp_a0;
     s32 sp18[3];
 
-    if(gsworld_get_map() == MAP_2_MM_MUMBOS_MOUNTAIN){
+    if(gsworld_getMap() == MAP_2_MM_MUMBOS_MOUNTAIN){
         if (2500.0f < this->position_y) 
             return HONEYCOMB_2_MM_JUJU;
         else
@@ -134,7 +136,7 @@ void chHoneycomb_update(Actor *this){
         }
     }//L802CA098
 
-    if(gsworld_get_map() == MAP_27_FP_FREEZEEZY_PEAK){
+    if(gsworld_getMap() == MAP_27_FP_FREEZEEZY_PEAK){
         if(maSlalom_isActive()){
             this->unk58_0 = FALSE;
             actor_collisionOff(this);

@@ -1,14 +1,3 @@
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-#include <n64_types.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 #define ORANGE_PARTICLE_COUNT 30
 #define CONGA_WARN_DISTANCE 0x28
 #define ORANGE_PAD_HIT_LIFETIME 255.0
@@ -22,8 +11,3 @@ enum orange_pad_ids {
     ORANGE_PAD_LEFT = 0x76,
     ORANGE_PAD_RIGHT = 0x106
 };
-
-
-#ifdef __cplusplus
-}
-#endif

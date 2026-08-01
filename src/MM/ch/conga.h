@@ -1,14 +1,3 @@
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-#ifdef __cplusplus
-}
-#endif
-#include <n64_types.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
 enum conga_state_s {
     CONGA_STATE_IDLE                = 1,
     CONGA_STATE_HIT                 = 2,
@@ -19,8 +8,3 @@ enum conga_state_s {
     CONGA_STATE_TARGET_BANJO        = 7, // Targeting Banjo when he's at eye level
     CONGA_STATE_ROAR                = 8  // When Conga is defeated
 };
-
-
-#ifdef __cplusplus
-}
-#endif
