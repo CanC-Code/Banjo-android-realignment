@@ -347,3 +347,11 @@ int func_80322914(void) { return 0; }
 void func_8025A430(int a, int b, int c) { (void)a; (void)b; (void)c; }
 void func_8025A2B0(void) {}
 int controller_getStartButton(int a) { (void)a; return 0; }
+void func_802E4214(enum map_e map_id){
+    // STUB: Skip world initialisation during early boot.
+    // The original function initialises the game world, which triggers
+    // many memory allocations and hardware accesses that are not yet
+    // supported.  Skipping this allows the main loop to start and
+    // `game_draw(0)` to be called without crashing.
+    // This stub will be removed once all subsystems are properly ported.
+}
