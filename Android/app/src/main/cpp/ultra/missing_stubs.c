@@ -347,6 +347,42 @@ int func_80322914(void) { return 0; }
 void func_8025A430(int a, int b, int c) { (void)a; (void)b; (void)c; }
 void func_8025A2B0(void) {}
 int controller_getStartButton(int a) { (void)a; return 0; }
+
+// -----------------------------------------------------------------------
+// game_setMode and func_802E4424 stubs
+// -----------------------------------------------------------------------
+void func_80334E1C(int a, int b) { (void)a; (void)b; }
+void func_80323140(int a, int b) { (void)a; (void)b; }
+void func_8032278C(void) {}
+int func_8032190C(void) { return 0; }
+int func_8034BDA4(int a, int b) { (void)a; (void)b; return 0; }
+void func_80346CA8(void) {}
+void func_8030C1A0(void) {}
+void func_8030C204(void) {}
+void gcpausemenu_init(void) {}
+void gcpausemenu_free(void) {}
+int gcpausemenu_80314B00(void) { return 1; }
+int gcPauseMenu_update(void) { return 0; }
+int cutscenetrigger_update(void) { return 0; }
+int gctransition_8030BDC0(void) { return 0; }
+int gctransition_done(void) { return 1; }
+void gctransition_8030BEA4(int a) { (void)a; }
+void gctransition_8030BD4C(void) {}
+void gctransition_8030BE60(void) {}
+void gctransition_update(void) {}
+void gctransition_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
+int func_8028F070(void) { return 1; }
+int func_8028EC04(void) { return 0; }
+int player_isDead(void) { return 0; }
+void jiggylist_map_actors(void) {}
+void func_802FA508(void) {}
+void mapSavestate_apply(int a) { (void)a; }
+void mapSavestate_save(int a) { (void)a; }
+int gsworld_get_map(void) { return 0; }
+
+// -----------------------------------------------------------------------
+// func_802E4214 fallback stub (real implementation is in code_5C870.c)
+// -----------------------------------------------------------------------
 void func_802E4214(int map_id){
     // STUB: Skip world initialisation during early boot.
     // The original function initialises the game world, which triggers
