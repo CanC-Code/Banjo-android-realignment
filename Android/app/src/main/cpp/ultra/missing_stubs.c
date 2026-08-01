@@ -374,6 +374,12 @@ void func_802E4214(s32 map_id) {
     timedFuncQueue_init();
     func_802F9CD8();
     func_8031B62C();
+// Stubs for print/font init to avoid null asset crashes
+void print_init(void) {}
+void print_getLettersFromFont(void* arg0, void* arg1) {}
+void func_802E5F38(void) {}
+void func_802E5F10(void) {}
+
     // print_init() is no longer stubbed — the real implementation runs
     if (!func_802E4A08()) print_init();
     // func_802E5F38() is no longer stubbed — initializes the print buffer
@@ -494,8 +500,3 @@ void gsworld_setEnableUpdate(int value) { sEnableUpdate = value; }
 void gsworld_setEnableDraw(int value)   { sEnableDraw = value; }
 int gsworld_getEnableUpdate(void)       { return sEnableUpdate; }
 int gsworld_getEnableDraw(void)         { return sEnableDraw; }
-// Temporary: bypass font/print init to avoid crashes from missing assets
-void print_init(void) {}
-void print_getLettersFromFont(void* arg0, void* arg1) {}
-void func_802E5F38(void) {}
-void func_802E5F10(void) {}
