@@ -15,3 +15,8 @@
 #define BGS_SPECIFIC_FLAG_MAZE_JIGGY                       BGS_SPECIFIC_FLAG_D_MAZE_JIGGY
 
 #endif // ENUM_COMPAT_H
+
+// Actor name aliases — Android source files use descriptive names
+// that differ from the original decomp's numbered names
+#define ACTOR_298_ZUBBA_DOOR    ACTOR_29C_ZUBBA_DOCILE
+#define ACTOR_29A_ZUBBA_DOOR    ACTOR_29C_ZUBBA_DOCILE
