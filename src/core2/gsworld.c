@@ -406,3 +406,7 @@ void gsworld_load(enum map_e map_id) {
 }
 
 void func_8033520C(s32 arg0) { }
+
+enum map_e gsworld_getMap(void) {
+    return D_8037E8E0.map;
+}
