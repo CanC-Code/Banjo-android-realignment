@@ -151,21 +151,24 @@ extern "C" {
 
         glBindTexture(GL_TEXTURE_2D, hostTextureId);
 
-        static uint32_t* s_convBuffer = nullptr;
-        static size_t    s_convBufferSize = 0;
+        // Allocate conversion buffer as uint8_t to avoid any word-packing
+        // endianness issues. GL_RGBA with GL_UNSIGNED_BYTE expects bytes
+        // in R,G,B,A order in memory.
+        static uint8_t* s_convBuffer = nullptr;
+        static size_t   s_convBufferSize = 0;
         size_t neededSize = (size_t)fbWidth * fbHeight * 4;
         if (!s_convBuffer || s_convBufferSize < neededSize) {
             free(s_convBuffer);
-            s_convBuffer = (uint32_t*)malloc(neededSize);
+            s_convBuffer = (uint8_t*)malloc(neededSize);
             s_convBufferSize = neededSize;
         }
 
         if (s_convBuffer) {
             uint16_t* src = (uint16_t*)fbBase;
-            uint32_t* dst = s_convBuffer;
+            uint8_t*  dst = s_convBuffer;
             for (s32 y = 0; y < fbHeight; y++) {
                 for (s32 x = 0; x < fbWidth; x++) {
-                    // FIXED: N64 stores RGB565 big-endian. ARM is little-endian.
+                    // N64 stores RGB565 big-endian. ARM is little-endian.
                     // The uint16_t read gives byte-swapped value, so swap back
                     // before unpacking the N64 bit layout:
                     //   bits 15-11 = Red, bits 10-6 = Green, bits 5-1 = Blue, bit 0 = Alpha
@@ -173,14 +176,15 @@ extern "C" {
                     uint8_t r = (uint8_t)(((pixel >> 11) & 0x1F) << 3);
                     uint8_t g = (uint8_t)(((pixel >> 6)  & 0x1F) << 3);
                     uint8_t b = (uint8_t)(((pixel >> 1)  & 0x1F) << 3);
-                    // FIXED: Force alpha to 0xFF (opaque). The original code used
-                    // (pixel & 1) ? 0xFF : 0x00 which makes every pixel with LSB=0
-                    // fully transparent. Banjo-Kazooie typically keeps bit 0 low,
-                    // which would make the entire screen invisible.
                     uint8_t a = 0xFF;
-                    // GL_RGBA expects components in big-endian order within the word:
-                    // bits 31-24 = R, bits 23-16 = G, bits 15-8 = B, bits 7-0 = A
-                    *dst++ = (r << 24) | (g << 16) | (b << 8) | a;
+
+                    // Write bytes in explicit R,G,B,A order.
+                    // GL_RGBA + GL_UNSIGNED_BYTE reads them in this order
+                    // regardless of host endianness.
+                    *dst++ = r;
+                    *dst++ = g;
+                    *dst++ = b;
+                    *dst++ = a;
                 }
             }
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, fbWidth, fbHeight, 0,
