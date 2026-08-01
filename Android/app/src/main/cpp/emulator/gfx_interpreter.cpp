@@ -28,9 +28,13 @@ typedef struct {
 #define FB_WIDTH  292
 #define FB_HEIGHT 216
 
-extern uint16_t gFramebuffers[2][FB_WIDTH * FB_HEIGHT];
-extern int getActiveFramebuffer(void);
-extern uint8_t* gN64_RDRAM;
+// These symbols are defined in C files (lowlevel_bridge.cpp and vimgr.c)
+// and need extern "C" linkage when accessed from C++.
+extern "C" {
+    uint16_t gFramebuffers[2][FB_WIDTH * FB_HEIGHT];
+    int getActiveFramebuffer(void);
+    uint8_t* gN64_RDRAM;
+}
 
 // =======================================================================
 // RDP State
@@ -431,7 +435,6 @@ void RSP_ProcessGfxTask(OSTask* tp) {
                  cmdCount - remaining, opcode, c.w0, c.w1);
         }
         
-        // Use raw hex opcode values to avoid conflicts with gbi.h macros
         switch (opcode) {
             case 0xC0: // G_NOOP
             case 0xE8: // G_RDPTILESYNC
