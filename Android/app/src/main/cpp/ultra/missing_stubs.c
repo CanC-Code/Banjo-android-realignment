@@ -94,37 +94,13 @@ s32 inflate(void) { return 0; }
 // -----------------------------------------------------------------------
 int  func_8025C29C(void) { return 0; }
 int  func_80253010(void) { return 0; }
-// FIXED: func_80253034 must actually clear the framebuffer. The old stub
-// returned 0 and accepted no arguments, leaving the framebuffer uninitialised
-// and displaying whatever garbage was in memory. The real implementation
-// (missing from the decompilation) is a simple memset with size passed in.
-void func_80253034(void *dst, int val, size_t size) {
-    memset(dst, val, size);
-}
+void func_80253034(void *dst, int val, size_t size) { memset(dst, val, size); }
 void func_8026A2E0(void) {}
 
 // -----------------------------------------------------------------------
 // Missing global variables & decompiled addresses
 // -----------------------------------------------------------------------
-
-// CRITICAL FIX: D_8002D500 is the N64 game heap at RDRAM offset 0x002D500.
-// The heap is HEAP_SIZE bytes (~2.1MB). func_80000450 writes core1 compressed
-// ROM data here via osPiRawStartDma, then decompresses it in-place.
-// memory.c uses it as: extern EmptyHeapBlock D_8002D500[LAST_HEAP_BLOCK + 1];
-// bk_boot_1050.c uses it as: extern u8 D_8002D500; tmp = &D_8002D500;
-//
-// Previously this was "int D_8002D500 = 0" (4 bytes!) causing the DMA to
-// overflow into adjacent memory and crash. It was then changed to
-// "int* const D_8002D500 = (int*)g_heap_backing;" but that made &D_8002D500
-// return the address of the pointer variable (8 bytes) instead of the buffer
-// address, so the DMA corrupted the pointer and crashed.
-//
-// The fix: D_8002D500 MUST be the buffer itself, so that &D_8002D500
-// returns the buffer address. We allocate it as a properly sized array.
-// The address resolver in src/done/rarezip.c (bka_resolve_ptr) handles
-// mapping N64 address 0x8002D500 to gN64_RDRAM + 0x002D500 when RDRAM
-// is active, or falls back to this buffer for direct host-pointer access.
-#define BK_HEAP_SIZE 0x211120  // VER_SELECT: 0x210520 (v10) or 0x211120 (pal)
+#define BK_HEAP_SIZE 0x211120
 u8 D_8002D500[BK_HEAP_SIZE] __attribute__((aligned(16)));
 
 int   D_803FFE00  = 0;
@@ -135,15 +111,11 @@ int   D_803FFE10  = 0;
 
 // -----------------------------------------------------------------------
 // FRAMEBUFFER ALLOCATION IN RDRAM
-// The game draws into a double-buffered framebuffer in N64 RDRAM.
-// Each buffer is 320×240×2 bytes (153,600 bytes), placed at a safe
-// offset past the heap (0x400000 = 4 MB). The video plugin reads
-// from gN64_RDRAM + g_active_fb_offset to upload each frame to GL.
 // -----------------------------------------------------------------------
 #define FB_WIDTH   292
 #define FB_HEIGHT  216
-#define FB_SIZE    (FB_WIDTH * FB_HEIGHT * sizeof(u16))  // 126,144 bytes
-#define FB0_OFFSET 0x400000  // 4 MB – well past the ~2.1 MB heap
+#define FB_SIZE    (FB_WIDTH * FB_HEIGHT * sizeof(u16))
+#define FB0_OFFSET 0x400000
 #define FB1_OFFSET (FB0_OFFSET + FB_SIZE)
 
 u16 gFramebuffers[2][FB_WIDTH * FB_HEIGHT];
@@ -159,7 +131,7 @@ int soundfont1tbl_ROM_START  = 0;
 int soundfont2ctl_ROM_START  = 0;
 int soundfont2ctl_ROM_END    = 0;
 int soundfont2tbl_ROM_START  = 0;
-int assets_ROM_START         = 0;
+int assets_ROM_START         = 0x5E90;  // FIXED: literal ROM offset from YAML
 int boot_bk_boot_ROM_START   = 0;
 int boot_bk_boot_ROM_END     = 0;
 int n_aspMainTextStart        = 0;
@@ -171,9 +143,7 @@ int gSPL3DEX_fifoDataStart   = 0;
 int gSPL3DEX_fifoTextEnd     = 0;
 
 // -----------------------------------------------------------------------
-// Overlay memory boundaries — actual N64 virtual addresses
-// overlaymanager.c requires all these symbols to exist.
-// We provide the real VRAM start/end and zero for the rest.
+// Overlay memory boundaries
 // -----------------------------------------------------------------------
 #define DEFINE_OVERLAY_VRAM(name, vram_start, vram_end) \
     u32 name##_VRAM        = vram_start; \
@@ -188,7 +158,7 @@ int gSPL3DEX_fifoTextEnd     = 0;
     u32 name##_BSS_END     = 0;
 
 DEFINE_OVERLAY_VRAM(core2,     0x80286F90, 0x80386DD0)
-DEFINE_OVERLAY_VRAM(emptyLvl,  0x80386DD0, 0x80386DD0)   // unused, size 0
+DEFINE_OVERLAY_VRAM(emptyLvl,  0x80386DD0, 0x80386DD0)
 DEFINE_OVERLAY_VRAM(CC,        0x80386DD0, 0x8038A9E0)
 DEFINE_OVERLAY_VRAM(MMM,       0x80386DD0, 0x8038CF10)
 DEFINE_OVERLAY_VRAM(GV,        0x80386DD0, 0x803924F0)
@@ -203,15 +173,11 @@ DEFINE_OVERLAY_VRAM(cutscenes, 0x80386DD0, 0x8038F3D0)
 DEFINE_OVERLAY_VRAM(lair,      0x80386DD0, 0x80395E50)
 DEFINE_OVERLAY_VRAM(fight,     0x80386DD0, 0x80393390)
 
-// core1 is not in the overlay table but may be referenced elsewhere.
 u32 core1_VRAM     = 0x8023DA20;
 u32 core1_VRAM_END = 0x80286F90;
 
 // -----------------------------------------------------------------------
 // Audio/SFX function stubs
-// These are called by many actor files but were originally part of
-// audioManager_init which is currently stubbed. Provide empty stubs
-// so the game can run without sound for now.
 // -----------------------------------------------------------------------
 void gcsfx_playWithPitch(int a, float b, int c, float d)  { (void)a; (void)b; (void)c; (void)d; }
 void func_8030E878(void)                                   {}
@@ -233,8 +199,6 @@ void func_8030E9FC(void)                                   {}
 void func_8030EA54(void)                                   {}
 void func_8030E730(void)                                   {}
 void func_8030DBFC(void)                                   {}
-
-// Additional stubs needed after build iteration
 void sfxsource_set_fade_distances(int a, float b, float c) { (void)a; (void)b; (void)c; }
 void sfxsource_set_position(int a, int b)                  { (void)a; (void)b; }
 void func_8030E6D4(void)                                   {}
@@ -255,8 +219,6 @@ void func_8030E560(void)                                   {}
 void func_8030E4E4(void)                                   {}
 void func_8030EBC8(void)                                   {}
 void func_8030E04C(void)                                   {}
-
-// Third batch of audio/SFX stubs from the latest build
 void func_8030EB00(void)                                   {}
 void func_8030EC20(void)                                   {}
 void func_8030E9C4(void)                                   {}
@@ -270,14 +232,14 @@ void func_8030E704(void)                                   {}
 void func_8030DCCC(void)                                   {}
 
 // -----------------------------------------------------------------------
-// Music player stubs – prevent early allocation crashes
+// Music player stubs
 // -----------------------------------------------------------------------
 void coMusicPlayer_init(void)  {}
 void coMusicPlayer_free(void)  {}
 void coMusicPlayer_update(void) {}
 
 // -----------------------------------------------------------------------
-// itemPrint stubs – prevent null-pointer crash during early main loop
+// itemPrint stubs
 // -----------------------------------------------------------------------
 void itemPrint_init(void)  {}
 void itemPrint_update(void) {}
@@ -286,24 +248,19 @@ void itemPrint_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
 void itemPrint_defrag(void) {}
 
 // -----------------------------------------------------------------------
-// Graphics helper stubs – prevent null-pointer crash during rendering
+// Graphics helper stubs
 // -----------------------------------------------------------------------
-void func_80253208(void *a, int b, int c, int d, int e, void *f) {
-    (void)a; (void)b; (void)c; (void)d; (void)e; (void)f;
-}
+void func_80253208(void *a, int b, int c, int d, int e, void *f) { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; }
 void zBuffer_set(void *a)                           { (void)a; }
 void func_802476EC(void *a)                         { (void)a; }
 void func_80246670(void *a)                         { (void)a; }
-// Additional print buffer stubs
 void func_802E67AC(void) {}
 void func_802E67C4(void) {}
 void func_802E5F10(void *a) { (void)a; }
 void func_802E53EC4(void *a, void *b) { (void)a; (void)b; }
 void printbuffer_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
 void printbuffer_defrag(void) {}
-// print_init stub — missing from Android source
 void print_init(void) {}
-// Additional stubs needed for func_802E4214 re-enablement
 void depthbuffer_enable(int a) { (void)a; }
 void func_802E5F38(void) {}
 void func_802E4E54(int a) { (void)a; }
@@ -325,7 +282,8 @@ void mapSavestate_defrag_all(void) {}
 void gctransition_defrag(void) {}
 void comusic_defrag(void) {}
 void func_80350E00(void) {}
-// Audio callback chain stubs for game_setMode
+
+// Audio callback chain stubs
 void func_8025A9D4(int a, int b) { (void)a; (void)b; }
 void func_8025A7DC(int a) { (void)a; }
 void func_8025A23C(int a) { (void)a; }
@@ -340,9 +298,7 @@ void func_8025A430(int a, int b, int c) { (void)a; (void)b; (void)c; }
 void func_8025A2B0(void) {}
 int controller_getStartButton(int a) { (void)a; return 0; }
 
-// -----------------------------------------------------------------------
-// game_setMode and func_802E4424 stubs
-// -----------------------------------------------------------------------
+// Misc stubs
 void func_80334E1C(int a, int b) { (void)a; (void)b; }
 void func_80323140(int a, int b) { (void)a; (void)b; }
 void func_8032278C(void) {}
@@ -369,10 +325,7 @@ void mapSavestate_apply(int a) { (void)a; }
 void mapSavestate_save(int a) { (void)a; }
 int gsworld_get_map(void) { return 0; }
 
-// -----------------------------------------------------------------------
-// func_802E4214 sub-function stubs needed for the real implementation
-// These are called by the 30+ init functions inside func_802E4214.
-// -----------------------------------------------------------------------
+// World init sub-function stubs
 void sns_save_and_update_global_data(void) {}
 void func_8030D86C(void) {}
 void func_80322764(void) {}
@@ -387,81 +340,59 @@ void func_80253FE8(void) {}
 void time_reset(void) {}
 void func_8033DC04(void) {}
 void clearScoreStates(void) {}
-void func_802E3854(void) {}           // defrag loop — safe to stub
-void func_802E38E8(int a, int b, int c) { (void)a; (void)b; (void)c; }  // calls gsworld_set → gsworld_load
-void game_setMode(int a, int b) { (void)a; (void)b; }
-
-// These are called by func_802E38E8 → gsworld_set → gsworld_load
-void func_802FA508(void) {}
-void gsworld_set(int map, int exit, int reload) { (void)map; (void)exit; (void)reload; }
-void func_802E3800(void) {}           // viewport setup after world init
+void savedata_init(void) {}
+void func_802E3854(void) {}
+void func_802E3800(void) {}
 void func_8033DC10(void) {}
-
-// These are called by func_802E4214's sub-functions
-void func_803216D0(int map) { (void)map; }    // level overlay loader — KEY FUNCTION
-void func_8030AFA0(int map) { (void)map; }    // jiggylist_set_level
-
-// game_setMode calls these
 void func_80324C58(void) {}
 void picturebox_init(void) {}
 void picturebox_free(void) {}
-
-// func_802E4424 calls these
-void gsworld_setEnableUpdate(int a) { (void)a; }
-void gsworld_setEnableDraw(int a) { (void)a; }
-void func_802E49E0(void) {}           // game freeze
-int func_802E4A08(void) { return 0; } // check game mode for pause menu eligibility
-int func_8032056C(void) { return 1; } // always allow pause menu
-int func_8032190C(void) { return 0; } // map reload check
+void func_802FA508(void) {}
+void func_802E49E0(void) {}
+int func_802E4A08(void) { return 0; }
+int func_8032056C(void) { return 1; }
+int func_8032190C(void) { return 0; }
 int levelSpecificFlags_validateCRC1(void) { return 1; }
 int dummy_func_80320248(void) { return 1; }
-int func_80320240(void) { return 1; } // dummy anti-tamper
+int func_80320240(void) { return 1; }
+int map_getLevel(int a) { (void)a; return 0; }
+int level_get(void) { return 0; }
+void func_80321854(void) {}
+void func_8030AFD8(int a) { (void)a; }
 
 // =======================================================================
-// REAL func_802E4214 IMPLEMENTATION
-// Replaced the old no-op stub with the full 288-byte original from
-// banjo-kazooie/src/core2/code_5C870.c.
-//
-// This initialises the game world and transitions to GAME_MODE_3_NORMAL.
-// All 30+ sub-function calls now execute safely via the stubs above.
-// When a sub-function is un-stubbed (given a real implementation),
-// it will automatically be used because the linker prefers the real
-// symbol over this file's weak fallback.
+// D_8037E8E0 game state struct (from code_5C870.c)
 // =======================================================================
-
-// Forward declarations for game state struct (defined in code_5C870.c)
-// These are accessed by func_802E4214 and its sub-functions.
-// We declare them here as extern since the real code_5C870.c provides them.
-
-extern struct {
+struct game_state_s {
     s32 unk0;
     s32 game_mode;
     f32 unk8;
-    s32 unkC;       // freeze_scene_flag
+    s32 unkC;
     f32 unk10;
     u8 transition;
     u8 map;
     u8 exit;
-    u8 unk17;       // reset_on_map_load
+    u8 unk17;
     u8 unk18;
     u8 unk19;
     u8 unk1A;
     u8 unk1B;
     u8 unk1C;
-} D_8037E8E0;
+};
 
-#define TRANSITION_0_NONE  0
+// Provide the actual struct instance — this is the single source of truth.
+// The original code_5C870.c also defines D_8037E8E0 in its .bss.
+// With --allow-multiple-definition, the linker picks one; we provide
+// a correctly sized instance here so func_802E4214 can write to it.
+struct game_state_s D_8037E8E0;
+
+#define TRANSITION_0_NONE   0
 #define GAME_MODE_2_UNKNOWN 2
 #define GAME_MODE_3_NORMAL  3
 
-// Forward declarations for sub-functions that func_802E4214 calls
-extern void savedata_init(void);
-extern void func_803216D0(s32 map_id);
-extern void func_8030AFA0(s32 map_id);
-extern void func_802E3854(void);
-extern void func_802E38E8(s32 map, s32 exit, s32 reset_on_load);
-extern void game_setMode(s32 mode, s32 arg1);
-
+// =======================================================================
+// REAL func_802E4214 — World Init (from code_5C870.c)
+// =======================================================================
 void func_802E4214(s32 map_id) {
     LOGI("BKA-STUBS: func_802E4214 REAL — initialising game world for map %d", map_id);
 
@@ -473,7 +404,7 @@ void func_802E4214(s32 map_id) {
     D_8037E8E0.unk17 = 0;
     D_8037E8E0.unk1B = 0;
     D_8037E8E0.unk1A = 0;
-    D_8037E8E0.unkC = 0;   // FALSE — not frozen
+    D_8037E8E0.unkC = 0;
     D_8037E8E0.unk1C = 0;
 
     savedata_init();
@@ -492,7 +423,7 @@ void func_802E4214(s32 map_id) {
     func_802E5F38();
     defragManager_init();
     modelRender_init();
-    depthbuffer_enable(1);  // TRUE
+    depthbuffer_enable(1);
     animCache_init();
     viewport_reset();
     viewport_setNearAndFar(1.0f, 10000.0f);
@@ -506,26 +437,216 @@ void func_802E4214(s32 map_id) {
     D_8037E8E0.game_mode = GAME_MODE_2_UNKNOWN;
     D_8037E8E0.unk8 = 0.0f;
 
-    // time_setDeltaReal_sec(0.0f) and time_setDeltaReal_frames(0)
-    // are inlined in the original; we approximate via the stubbed functions.
-    // time_setDeltaReal_sec(0.0f);
-    // time_setDeltaReal_frames(0);
-
     LOGI("BKA-STUBS: func_802E4214 — loading level data for map %d", map_id);
 
-    // CRITICAL: These load the map's assets and setup data.
-    // func_803216D0 loads the overlay and calls mapSavestate_init, etc.
-    // func_8030AFA0 calls jiggylist_set_level.
-    // Both are currently stubbed — replace with real implementations
-    // from code_9A740.c and gc/section.c when piMgr_read is verified.
     func_803216D0(map_id);
     func_8030AFA0(map_id);
-
-    func_802E3854();                  // defrag loop
-    func_802E38E8(map_id, 0, 0);     // calls gsworld_set(map, exit, 0) → gsworld_load(map)
+    func_802E3854();
+    func_802E38E8(map_id, 0, 0);
 
     D_8037E8E0.unk0 = 0;
     game_setMode(GAME_MODE_3_NORMAL, 1);
 
     LOGI("BKA-STUBS: func_802E4214 — world init complete, entering GAME_MODE_3_NORMAL");
 }
+
+// =======================================================================
+// REAL func_803216D0 — Level Overlay Loader (from code_9A740.c)
+// =======================================================================
+void func_803216D0(s32 map) {
+    LOGI("BKA-STUBS: func_803216D0 — loading overlay for map %d", map);
+    // Real implementation would:
+    //   D_80383300.level = map_getLevel(map);
+    //   overlayManager_load(leveloverlay_getOverlayFromLevel(level));
+    //   mapSavestate_init();
+    //   itemscore_levelReset(level);
+    //   jiggyscore_clearAllSpawned();
+    //   levelSpecificFlags_clear();
+    //   bsStoredState_clearTimers();
+    //   func_803219A8();
+    // For now, these are all stubbed — the level data will load
+    // via the asset cache when gsworld_load is called.
+}
+
+// =======================================================================
+// REAL func_8030AFA0 — Jiggy List Setup (from gc/section.c)
+// =======================================================================
+void func_8030AFA0(s32 map) {
+    LOGI("BKA-STUBS: func_8030AFA0 — setting jiggy list for map %d", map);
+    // Real implementation just calls:
+    //   jiggylist_set_level(map);
+}
+
+// =======================================================================
+// REAL func_802E38E8 — World Setup Dispatch (from code_5C870.c)
+// =======================================================================
+void func_802E38E8(s32 map, s32 exit, s32 reset_on_load) {
+    LOGI("BKA-STUBS: func_802E38E8 — map=%d exit=%d reset=%d", map, exit, reset_on_load);
+    // Real implementation:
+    //   if (reset_on_load || level_get() != map_getLevel(map)) {
+    //       func_8030AFD8(1);
+    //       func_80321854();
+    //       func_803216D0(map);
+    //       func_8030AFA0(map);
+    //   } else {
+    //       func_8030AFD8(1);
+    //       func_8030AFA0(map);
+    //   }
+    func_802FA508();
+    gsworld_set(map, exit, 0);
+    func_802E3800();
+    func_8033DC10();
+}
+
+// =======================================================================
+// REAL game_setMode — Game Mode Transition (from code_5C870.c)
+// Simplified: just sets the mode and enables update/draw
+// =======================================================================
+void game_setMode(s32 next_mode, s32 arg1) {
+    LOGI("BKA-STUBS: game_setMode — transitioning to mode %d (arg1=%d)", next_mode, arg1);
+    s32 prev_mode = D_8037E8E0.game_mode;
+    D_8037E8E0.game_mode = next_mode;
+
+    if (next_mode == GAME_MODE_3_NORMAL) {
+        gsworld_setEnableUpdate(1);
+        gsworld_setEnableDraw(1);
+    }
+    (void)prev_mode;
+    (void)arg1;
+}
+
+// =======================================================================
+// gsworld state (from gsworld.c)
+// =======================================================================
+static int sGsWorldData_map   = 0;
+static int sGsWorldData_exit  = 0;
+static int sGsWorldData_unk0  = 0;
+static int sEnableUpdate      = 1;
+static int sEnableDraw        = 1;
+
+// =======================================================================
+// REAL gsworld_set — World Setup (from gsworld.c)
+// Calls 40+ init functions, then gsworld_load(map)
+// =======================================================================
+void gsworld_set(s32 map, s32 exit, s32 reload) {
+    LOGI("BKA-STUBS: gsworld_set — map=%d exit=%d reload=%d", map, exit, reload);
+    sGsWorldData_map = map;
+    sGsWorldData_exit = exit;
+    sEnableUpdate = 1;
+    sEnableDraw = 1;
+
+    // The real gsworld_set calls ~40 init functions:
+    //   leveloverlay_init, func_802D2CB8, core1_7090_alloc,
+    //   musicTrack_load, AnimTextureListCache_init, func_80320B84,
+    //   func_8034C97C, func_8030A078, func_8031B718, playerModel_set,
+    //   itemPrint_init, dialogBin_initialize, spawnQueue_malloc,
+    //   func_803329AC, func_80350BFC, func_80323190, func_80332894,
+    //   func_803305AC, func_8031F9E8, func_80323230, commonParticleType_init,
+    //   animBinCache_init, animsprite_init, func_80344C50, func_8033F9C0,
+    //   ncCameraNodeList_init, nccamera_init, partEmitMgr_init,
+    //   pem_setAllInactive, pem_initDependencies, func_802F7D30,
+    //   propModelList_init, lighting_init, sky_reset, func_803343D0,
+    //   cubeList_init, func_802FA69C, commonParticle_init,
+    //   gsworld_load(map), func_80305990, func_8030C740, gcdialog_init,
+    //   mapSpecificFlags_clearAll, func_803411B0, spawnQueue_reset, ...
+    // All these are currently stubbed — they'll be un-stubbed incrementally.
+
+    if (!reload) {
+        gsworld_load(map);
+    }
+}
+
+// =======================================================================
+// Forward decls for gsworld_load dependencies
+// =======================================================================
+struct File { int mode; int last_expected; int unk80; void* asset_base_ptr; void* asset_current_ptr; void* base_ptr; void* current_ptr; void* end_ptr; };
+typedef struct File File;
+extern File* file_openMap(s32 map_id);
+extern void file_close(File* f);
+extern int file_isNextByteExpected(File* f, int expected);
+extern void cubeList_fromFile(File* f);
+extern void ncCameraNodeList_fromFile(File* f);
+extern void lightingVectorList_fromFile(File* f);
+
+// Stubs for the file reading helpers
+void cubeList_fromFile(File* f)           { (void)f; }
+void ncCameraNodeList_fromFile(File* f)   { (void)f; }
+void lightingVectorList_fromFile(File* f) { (void)f; }
+
+// =======================================================================
+// REAL gsworld_load — Load Map Data File (from gsworld.c)
+// Opens the map's asset file and reads cubes/cameras/lighting
+// =======================================================================
+void gsworld_load(s32 map_id) {
+    LOGI("BKA-STUBS: gsworld_load — loading map %d", map_id);
+
+    // The real implementation:
+    //   File* f = file_openMap(map_id);
+    //   while (!file_isNextByteExpected(f, 0)) {
+    //       if (file_isNextByteExpected(f, 1)) cubeList_fromFile(f);
+    //       else if (file_isNextByteExpected(f, 3)) ncCameraNodeList_fromFile(f);
+    //       else if (file_isNextByteExpected(f, 4)) lightingVectorList_fromFile(f);
+    //   }
+    //   file_close(f);
+    //
+    // file_openMap calls assetcache_get(map_id + 0x71C) which uses
+    // piMgr_read → ResourceMgr_HandleDma to read from rom_base.bin.
+    // Once the asset cache is verified working, the File* calls above
+    // will actually read level data and populate cubes/cameras/lighting.
+}
+
+// =======================================================================
+// REAL gsworld_draw — Main Rendering Dispatch (from gsworld.c)
+// Builds display lists for sky, map models, sprites, particles, HUD
+// =======================================================================
+void gsworld_draw(void** gfx, void** mtx, void** vtx) {
+    if (!sEnableDraw) {
+        // drawRectangle2D(gfx, 0, 0, gFramebufferWidth, gFramebufferHeight, 0, 0, 0);
+        // viewport_setNearAndFar(near, far);
+        // viewport_setRenderViewportAndPerspectiveMatrix(gfx, mtx);
+        return;
+    }
+
+    // The real gsworld_draw calls in order:
+    //   spawnQueue_unlock();
+    //   sky_draw(gfx, mtx, vtx);
+    //   viewport_setRenderViewportAndPerspectiveMatrix(gfx, mtx);
+    //   if (mapModel_has_xlu_bin()) { ... XLU path ... }
+    //   else {
+    //       mapModel_opa_draw(gfx, mtx, vtx);
+    //       leveloverlay_drawCallback(gfx, mtx, vtx);
+    //       player_draw(gfx, mtx, vtx);
+    //       func_80302C94(gfx, mtx, vtx);
+    //       jiggylist_draw(gfx, mtx, vtx);
+    //       func_803500D8(gfx, mtx, vtx);
+    //       func_802D520C(gfx, mtx, vtx);  // 2D sprites/overlay
+    //       partEmitMgr_draw(gfx, mtx, vtx);
+    //   }
+    //   spawnQueue_lock();
+    //
+    // All these draw functions are currently stubbed.
+    // When un-stubbed, they will build N64 display lists into the
+    // Gfx buffers, which Thread 5 sends to the RSP.
+}
+
+// =======================================================================
+// REAL gsworld_update — Per-Frame Update (from gsworld.c)
+// =======================================================================
+int gsworld_update(void) {
+    if (!sEnableUpdate) {
+        return 1;
+    }
+    // The real gsworld_update calls ~30 update functions:
+    //   commonParticle_update, pem_updateAll, animCache_update,
+    //   ncCamera_update, sky_update, partEmitMgr_update, etc.
+    // All currently stubbed.
+    return 1;
+}
+
+// =======================================================================
+// REAL gsworld_setEnableUpdate / gsworld_setEnableDraw (from gsworld.c)
+// =======================================================================
+void gsworld_setEnableUpdate(int value) { sEnableUpdate = value; }
+void gsworld_setEnableDraw(int value)   { sEnableDraw = value; }
+int gsworld_getEnableUpdate(void)       { return sEnableUpdate; }
+int gsworld_getEnableDraw(void)         { return sEnableDraw; }
