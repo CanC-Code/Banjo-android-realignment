@@ -333,6 +333,7 @@ void gctransition_defrag(void) {}
 void comusic_defrag(void) {}
 void func_80350E00(void) {}
 void func_8033DC10(void) {}
+// Audio callback chain stubs for game_setMode
 void func_8025A9D4(int a, int b) { (void)a; (void)b; }
 void func_8025A7DC(int a) { (void)a; }
 void func_8025A23C(int a) { (void)a; }
@@ -341,7 +342,7 @@ void func_8024F150(void) {}
 void func_8024F764(int a) { (void)a; }
 void func_8024F7C4(int a) { (void)a; }
 void func_8024FB8C(void) {}
-void func_803226E8(int a) { (void)a; return 0; }
+int func_803226E8(int a) { (void)a; return 0; }
 int func_80322914(void) { return 0; }
 void func_8025A430(int a, int b, int c) { (void)a; (void)b; (void)c; }
 void func_8025A2B0(void) {}
