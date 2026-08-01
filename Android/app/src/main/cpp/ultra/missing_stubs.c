@@ -53,8 +53,6 @@ void     osMapTLBRdb(void)             {}
 uint32_t __osProbeTLB(void* a)         { (void)a; return 0; }
 #define PI_STATUS_DMA_BUSY  0x01
 uint32_t osPiGetStatus(void)           { return 0; }
-// NOTE: osViSetMode, osViSetEvent, osCreateViManager are now in stubs.cpp
-// with proper N64 types to avoid conflicts with os_vi.h declarations.
 void osViSetSpecialFeatures(u32 func)                { (void)func; }
 void osViSwapBuffer(void *vaddr)                     { (void)vaddr; }
 s32 inflate(void) { return 0; }
@@ -70,76 +68,17 @@ void func_8026A2E0(void) {}
 // -----------------------------------------------------------------------
 // Global variables
 // -----------------------------------------------------------------------
-
-// D_8002D500 is the N64 game heap. memory.c uses it as:
-//   extern EmptyHeapBlock D_8002D500[LAST_HEAP_BLOCK + 1];
-// EmptyHeapBlock is 0x20 bytes. We allocate a byte array large enough
-// for heap_init() to set up the linked list correctly.
 #define BK_HEAP_SIZE 0x211120
 u8 D_8002D500[BK_HEAP_SIZE] __attribute__((aligned(16)));
-
-// D_8023DA00 is used by memory.c as:
-//   extern EmptyHeapBlock D_8023DA00;
-// func_80254BD0 walks it as a linked list: var_v1 = &D_8023DA00;
-// then var_v1 = var_v1->prev_free. Allocate 0x20 bytes to match
-// sizeof(EmptyHeapBlock).
 uint64_t D_8023DA00[4] __attribute__((aligned(16)));
-
-// D_803FFE00 is used as u32[4] by bk_boot_1050.c and SM/code_F0.c.
-// bk_boot_1050.c stores CRC values: D_803FFE00[0]=crc1, [1]=crc2, [2]=crc1, [3]=crc2.
-// SM/code_F0.c validates: osPiReadIo(crc_ROM_START+8) == D_803FFE00[0], etc.
-// Previously "int D_803FFE00 = 0" (4 bytes) — reading [1]/[2]/[3] corrupted stack.
 uint32_t D_803FFE00[4] = {0, 0, 0, 0};
-
-// D_8000E800 is used as a temporary buffer during overlay loading.
-// overlay.c passes &D_8000E800 to piMgr_read for decompression workspace.
-// The compressed overlay data can be up to ~512KB. Allocate 1MB to be safe.
-// Previously "int D_8000E800 = 0" (4 bytes) — DMA overflowed into adjacent memory.
 uint8_t D_8000E800[0x100000] __attribute__((aligned(16)));
-
-// D_803FFE10 is used by overlay.c as: extern struct49s D_803FFE10[];
-// struct49s is { u32 unk0; u32 unk4; } — 8 bytes per entry.
-// There are 15 overlays (indices 0-14). overlay_load reads:
-//   rom_start = D_803FFE10[overlay_id].unk0;
-//   rom_end   = D_803FFE10[overlay_id].unk4;
-// Previously "int D_803FFE10 = 0" (4 bytes) — reading D_803FFE10[0].unk4
-// read past the allocation and got garbage, causing a massive piMgr_read
-// that overflowed the destination buffer.
-//
-// NOTE: D_803FFE10 is also referenced from code_0.c which uses it
-// in the boot path. These values are populated at runtime from the
-// asset cache / ROM header. Zero-init means rom_start=rom_end=0,
-// so piMgr_read will do a zero-byte transfer (safe no-op).
 uint64_t D_803FFE10[15] __attribute__((aligned(8)));
-
-// D_803FBE00 is used by the audio manager (stubbed, size unknown but
-// referenced from code_1D00.c). Allocate a reasonable buffer.
-// Previously "int D_803FBE00 = 0" (4 bytes).
 uint8_t D_803FBE00[0x2000] __attribute__((aligned(16)));
 
-// =======================================================================
-// HEAP OVERRIDE: Replace the game's custom heap (memory.c) with host libc
-// malloc/free. The game heap requires a properly initialized linked list
-// in D_8002D500, which is fragile on Android. Using host malloc bypasses
-// all heap corruption issues during early boot.
-//
-// NOTE: This is a temporary measure. The game heap supports defragmentation
-// which is needed for long play sessions. Once the heap init is stable,
-// remove these overrides to restore the game's memory manager.
-// =======================================================================
-void *n64_malloc(s32 size) {
-    return malloc(size);
-}
-
-void *n64_realloc(void *ptr, s32 size) {
-    return realloc(ptr, size);
-}
-
-void n64_free(void *ptr) {
-    free(ptr);
-}
-
-// NOTE: gFramebuffers, g_active_fb_offset are now defined in lowlevel_bridge.cpp
+void *n64_malloc(s32 size)   { return malloc(size); }
+void *n64_realloc(void *ptr, s32 size) { return realloc(ptr, size); }
+void n64_free(void *ptr)     { free(ptr); }
 
 // -----------------------------------------------------------------------
 // ROM symbols
@@ -415,7 +354,6 @@ struct game_state_s D_8037E8E0;
 // =======================================================================
 void func_802E4214(s32 map_id) {
     LOGI("BKA-STUBS: func_802E4214 REAL - init world for map %d", map_id);
-
     D_8037E8E0.transition = TRANSITION_0_NONE;
     D_8037E8E0.unk19 = 0;
     D_8037E8E0.unk18 = 0;
@@ -426,7 +364,6 @@ void func_802E4214(s32 map_id) {
     D_8037E8E0.unk1A = 0;
     D_8037E8E0.unkC = 0;
     D_8037E8E0.unk1C = 0;
-
     savedata_init();
     sns_save_and_update_global_data();
     func_8030D86C();
@@ -435,11 +372,7 @@ void func_802E4214(s32 map_id) {
     timedFuncQueue_init();
     func_802F9CD8();
     func_8031B62C();
-
-    if (!func_802E4A08()) {
-        print_init();
-    }
-
+    if (!func_802E4A08()) print_init();
     func_802E5F38();
     defragManager_init();
     modelRender_init();
@@ -453,20 +386,15 @@ void func_802E4214(s32 map_id) {
     time_reset();
     func_8033DC04();
     clearScoreStates();
-
     D_8037E8E0.game_mode = GAME_MODE_2_UNKNOWN;
     D_8037E8E0.unk8 = 0.0f;
-
     LOGI("BKA-STUBS: func_802E4214 - loading level data for map %d", map_id);
-
     func_803216D0(map_id);
     func_8030AFA0(map_id);
     func_802E3854();
     func_802E38E8(map_id, 0, 0);
-
     D_8037E8E0.unk0 = 0;
     game_setMode(GAME_MODE_3_NORMAL, 1);
-
     LOGI("BKA-STUBS: func_802E4214 - world init complete");
 }
 
@@ -520,9 +448,7 @@ void gsworld_set(s32 map, s32 exit, s32 reload) {
     LOGI("BKA-STUBS: gsworld_set - map=%d exit=%d reload=%d", map, exit, reload);
     sEnableUpdate = 1;
     sEnableDraw = 1;
-    if (!reload) {
-        gsworld_load(map);
-    }
+    if (!reload) gsworld_load(map);
 }
 
 // =======================================================================
@@ -533,10 +459,52 @@ void gsworld_load(s32 map_id) {
 }
 
 // =======================================================================
-// REAL gsworld_draw
+// REAL gsworld_draw — Direct framebuffer test pattern
+//
+// Writes a colored gradient directly to gFramebuffers to verify that
+// the rendering pipeline (gsworld_draw → game_draw → mainLoop →
+// updateTexture → VideoPlugin → GL) is fully operational.
+//
+// The pattern: vertical bars cycling through red, green, blue, white.
+// Each bar is 32 pixels wide. The bars shift position each frame
+// so you can see the screen updating in real time.
+//
+// REMOVE THIS once real Gfx display list processing is proven working.
 // =======================================================================
 void gsworld_draw(void** gfx, void** mtx, void** vtx) {
     if (!sEnableDraw) return;
+
+    extern uint16_t gFramebuffers[2][292 * 216];
+    extern int getActiveFramebuffer(void);
+
+    static int frameCount = 0;
+    frameCount++;
+    int activeFb = getActiveFramebuffer();
+    uint16_t* fb = gFramebuffers[activeFb];
+
+    // 16-bit RGB565 color values
+    static const uint16_t colors[] = {
+        0xF800, // Red    (R=31, G=0,  B=0)
+        0x07E0, // Green  (R=0,  G=63, B=0)
+        0x001F, // Blue   (R=0,  G=0,  B=31)
+        0xFFFF, // White  (R=31, G=63, B=31)
+    };
+    int numColors = sizeof(colors) / sizeof(colors[0]);
+
+    int barWidth = 32;
+    int barOffset = (frameCount / 2) % (barWidth * numColors);
+
+    for (int y = 0; y < 216; y++) {
+        for (int x = 0; x < 292; x++) {
+            int barIndex = ((x + barOffset) / barWidth) % numColors;
+            fb[y * 292 + x] = colors[barIndex];
+        }
+    }
+
+    // Log every 60 frames so we can confirm it's running
+    if (frameCount % 60 == 0) {
+        LOGI("BKA-STUBS: gsworld_draw test pattern — frame %d", frameCount);
+    }
 }
 
 // =======================================================================
