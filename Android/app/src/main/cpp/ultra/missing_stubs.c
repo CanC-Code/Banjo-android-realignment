@@ -207,14 +207,10 @@ void func_802476EC(void *a)                         { (void)a; }
 void func_80246670(void *a)                         { (void)a; }
 void func_802E67AC(void) {}
 void func_802E67C4(void) {}
-void func_802E5F10(void *a) { (void)a; }
 void func_802E53EC4(void *a, void *b) { (void)a; (void)b; }
 void printbuffer_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
 void printbuffer_defrag(void) {}
-void print_init(void) {}
 void depthbuffer_enable(int a) { (void)a; }
-void func_802E5F38(void) {}
-void func_802E4E54(int a) { (void)a; }
 void modelRender_init(void) {}
 void modelRender_free(void) {}
 void modelRender_defrag(void) {}
@@ -233,6 +229,13 @@ void mapSavestate_defrag_all(void) {}
 void gctransition_defrag(void) {}
 void comusic_defrag(void) {}
 void func_80350E00(void) {}
+
+// NOTE: The following functions are NO LONGER STUBBED — their real
+// implementations from code_5DBC0.c and print.c are used instead:
+//   print_init()      — initializes the font system
+//   func_802E4E54()   — loads font sprite data from asset cache
+//   func_802E5F38()   — initializes the print buffer state
+//   func_802E5F10()   — builds Gfx display list commands for text
 
 // -----------------------------------------------------------------------
 // Misc game stubs
@@ -372,7 +375,9 @@ void func_802E4214(s32 map_id) {
     timedFuncQueue_init();
     func_802F9CD8();
     func_8031B62C();
+    // print_init() is no longer stubbed — the real implementation runs
     if (!func_802E4A08()) print_init();
+    // func_802E5F38() is no longer stubbed — initializes the print buffer
     func_802E5F38();
     defragManager_init();
     modelRender_init();
@@ -459,52 +464,20 @@ void gsworld_load(s32 map_id) {
 }
 
 // =======================================================================
-// REAL gsworld_draw — Direct framebuffer test pattern
+// REAL gsworld_draw — No-op pass-through
 //
-// Writes a colored gradient directly to gFramebuffers to verify that
-// the rendering pipeline (gsworld_draw → game_draw → mainLoop →
-// updateTexture → VideoPlugin → GL) is fully operational.
-//
-// The pattern: vertical bars cycling through red, green, blue, white.
-// Each bar is 32 pixels wide. The bars shift position each frame
-// so you can see the screen updating in real time.
-//
-// REMOVE THIS once real Gfx display list processing is proven working.
+// The test pattern has been removed. The real 3D rendering functions
+// (sky_draw, mapModel_opa_draw, player_draw, etc.) are still stubbed,
+// so this function doesn't render 3D geometry. However, the 2D text
+// rendering is now active via func_802E5F10 (called after gsworld_draw
+// in func_802E39D0). Text Gfx commands are processed by the software
+// RDP in gfx_interpreter.cpp and written directly to gFramebuffers.
 // =======================================================================
 void gsworld_draw(void** gfx, void** mtx, void** vtx) {
+    // Real 3D rendering is not yet available (sky, map models, etc.
+    // are still stubbed). The 2D text layer renders on top via the
+    // Gfx display list pipeline.
     if (!sEnableDraw) return;
-
-    extern uint16_t gFramebuffers[2][292 * 216];
-    extern int getActiveFramebuffer(void);
-
-    static int frameCount = 0;
-    frameCount++;
-    int activeFb = getActiveFramebuffer();
-    uint16_t* fb = gFramebuffers[activeFb];
-
-    // 16-bit RGB565 color values
-    static const uint16_t colors[] = {
-        0xF800, // Red    (R=31, G=0,  B=0)
-        0x07E0, // Green  (R=0,  G=63, B=0)
-        0x001F, // Blue   (R=0,  G=0,  B=31)
-        0xFFFF, // White  (R=31, G=63, B=31)
-    };
-    int numColors = sizeof(colors) / sizeof(colors[0]);
-
-    int barWidth = 32;
-    int barOffset = (frameCount / 2) % (barWidth * numColors);
-
-    for (int y = 0; y < 216; y++) {
-        for (int x = 0; x < 292; x++) {
-            int barIndex = ((x + barOffset) / barWidth) % numColors;
-            fb[y * 292 + x] = colors[barIndex];
-        }
-    }
-
-    // Log every 60 frames so we can confirm it's running
-    if (frameCount % 60 == 0) {
-        LOGI("BKA-STUBS: gsworld_draw test pattern — frame %d", frameCount);
-    }
 }
 
 // =======================================================================
