@@ -6804,4 +6804,5 @@ enum map_warp_CCW_whipcrack_winter
     WARP_CCW_WHIPCRACK_WINTER_1_ENTRANCE = 0x1
 };
 
+#include "enum_compat.h"
 #endif
