@@ -308,44 +308,6 @@ Java_com_bkawrapper_NativeBridge_updateTexture(JNIEnv* env, jclass clazz, jint t
 
     BKA_ClaimEngineLock();
 
-    // ===================================================================
-    // RED FILL TEST — Proves the full pipeline: RDRAM → VideoPlugin →
-    // GL texture → quad draw → display.
-    //
-    // FB is at gN64_RDRAM + 0x400000, 292×216 pixels, 16-bit RGB565.
-    // 0xF800 = bright red (R=31, G=0, B=0).
-    // 0x001F = pure blue for alternating test pattern.
-    //
-    // Remove this block once real game rendering is confirmed working.
-    // ===================================================================
-    {
-        static int redFillFrameCount = 0;
-        redFillFrameCount++;
-
-        uint16_t* fb = (uint16_t*)(gN64_RDRAM + 0x400000);
-        uint16_t color;
-
-        // Alternate red/blue every 60 frames (~2 seconds at 30fps
-        // though the actual cadence is ~11ms from the GL side)
-        if ((redFillFrameCount / 60) % 2 == 0) {
-            color = 0xF800;  // RGB565 Red
-        } else {
-            color = 0x001F;  // RGB565 Blue
-        }
-
-        for (int i = 0; i < 292 * 216; i++) {
-            fb[i] = color;
-        }
-
-        // Log every 60th frame so we can confirm the test is active
-        // without spamming logcat
-        if (redFillFrameCount % 60 == 0) {
-            LOGI("NativeBridge: RED FILL TEST active — frame %d, color=0x%04X",
-                 redFillFrameCount, color);
-        }
-    }
-    // ===================================================================
-
     pthread_mutex_lock(&g_inputMutex);
     gN64_ControllerData[0] = g_inputMirror;
     pthread_mutex_unlock(&g_inputMutex);
