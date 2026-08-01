@@ -319,3 +319,9 @@ void viewport_update(void) {}
 void viewport_debug(void) {}
 void viewport_pushFramebufferExtendsToVpStack(void) {}
 void gsworld_set(int a, int b, int c) { (void)a; (void)b; (void)c; }
+void func_803216D0(int a) { (void)a; }
+void func_8030AFA0(int a) { (void)a; }
+void func_8030AFD8(int a) { (void)a; }
+void func_80321854(void) {}
+int level_get(void) { return 0; }
+int map_getLevel(int a) { (void)a; return 0; }
