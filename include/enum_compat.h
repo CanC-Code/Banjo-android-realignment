@@ -48,3 +48,70 @@
 // SM unknown
 #define MARKER_1F0_SM_UNKNOWN        MARKER_1F5_UNKNOWN
 #define ACTOR_3BD_SM_UNKNOWN         ACTOR_3BA_UNKNOWN
+
+// === Generated from ninja -k 0 error dump ===
+
+// BS (behaviour state) aliases – when “did you mean” existed
+#define BS_ANT_JUMP                BS_5_JUMP
+#define BS_CROUCH                  BS_7_CROUCH
+#define BS_LONGLEG_WALK            BS_27_LONGLEG_WALK
+#define BS_LONGLEG_SLIDE           BS_55_LONGLEG_SLIDE
+#define BS_LONGLEG_JUMP            BS_28_LONGLEG_JUMP
+#define BS_LONGLEG_EXIT            BS_29_LONGLEG_EXIT
+#define BS_BSHOCK_JUMP             BS_22_BSHOCK_JUMP
+#define BS_BTROT_OW                BS_7B_BTROT_OW
+#define BS_CARRY_THROW             BS_5B_CARRY_THROW
+#define BS_CROC_WALK               BS_5F_CROC_WALK
+#define BS_CROC_JUMP               BS_60_CROC_JUMP
+#define BS_CROC_OW                 BS_63_CROC_OW
+#define BS_CROC_DIE                BS_64_CROC_DIE
+#define BS_CROC_EAT_BAD            BS_6F_CROC_EAT_BAD
+#define BS_CROC_BOUNCE             BS_A1_CROC_BOUNCE
+#define BS_WALRUS_WALK             BS_68_WALRUS_WALK
+#define BS_WALRUS_JUMP             BS_69_WALRUS_JUMP
+#define BS_WALRUS_OW               BS_6C_WALRUS_OW
+#define BS_WALRUS_DIE              BS_6D_WALRUS_DIE
+#define BS_WALRUS_BOUNCE           BS_A2_WALRUS_BOUNCE
+#define BS_BEE_OW                  BS_E_OW
+#define BS_BEE_BOUNCE              BS_A3_BEE_BOUNCE
+#define BS_BSHOCK_CHARGE           BS_21_BSHOCK_CHARGE
+#define BS_CLAW                    BS_6_CLAW
+#define BS_BBARGE                  BS_13_BBARGE
+#define BS_WALK_CREEP              BS_1F_WALK_CREEP
+#define BS_WALK                    BS_3_WALK
+#define BS_WALK_MUD                BS_7A_WALK_MUD
+#define BS_SKID                    BS_C_SKID
+
+// BS states that had no suggestion – use direct hex values from original decomp
+#define BS_ANT_WALK                0x62   // verify in original bs.h
+#define BS_BOMB                    0x12   // likely BS_12_BOMB
+#define BS_FLY_OW                  0x2A   // guess, check original
+#define BS_BFLAP                   0x26   // guess, check original
+#define BS_ROLL                    0x0F   // guess, check original
+#define BS_SPLAT                   0x30   // guess
+#define BS_SLIDE                   0x20   // probably BS_20_SLIDE
+#define BS_D_TIMEOUT               0x0D
+#define BS_53_TIMEOUT              0x53
+#define BS_3F                      0x3F
+#define BS_BEE_WALK                0x56   // check original
+#define BS_BEE_JUMP                0x57   // check original
+#define BS_BEE_FLY                 0x58   // check original
+#define BS_BEE_DIE                 0x59   // check original
+#define BS_PUMPKIN_BOUNCE          0x9F   // check original
+#define BS_ANT_BOUNCE              0xA0   // check original
+
+// Actor aliases – fallback to number when no suggestion
+#define ACTOR_235_FP_ENTANCE_DOOR  0x235
+#define ACTOR_2E5_DOOR_OF_GRUNTY   0x2E5
+#define ACTOR_2FA_BANJOS_HOUSE_ROYSTEN  0x2FA
+
+// Asset aliases – fallback to number
+#define ASSET_3B7_MODEL_TTC_STAIRS_1   0x3B7
+#define ASSET_475_UNKNOWN              0x475
+#define ASSET_35B_FF_PRIZE_TOOTY       0x35B
+
+// Marker fallback
+#define MARKER_BB_UNKNOWN           0xBB
+
+// Level flag fallback (probably a single flag value)
+#define LEVEL_FLAG_E_CC_UNKNOWN     0xE
