@@ -310,3 +310,12 @@ void func_802E4E54(int a) { (void)a; }
 void modelRender_init(void) {}
 void modelRender_free(void) {}
 void modelRender_defrag(void) {}
+void viewport_reset(void) {}
+void viewport_setNearAndFar(float a, float b) { (void)a; (void)b; }
+void viewport_setPosition_f3(float a, float b, float c) { (void)a; (void)b; (void)c; }
+void viewport_setRotation_f3(float a, float b, float c) { (void)a; (void)b; (void)c; }
+void viewport_moveAlongZAxis(float a) { (void)a; }
+void viewport_update(void) {}
+void viewport_debug(void) {}
+void viewport_pushFramebufferExtendsToVpStack(void) {}
+void gsworld_set(int a, int b, int c) { (void)a; (void)b; (void)c; }
