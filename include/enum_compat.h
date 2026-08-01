@@ -87,7 +87,7 @@
 #define BS_BOMB                    0x12   // likely BS_12_BOMB
 #define BS_FLY_OW                  0x2A   // guess, check original
 #define BS_BFLAP                   0x26   // guess, check original
-#define BS_ROLL                    0x0F   // guess, check original
+#define BS_ROLL                    BS_31_ROLL
 #define BS_SPLAT                   0x30   // guess
 #define BS_SLIDE                   0x20   // probably BS_20_SLIDE
 #define BS_D_TIMEOUT               0x0D
