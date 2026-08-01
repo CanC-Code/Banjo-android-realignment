@@ -80,15 +80,41 @@ u8 D_8002D500[BK_HEAP_SIZE] __attribute__((aligned(16)));
 // D_8023DA00 is used by memory.c as:
 //   extern EmptyHeapBlock D_8023DA00;
 // func_80254BD0 walks it as a linked list: var_v1 = &D_8023DA00;
-// then var_v1 = var_v1->prev_free. If this is only 4 bytes (int),
-// the dereference reads garbage and crashes. Allocate 0x20 bytes
-// to match sizeof(EmptyHeapBlock).
+// then var_v1 = var_v1->prev_free. Allocate 0x20 bytes to match
+// sizeof(EmptyHeapBlock).
 uint64_t D_8023DA00[4] __attribute__((aligned(16)));
 
-int D_803FFE00 = 0;
-int D_803FBE00 = 0;
-int D_8000E800 = 0;
-int D_803FFE10 = 0;
+// D_803FFE00 is used as u32[4] by bk_boot_1050.c and SM/code_F0.c.
+// bk_boot_1050.c stores CRC values: D_803FFE00[0]=crc1, [1]=crc2, [2]=crc1, [3]=crc2.
+// SM/code_F0.c validates: osPiReadIo(crc_ROM_START+8) == D_803FFE00[0], etc.
+// Previously "int D_803FFE00 = 0" (4 bytes) — reading [1]/[2]/[3] corrupted stack.
+uint32_t D_803FFE00[4] = {0, 0, 0, 0};
+
+// D_8000E800 is used as a temporary buffer during overlay loading.
+// overlay.c passes &D_8000E800 to piMgr_read for decompression workspace.
+// The compressed overlay data can be up to ~512KB. Allocate 1MB to be safe.
+// Previously "int D_8000E800 = 0" (4 bytes) — DMA overflowed into adjacent memory.
+uint8_t D_8000E800[0x100000] __attribute__((aligned(16)));
+
+// D_803FFE10 is used by overlay.c as: extern struct49s D_803FFE10[];
+// struct49s is { u32 unk0; u32 unk4; } — 8 bytes per entry.
+// There are 15 overlays (indices 0-14). overlay_load reads:
+//   rom_start = D_803FFE10[overlay_id].unk0;
+//   rom_end   = D_803FFE10[overlay_id].unk4;
+// Previously "int D_803FFE10 = 0" (4 bytes) — reading D_803FFE10[0].unk4
+// read past the allocation and got garbage, causing a massive piMgr_read
+// that overflowed the destination buffer.
+//
+// NOTE: D_803FFE10 is also referenced from code_0.c which uses it
+// in the boot path. These values are populated at runtime from the
+// asset cache / ROM header. Zero-init means rom_start=rom_end=0,
+// so piMgr_read will do a zero-byte transfer (safe no-op).
+uint64_t D_803FFE10[15] __attribute__((aligned(8)));
+
+// D_803FBE00 is used by the audio manager (stubbed, size unknown but
+// referenced from code_1D00.c). Allocate a reasonable buffer.
+// Previously "int D_803FBE00 = 0" (4 bytes).
+uint8_t D_803FBE00[0x2000] __attribute__((aligned(16)));
 
 // NOTE: gFramebuffers, g_active_fb_offset are now defined in lowlevel_bridge.cpp
 
