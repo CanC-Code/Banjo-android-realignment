@@ -27,14 +27,27 @@ uint32_t* gN64_Reg_Base = nullptr;
 uint32_t* gN64_PIF_Base = nullptr;
 uint8_t* gN64_ROM_Base = nullptr;
 
+// -----------------------------------------------------------------------
+// Framebuffer allocation (moved from missing_stubs.c for C++ linkage)
+// The game draws into a double-buffered framebuffer in N64 RDRAM.
+// Each buffer is 292×216×2 bytes, placed at offset 0x400000 (4 MB).
+// The video plugin reads from gN64_RDRAM + g_active_fb_offset.
+// -----------------------------------------------------------------------
+#define FB_WIDTH   292
+#define FB_HEIGHT  216
+#define FB_SIZE    (FB_WIDTH * FB_HEIGHT * sizeof(u16))
+
+uint16_t gFramebuffers[2][FB_WIDTH * FB_HEIGHT];
+uint32_t g_active_fb_offset = 0x400000;
+
 extern "C" {
 
     void HLE_TriggerN64Event(int event_id);
 
-    extern void* gFramebuffers[3];
+    // gFramebufferWidth/Height are defined in the recompiled game code
+    // (src/core1/vimgr.c or similar). They default to 292x216.
     extern s32 gFramebufferWidth;
     extern s32 gFramebufferHeight;
-    extern uint32_t g_active_fb_offset;
 
     void InitN64Registers(const char* assetDir) {
         if (gN64_RDRAM != nullptr && gN64_Reg_Base != nullptr &&
@@ -208,4 +221,4 @@ extern "C" {
         }
     }
 
-}
+} // extern "C"
