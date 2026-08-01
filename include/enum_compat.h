@@ -29,3 +29,8 @@
 
 // Level-specific flag aliases
 #define LEVEL_FLAG_25_CCW_UNKNOWN    LEVEL_FLAG_38_CCW_UNKNOWN
+
+// Grublin animation aliases (Android port uses different names)
+#define ASSET_62_ANIM_GRUBLIN_IDLE    ASSET_62_ANIM_GRUBLIN_IDLE_WALK
+#define ASSET_63_ANIM_GRUBLIN_WALK    ASSET_63_ANIM_GRUBLIN_CHASE
+#define ASSET_64_ANIM_GRUBLIN_JUMP    ASSET_64_ANIM_GRUBLIN_ALERT
