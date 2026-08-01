@@ -284,6 +284,9 @@ void print_applyTextureToBoldFontLetter(BKSpriteTextureBlock *alphaMask, BKSprit
 
 //This functions seperates the fonts into letters
 FontLetter *print_getLettersFromFont(BKSprite *alphaMask, BKSprite *textureSprite){
+    if (alphaMask == NULL || textureSprite == NULL) {
+        return NULL;
+    }
     BKSpriteFrame * font = sprite_getFramePtr(alphaMask, 0);
     BKSpriteTextureBlock *chunkPtr;
     FontLetter * letters = malloc((font->chunkCnt + 1)*sizeof(FontLetter));
