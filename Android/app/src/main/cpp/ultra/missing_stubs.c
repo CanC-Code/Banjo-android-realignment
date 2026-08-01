@@ -494,3 +494,8 @@ void gsworld_setEnableUpdate(int value) { sEnableUpdate = value; }
 void gsworld_setEnableDraw(int value)   { sEnableDraw = value; }
 int gsworld_getEnableUpdate(void)       { return sEnableUpdate; }
 int gsworld_getEnableDraw(void)         { return sEnableDraw; }
+// Temporary: bypass font/print init to avoid crashes from missing assets
+void print_init(void) {}
+void print_getLettersFromFont(void* arg0, void* arg1) {}
+void func_802E5F38(void) {}
+void func_802E5F10(void) {}
