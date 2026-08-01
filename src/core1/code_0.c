@@ -1,3 +1,5 @@
+// File: Banjo-android-realignment/src/core1/code_0.c
+
 #include <ultra64.h>
 #include "core1/core1.h"
 #include "functions.h"
@@ -41,8 +43,6 @@ static n64_bool sDisableInput;
 static u64 sDebugVar_8027BEF0;
 
 extern u8 core2_TEXT_START[];
-extern u32 g_active_fb_offset;
-extern uint8_t* gN64_RDRAM;
 
 void func_8023DA20(s32 arg0){
     if (core2_TEXT_START && core2_TEXT_START > (u8*)&D_8027A130) {
@@ -126,15 +126,20 @@ void core1_init(void) {
     dummy_func_8025AFB0();
     allocUnusedBlock();
     assetCache_init();
-    // The following init functions are stubbed to avoid crashes/blocks:
-    // pfsManager_init();      // crashes in controller init
-    // audioManager_init();    // crashes in sfxInstruments_init
-    // graphicsCache_init();   // may block
-    // ml_init();              // may block
-    // gctransition_reset();   // may block
-    D_8027A130 = 3;             // set game state to "game"
+
+    // FIXME: These init functions are currently stubbed because they depend
+    // on N64 hardware (controllers, audio DSP, RSP microcode).
+    // They will be un-stubbed as the HLE layer matures.
+    //
+    // pfsManager_init();      // crashes in controller init — needs HLE controller
+    // audioManager_init();    // crashes in sfxInstruments_init — needs HLE audio
+    // graphicsCache_init();   // may block — needs HLE RSP
+    // ml_init();              // may block — needs HLE math
+    // gctransition_reset();   // may block — depends on graphicsCache
+
+    D_8027A130 = 3;             // set game state to "game running"
     gGlobalTimer = 0;
-    func_8023DA9C(3);           // now safe to call (stubbed internal vblank wait)
+    func_8023DA9C(3);           // calls func_802E4214(gBootMap) to init world
     LOGI("BKA: core1_init DONE");
 }
 
@@ -164,9 +169,11 @@ void mainLoop(void){
 
     baMotor_80250C08();
 
+    #if ANTI_TAMPER
     if(!mapSpecificFlags_validateCRC1()){
-        eeprom_writeBlocks(0, 0, 0x80397AD0, 0x40);
+        eeprom_writeBlocks(0, 0, (void *) PHYS_TO_K0(0x00397AD0), EEPROM_MAXBLOCKS);
     }
+    #endif
 
     switch(D_8027A130){
         case 4:
@@ -185,24 +192,6 @@ void mainLoop(void){
     if(D_80275610){
         func_8023DA9C(D_80275610 - 1);
         D_80275610 = 0;
-    }
-
-    // --- FILL FRAMEBUFFER WITH RED AND COPY TO RDRAM ---
-    {
-        extern u16 gFramebuffers[2][292 * 216];
-        extern u32 g_active_fb_offset;
-        extern uint8_t* gN64_RDRAM;
-        
-        // Fill both buffers with pure red
-        for (int i = 0; i < 292 * 216; i++) {
-            gFramebuffers[0][i] = 0xF800; // red in RGBA5551
-            gFramebuffers[1][i] = 0xF800;
-        }
-        
-        s32 fbSize = gFramebufferWidth * gFramebufferHeight * sizeof(u16);
-        if (gN64_RDRAM && g_active_fb_offset) {
-            memcpy(gN64_RDRAM + g_active_fb_offset, gFramebuffers[getActiveFramebuffer()], fbSize);
-        }
     }
 
     // --- Frame synchronisation: wait for the host to present the current frame ---
