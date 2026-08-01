@@ -1,3 +1,5 @@
+// File: Banjo-android-realignment/Android/app/src/main/cpp/emulator/stubs.cpp
+
 #include "HardwareRegs.h"
 #include <android/log.h>
 #include <stdint.h>
@@ -18,6 +20,7 @@
 #include "n64_types.h"
 #include "bka_safe_base.h"
 #include "rarezip.h"
+#include "gfx_interpreter.h"   // <-- ADDED: F3DEX display list → framebuffer rasterizer
 
 // -------------------------------------------------------------------------
 // HIGH-LEVEL EMULATION NATIVE STRUCTURES
@@ -429,9 +432,13 @@ void osCreatePiManager(OSPri pri, OSMesgQueue *cmdQ, OSMesg *cmdBuf, s32 cmdMsgC
 
 void osSpTaskLoad(OSTask *tp) {}
 
+// MODIFIED: Route GFX tasks through the software RDP before signaling completion
 void osSpTaskStartGo(OSTask *tp) {
     if (tp == nullptr) return;
     if (tp->t.type == M_GFXTASK) {
+        // Process the F3DEX display list and rasterize to gFramebuffers
+        RSP_ProcessGfxTask(tp);
+        // Signal completion so Thread 5 continues
         HLE_TriggerN64Event(1); // OS_EVENT_SP
         HLE_TriggerN64Event(3); // OS_EVENT_DP
     } else if (tp->t.type == M_AUDTASK) {
