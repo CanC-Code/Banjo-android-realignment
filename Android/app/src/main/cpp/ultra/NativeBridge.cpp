@@ -1,3 +1,5 @@
+// File: Android/app/src/main/cpp/ultra/NativeBridge.cpp
+
 #include <jni.h>
 #include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
@@ -10,7 +12,7 @@
 #include <unistd.h>
 #include <stdint.h>
 #include <GLES2/gl2.h>
-#include <EGL/egl.h> // Added EGL header for swap chain management
+#include <EGL/egl.h>
 
 #define LOG_TAG "NativeBridge"
 #define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
@@ -46,7 +48,7 @@ static BKA_ControllerPad g_inputMirror  = {0, 0, 0, 0};
 static pthread_mutex_t   g_inputMutex   = PTHREAD_MUTEX_INITIALIZER;
 
 static volatile bool   g_vblankRequested = false;
-static pthread_cond_t  g_vblankCond      = pthread_cond_t(PTHREAD_COND_INITIALIZER);
+static pthread_cond_t  g_vblankCond      = PTHREAD_COND_INITIALIZER;
 static pthread_mutex_t g_vblankMutex     = PTHREAD_MUTEX_INITIALIZER;
 
 // Airtight Bridge-Level Resource Synchronization Gate
@@ -305,6 +307,44 @@ Java_com_bkawrapper_NativeBridge_updateTexture(JNIEnv* env, jclass clazz, jint t
     glViewport(0, 0, g_surfaceWidth, g_surfaceHeight);
 
     BKA_ClaimEngineLock();
+
+    // ===================================================================
+    // RED FILL TEST — Proves the full pipeline: RDRAM → VideoPlugin →
+    // GL texture → quad draw → display.
+    //
+    // FB is at gN64_RDRAM + 0x400000, 292×216 pixels, 16-bit RGB565.
+    // 0xF800 = bright red (R=31, G=0, B=0).
+    // 0x001F = pure blue for alternating test pattern.
+    //
+    // Remove this block once real game rendering is confirmed working.
+    // ===================================================================
+    {
+        static int redFillFrameCount = 0;
+        redFillFrameCount++;
+
+        uint16_t* fb = (uint16_t*)(gN64_RDRAM + 0x400000);
+        uint16_t color;
+
+        // Alternate red/blue every 60 frames (~2 seconds at 30fps
+        // though the actual cadence is ~11ms from the GL side)
+        if ((redFillFrameCount / 60) % 2 == 0) {
+            color = 0xF800;  // RGB565 Red
+        } else {
+            color = 0x001F;  // RGB565 Blue
+        }
+
+        for (int i = 0; i < 292 * 216; i++) {
+            fb[i] = color;
+        }
+
+        // Log every 60th frame so we can confirm the test is active
+        // without spamming logcat
+        if (redFillFrameCount % 60 == 0) {
+            LOGI("NativeBridge: RED FILL TEST active — frame %d, color=0x%04X",
+                 redFillFrameCount, color);
+        }
+    }
+    // ===================================================================
 
     pthread_mutex_lock(&g_inputMutex);
     gN64_ControllerData[0] = g_inputMirror;
