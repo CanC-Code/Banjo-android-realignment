@@ -1,5 +1,3 @@
-// File: Android/app/src/main/cpp/ultra/NativeBridge.cpp
-
 #include <jni.h>
 #include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
@@ -11,6 +9,7 @@
 #include <pthread.h>
 #include <unistd.h>
 #include <stdint.h>
+#include <cstring>
 #include <GLES2/gl2.h>
 #include <EGL/egl.h>
 
@@ -98,6 +97,14 @@ extern "C" {
     extern BKA_ControllerPad gN64_ControllerData[4];
     void N64_TriggerVirtualVBlankInterrupt(void);
     void VideoPlugin_OutputFrameTexture(uint32_t hostTextureId);
+
+    // Framebuffer copy helpers. The game renders into gFramebuffers
+    // (a host-side array in lowlevel_bridge.cpp), but the video plugin
+    // reads from gN64_RDRAM + g_active_fb_offset. We need to copy the
+    // active framebuffer to RDRAM each frame.
+    extern uint16_t gFramebuffers[2][292 * 216];
+    extern uint32_t g_active_fb_offset;
+    extern int getActiveFramebuffer(void);
 
     void BKA_FrameSyncHook(void) {
         pthread_mutex_lock(&g_vblankMutex);
@@ -307,6 +314,21 @@ Java_com_bkawrapper_NativeBridge_updateTexture(JNIEnv* env, jclass clazz, jint t
     glViewport(0, 0, g_surfaceWidth, g_surfaceHeight);
 
     BKA_ClaimEngineLock();
+
+    // ===================================================================
+    // FRAMEBUFFER SYNC: Copy the game's host-side framebuffer to RDRAM.
+    //
+    // The game renders into gFramebuffers (host-side array in
+    // lowlevel_bridge.cpp), but VideoPlugin_OutputFrameTexture reads
+    // from gN64_RDRAM + g_active_fb_offset. On real N64 hardware,
+    // the VI scans out directly from RDRAM. On Android, we must
+    // explicitly copy the rendered frame to RDRAM for the plugin.
+    // ===================================================================
+    {
+        int activeFb = getActiveFramebuffer();
+        size_t fbSize = 292 * 216 * sizeof(uint16_t);
+        memcpy(gN64_RDRAM + g_active_fb_offset, gFramebuffers[activeFb], fbSize);
+    }
 
     pthread_mutex_lock(&g_inputMutex);
     gN64_ControllerData[0] = g_inputMirror;
