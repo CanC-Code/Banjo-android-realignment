@@ -1,3 +1,5 @@
+// File: Android/app/src/main/cpp/ultra/lowlevel_bridge.cpp
+
 #include <sys/mman.h>
 #include <errno.h>
 #include <android/log.h>
@@ -163,11 +165,21 @@ extern "C" {
             uint32_t* dst = s_convBuffer;
             for (s32 y = 0; y < fbHeight; y++) {
                 for (s32 x = 0; x < fbWidth; x++) {
-                    uint16_t pixel = *src++;
+                    // FIXED: N64 stores RGB565 big-endian. ARM is little-endian.
+                    // The uint16_t read gives byte-swapped value, so swap back
+                    // before unpacking the N64 bit layout:
+                    //   bits 15-11 = Red, bits 10-6 = Green, bits 5-1 = Blue, bit 0 = Alpha
+                    uint16_t pixel = __builtin_bswap16(*src++);
                     uint8_t r = (uint8_t)(((pixel >> 11) & 0x1F) << 3);
                     uint8_t g = (uint8_t)(((pixel >> 6)  & 0x1F) << 3);
                     uint8_t b = (uint8_t)(((pixel >> 1)  & 0x1F) << 3);
-                    uint8_t a = (pixel & 1) ? 0xFF : 0x00;
+                    // FIXED: Force alpha to 0xFF (opaque). The original code used
+                    // (pixel & 1) ? 0xFF : 0x00 which makes every pixel with LSB=0
+                    // fully transparent. Banjo-Kazooie typically keeps bit 0 low,
+                    // which would make the entire screen invisible.
+                    uint8_t a = 0xFF;
+                    // GL_RGBA expects components in big-endian order within the word:
+                    // bits 31-24 = R, bits 23-16 = G, bits 15-8 = B, bits 7-0 = A
                     *dst++ = (r << 24) | (g << 16) | (b << 8) | a;
                 }
             }
