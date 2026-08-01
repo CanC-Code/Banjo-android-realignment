@@ -146,14 +146,6 @@ void globalTimer_decTimer(void){
     gGlobalTimer--;
 }
 
-// Draw a single pixel into the framebuffer (RGBA5551 format)
-static inline void debug_put_pixel(int x, int y, u8 r, u8 g, u8 b) {
-    if (x < 0 || x >= 292 || y < 0 || y >= 216) return;
-    u16 pixel = ((r >> 3) << 11) | ((g >> 3) << 6) | ((b >> 3) << 1) | 1;
-    gFramebuffers[0][y * 292 + x] = pixel;
-    gFramebuffers[1][y * 292 + x] = pixel;
-}
-
 void mainLoop(void){
     s32 x, y;
 
@@ -195,66 +187,18 @@ void mainLoop(void){
         D_80275610 = 0;
     }
 
-    // ===================================================================
-    // DEBUG OVERLAY: Draw colored status bars so we can see the game
-    // is alive and rendering. Remove this once the title screen works.
-    // ===================================================================
-    {
-        s32 mode = getGameMode();
-        u32 t = globalTimer_getTime();
-
-        // Top bar: game mode indicator (color changes with mode)
-        u8 tr = (mode == 3) ? 0 : ((mode == 4) ? 255 : 128);
-        u8 tg = (mode == 3) ? 255 : ((mode == 4) ? 128 : 0);
-        u8 tb = (mode == 3) ? 0 : ((mode == 4) ? 255 : 128);
-        for (y = 0; y < 10; y++) {
-            for (x = 0; x < 292; x++) {
-                debug_put_pixel(x, y, tr, tg, tb);
-            }
-        }
-
-        // Scrolling rainbow stripe in the middle
-        for (y = 100; y < 116; y++) {
-            for (x = 0; x < 292; x++) {
-                u8 hue = (u8)((x + t) & 0xFF);
-                u8 r, g, b;
-                if (hue < 85) {
-                    r = 255 - hue * 3; g = hue * 3; b = 0;
-                } else if (hue < 170) {
-                    hue -= 85;
-                    r = 0; g = 255 - hue * 3; b = hue * 3;
-                } else {
-                    hue -= 170;
-                    r = hue * 3; g = 0; b = 255 - hue * 3;
-                }
-                debug_put_pixel(x, y, r, g, b);
-            }
-        }
-
-        // Frame counter bar (pulses)
-        u8 pulse = (u8)((t & 0x3F) * 4);
-        if (pulse > 128) pulse = 255 - pulse;
-        for (y = 200; y < 210; y++) {
-            for (x = 0; x < 292; x++) {
-                debug_put_pixel(x, y, pulse, pulse, 255 - pulse);
-            }
-        }
-
-        // Corner markers (white)
-        for (int i = 0; i < 20; i++) {
-            debug_put_pixel(i, 20 + i, 255, 255, 255);           // top-left diagonal
-            debug_put_pixel(291 - i, 20 + i, 255, 255, 255);     // top-right diagonal
-            debug_put_pixel(i, 195 - i, 255, 255, 255);          // bottom-left diagonal
-            debug_put_pixel(291 - i, 195 - i, 255, 255, 255);    // bottom-right diagonal
-        }
-    }
-    // ===================================================================
-
-    // --- Copy the game's framebuffer to RDRAM so the video plugin can upload it ---
+    // --- FILL FRAMEBUFFER WITH RED AND COPY TO RDRAM ---
     {
         extern u16 gFramebuffers[2][292 * 216];
         extern u32 g_active_fb_offset;
         extern uint8_t* gN64_RDRAM;
+        
+        // Fill both buffers with pure red
+        for (int i = 0; i < 292 * 216; i++) {
+            gFramebuffers[0][i] = 0xF800; // red in RGBA5551
+            gFramebuffers[1][i] = 0xF800;
+        }
+        
         s32 fbSize = gFramebufferWidth * gFramebufferHeight * sizeof(u16);
         if (gN64_RDRAM && g_active_fb_offset) {
             memcpy(gN64_RDRAM + g_active_fb_offset, gFramebuffers[getActiveFramebuffer()], fbSize);
