@@ -328,7 +328,6 @@ int map_getLevel(int a) { (void)a; return 0; }
 void func_8033B5FC(void) {}
 void func_8033B61C(void) {}
 void func_8033B268(void) {}
-void modelRender_defrag(void) {}
 void mapSavestate_defrag_all(void) {}
 void gctransition_defrag(void) {}
 void comusic_defrag(void) {}
