@@ -1,3 +1,5 @@
+// File: Banjo-android-realignment/src/core2/code_B3A80.c
+
 #include <ultra64.h>
 #include "functions.h"
 #include "variables.h"
@@ -429,6 +431,22 @@ void assetCache_resizeAsset(void *assetPtr, s32 size){
     assetCachePtrList[i] = n64_realloc(assetPtr, size);
 }
 
+// =======================================================================
+// FIXED: assetCache_init now uses the literal ROM offset 0x5E90 for the
+// assets segment instead of (u32)assets_ROM_START.
+//
+// On the original N64, (u32)assets_ROM_START returns the linker-defined
+// virtual address of the assets_ROM_START symbol (e.g. 0x80105E90), which
+// piMgr_read maps back to the physical ROM offset 0x5E90.
+//
+// On Android, there is no linker script, so (u32)assets_ROM_START returns
+// the host address of a 4-byte int variable — completely wrong. We use
+// the literal ROM offset from decompressed.us.v10.yaml instead.
+//
+// Verified against the splat YAML:
+//   - name: assets
+//     start: 0x5E90
+// =======================================================================
 void assetCache_init(void){
     D_80370A1C = 0;
     func_8033B180();
@@ -438,7 +456,12 @@ void assetCache_init(void){
     assetCacheAssetIdList = (s16 *)n64_malloc(150*sizeof(s16));
     assetCacheLength = 0;
     assetSectionRomHeader = (AssetROMHead *)n64_malloc(sizeof(AssetROMHead));
-    D_80383CC8 = (u32)assets_ROM_START;
+
+    // FIXED: Use literal ROM offset instead of symbol address.
+    // Original code: D_80383CC8 = (u32)assets_ROM_START;
+    // The assets segment starts at ROM offset 0x5E90 (from decompressed.us.v10.yaml).
+    D_80383CC8 = 0x5E90;  // ROM offset of assets segment
+
     piMgr_read(assetSectionRomHeader, D_80383CC8, sizeof(AssetROMHead));
     assetSectionRomMetaList = (AssetFileMeta *)n64_malloc(assetSectionRomHeader->count*sizeof(AssetFileMeta));
     piMgr_read(assetSectionRomMetaList, D_80383CC8 + sizeof(AssetROMHead),assetSectionRomHeader->count*sizeof(AssetFileMeta));
