@@ -478,13 +478,6 @@ void gsworld_load(s32 map_id) {
 // in func_802E39D0). Text Gfx commands are processed by the software
 // RDP in gfx_interpreter.cpp and written directly to gFramebuffers.
 // =======================================================================
-void gsworld_draw(void** gfx, void** mtx, void** vtx) {
-    // Real 3D rendering is not yet available (sky, map models, etc.
-    // are still stubbed). The 2D text layer renders on top via the
-    // Gfx display list pipeline.
-    if (!sEnableDraw) return;
-}
-
 // =======================================================================
 // REAL gsworld_update
 // =======================================================================
