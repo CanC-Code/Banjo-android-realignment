@@ -19,6 +19,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
+#include <stdlib.h>
 #include <android/log.h>
 
 #define LOG_TAG "BKA_STUBS"
@@ -115,6 +116,28 @@ uint64_t D_803FFE10[15] __attribute__((aligned(8)));
 // referenced from code_1D00.c). Allocate a reasonable buffer.
 // Previously "int D_803FBE00 = 0" (4 bytes).
 uint8_t D_803FBE00[0x2000] __attribute__((aligned(16)));
+
+// =======================================================================
+// HEAP OVERRIDE: Replace the game's custom heap (memory.c) with host libc
+// malloc/free. The game heap requires a properly initialized linked list
+// in D_8002D500, which is fragile on Android. Using host malloc bypasses
+// all heap corruption issues during early boot.
+//
+// NOTE: This is a temporary measure. The game heap supports defragmentation
+// which is needed for long play sessions. Once the heap init is stable,
+// remove these overrides to restore the game's memory manager.
+// =======================================================================
+void *n64_malloc(s32 size) {
+    return malloc(size);
+}
+
+void *n64_realloc(void *ptr, s32 size) {
+    return realloc(ptr, size);
+}
+
+void n64_free(void *ptr) {
+    free(ptr);
+}
 
 // NOTE: gFramebuffers, g_active_fb_offset are now defined in lowlevel_bridge.cpp
 
