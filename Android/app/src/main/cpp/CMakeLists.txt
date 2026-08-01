@@ -21,6 +21,7 @@ set(BRIDGE_SOURCES
     emulator/stubs.cpp
     emulator/pi_hle.cpp
     emulator/resource_mgr.cpp
+    emulator/gfx_interpreter.cpp     # <-- ADDED: F3DEX display list → software rasterizer
     tools/rare_decompression.cpp
     ultra/zlib/adler32.c
     ultra/zlib/compress.c
