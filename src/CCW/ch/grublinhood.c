@@ -8,6 +8,12 @@ extern void func_802DABA0(ParticleEmitter *, f32[3], f32, enum asset_e);
 extern void func_8033A45C(s32, s32);
 extern void func_802DB548(void);
 
+enum ccw_season_e
+{
+    SPRING,
+    SUMMER,
+    AUTUMN,
+    WINTER
 };
 
 typedef struct {

@@ -20,3 +20,9 @@
 // that differ from the original decomp's numbered names
 #define ACTOR_298_ZUBBA_DOOR    ACTOR_29C_ZUBBA_DOCILE
 #define ACTOR_29A_ZUBBA_DOOR    ACTOR_29C_ZUBBA_DOCILE
+
+// CCW season bare-name aliases (used by Android-ported source files)
+#define SPRING  CCW_SEASON_0_SPRING
+#define SUMMER  CCW_SEASON_1_SUMMER
+#define AUTUMN  CCW_SEASON_2_AUTUMN
+#define WINTER  CCW_SEASON_3_WINTER
