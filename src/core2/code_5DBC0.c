@@ -151,6 +151,9 @@ s32 func_802E4E54(u8 font_id) {
         }
         D_8037E900->unk4[sp24].font_id = font_id;
         D_8037E900->unk4[sp24].font_bin = (BKSprite *)assetcache_get(font_id + 0x6E9);
+        if (D_8037E900->unk4[sp24].font_bin == NULL) {
+            return -1;
+        }
         D_8037E900->unk4[sp24].letter_texture = func_802E4D8C(D_8037E900->unk4[sp24].font_bin);
         D_8037E900->unk4[sp24].half_width = D_8037E900->unk4[sp24].letter_texture['W' - 0x21]->x/2;
         D_8037E900->unk4[sp24].height = D_8037E900->unk4[sp24].letter_texture['W' - 0x21]->y;

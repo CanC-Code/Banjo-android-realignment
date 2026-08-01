@@ -233,7 +233,6 @@ void func_80350E00(void) {}
 // NOTE: The following functions are NO LONGER STUBBED — their real
 // implementations from code_5DBC0.c and print.c are used instead:
 //   print_init()      — initializes the font system
-//   func_802E4E54()   — loads font sprite data from asset cache
 //   func_802E5F38()   — initializes the print buffer state
 //   func_802E5F10()   — builds Gfx display list commands for text
 
