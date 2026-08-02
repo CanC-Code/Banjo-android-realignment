@@ -13,7 +13,6 @@ void *vector_getBegin(VLA *this){
     return this->begin;
 }
 
-    if (this == NULL) return 0;
 void *vector_at(VLA *this, u32 n){
     return (void *)((u32) this->begin + n*this->elem_size);
 }
@@ -23,6 +22,7 @@ s32 vector_getIndex(VLA *this, void *elemPtr){
 }
 
 s32 vector_size(VLA *this){
+    if (this == NULL) return 0;
     return ((s32)this->end - (s32)this->begin)/this->elem_size;
 }
 
