@@ -317,7 +317,6 @@ void func_80321854(void) {}
 void func_8030AFD8(int a) { (void)a; }
 
 // =======================================================================
-// FORWARD DECLARATIONS for func_802E4214's callees
 // =======================================================================
 void game_setMode(s32 next_mode, s32 arg1);
 void gsworld_set(s32 map, s32 exit, s32 reload);
@@ -354,56 +353,7 @@ struct game_state_s D_8037E8E0;
 #define GAME_MODE_3_NORMAL  3
 
 // =======================================================================
-// REAL func_802E4214 — World Init
 // =======================================================================
-void func_802E4214(s32 map_id) {
-    LOGI("BKA-STUBS: func_802E4214 REAL - init world for map %d", map_id);
-    D_8037E8E0.transition = TRANSITION_0_NONE;
-    D_8037E8E0.unk19 = 0;
-    D_8037E8E0.unk18 = 0;
-    D_8037E8E0.map = 0;
-    D_8037E8E0.exit = 0;
-    D_8037E8E0.unk17 = 0;
-    D_8037E8E0.unk1B = 0;
-    D_8037E8E0.unk1A = 0;
-    D_8037E8E0.unkC = 0;
-    D_8037E8E0.unk1C = 0;
-    savedata_init();
-    sns_save_and_update_global_data();
-    func_8030D86C();
-    coMusicPlayer_init();
-    func_80322764();
-    timedFuncQueue_init();
-    func_802F9CD8();
-    func_8031B62C();
-    // print_init() is no longer stubbed — the real implementation runs
-    if (!func_802E4A08()) print_init();
-    // func_802E5F38() is no longer stubbed — initializes the print buffer
-    func_802E5F38();
-    defragManager_init();
-    modelRender_init();
-    depthbuffer_enable(1);
-    animCache_init();
-    viewport_reset();
-    viewport_setNearAndFar(1.0f, 10000.0f);
-    rand_reset();
-    scissorBox_setDefault();
-    func_80253FE8();
-    time_reset();
-    func_8033DC04();
-    clearScoreStates();
-    D_8037E8E0.game_mode = GAME_MODE_2_UNKNOWN;
-    D_8037E8E0.unk8 = 0.0f;
-    time_setDeltaReal_sec(0.0f);
-    time_setDeltaReal_frames(0);
-    LOGI("BKA-STUBS: func_802E4214 - loading level data for map %d", map_id);
-    func_803216D0(map_id);
-    func_8030AFA0(map_id);
-    func_802E3854();
-    func_802E38E8(map_id, 0, 0);
-    D_8037E8E0.unk0 = 0;
-    game_setMode(GAME_MODE_3_NORMAL, 1);
-    LOGI("BKA-STUBS: func_802E4214 - world init complete");
 }
 
 // =======================================================================
