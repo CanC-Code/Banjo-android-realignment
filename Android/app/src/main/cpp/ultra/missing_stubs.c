@@ -320,7 +320,6 @@ void func_8030AFD8(int a) { (void)a; }
 // FORWARD DECLARATIONS for func_802E4214's callees
 // =======================================================================
 void func_803216D0(s32 map);
-void func_8030AFA0(s32 map);
 void func_802E38E8(s32 map, s32 exit, s32 reset_on_load);
 void game_setMode(s32 next_mode, s32 arg1);
 void gsworld_set(s32 map, s32 exit, s32 reload);
@@ -409,8 +408,6 @@ void func_802E4214(s32 map_id) {
     LOGI("BKA-STUBS: func_802E4214 - world init complete");
 }
 
-// =======================================================================
-// REAL func_803216D0 — Level Overlay Loader
 // =======================================================================
 void func_803216D0(s32 map) {
     LOGI("BKA-STUBS: func_803216D0 - loading overlay for map %d", map);
