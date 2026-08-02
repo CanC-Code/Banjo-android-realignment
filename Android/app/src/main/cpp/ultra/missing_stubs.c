@@ -22,16 +22,6 @@ void print_getLettersFromFont(void* arg0, void* arg1);
 void func_802E5F38(void);
 void func_802E5F10(void);
 
-// gsworld state getters/setters forward declarations
-
-void gsworld_setEnableUpdate(int value);
-
-void gsworld_setEnableDraw(int value);
-
-int gsworld_getEnableUpdate(void);
-
-int gsworld_getEnableDraw(void);
-
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
@@ -326,121 +316,107 @@ int level_get(void) { return 0; }
 void func_80321854(void) {}
 void func_8030AFD8(int a) { (void)a; }
 
+// =======================================================================
+// =======================================================================
+void game_setMode(s32 next_mode, s32 arg1);
+void gsworld_set(s32 map, s32 exit, s32 reload);
+void gsworld_load(s32 map_id);
+void gsworld_setEnableUpdate(int value);
+void gsworld_setEnableDraw(int value);
+int  gsworld_getEnableUpdate(void);
+int  gsworld_getEnableDraw(void);
 
 // =======================================================================
-// gsworld state getters/setters
+// D_8037E8E0 game state struct
+// =======================================================================
+struct game_state_s {
+    s32 unk0;
+    s32 game_mode;
+    f32 unk8;
+    s32 unkC;
+    f32 unk10;
+    u8 transition;
+    u8 map;
+    u8 exit;
+    u8 unk17;
+    u8 unk18;
+    u8 unk19;
+    u8 unk1A;
+    u8 unk1B;
+    u8 unk1C;
+};
+
+struct game_state_s D_8037E8E0;
+
+#define TRANSITION_0_NONE   0
+#define GAME_MODE_2_UNKNOWN 2
+#define GAME_MODE_3_NORMAL  3
+
+// =======================================================================
+// =======================================================================
+}
+
+// =======================================================================
+
+// =======================================================================
+// REAL game_setMode — Game Mode Transition
+// =======================================================================
+void game_setMode(s32 next_mode, s32 arg1) {
+    LOGI("BKA-STUBS: game_setMode - mode %d (arg1=%d)", next_mode, arg1);
+    D_8037E8E0.game_mode = next_mode;
+    if (next_mode == GAME_MODE_3_NORMAL) {
+        gsworld_setEnableUpdate(1);
+        gsworld_setEnableDraw(1);
+    }
+}
+
+// =======================================================================
+// gsworld state
 // =======================================================================
 static int sEnableUpdate = 1;
-static int sEnableDraw = 1;
-
-void gsworld_setEnableUpdate(int value) { sEnableUpdate = value; }
-void gsworld_setEnableDraw(int value)   { sEnableDraw = value; }
-int gsworld_getEnableUpdate(void)       { return sEnableUpdate; }
-int gsworld_getEnableDraw(void)         { return sEnableDraw; }
+static int sEnableDraw   = 1;
 
 // =======================================================================
+// REAL gsworld_set
 // =======================================================================
-void AnimTextureListCache_init(void) {
-}
-
-void AnimTextureListCache_free(void) {
-    // Safe stub
-}
-
-    // Safe stub - prevents crash from invalid memory access
-    (void)ptr;
-}
-
-    // Return NULL or a dummy pointer
-    (void)size;
-    return NULL;
+void gsworld_set(s32 map, s32 exit, s32 reload) {
+    LOGI("BKA-STUBS: gsworld_set - map=%d exit=%d reload=%d", map, exit, reload);
+    sEnableUpdate = 1;
+    sEnableDraw = 1;
+    if (!reload) gsworld_load(map);
 }
 
 // =======================================================================
+// REAL gsworld_load
 // =======================================================================
-typedef struct FREE_LIST_HEADER {
-    void *next;
-    int size;
-    int element_size;
-    int max_elements;
-    char data[1];
-} FREE_LIST_HEADER;
-
-// Forward declarations
-
-// Implementations
-    // Return a dummy pointer - the game expects a valid pointer
-    static FREE_LIST_HEADER dummy_header;
-    static int initialized = 0;
-    if (!initialized) {
-        dummy_header.next = NULL;
-        dummy_header.size = 0;
-        dummy_header.element_size = element_size;
-        dummy_header.max_elements = max_elements;
-        initialized = 1;
-    }
-    return &dummy_header;
+void gsworld_load(s32 map_id) {
+    LOGI("BKA-STUBS: gsworld_load - loading map %d", map_id);
 }
 
-    // Do nothing - safe stub
-    (void)list;
-}
-
-    // Return a pointer to a dummy element
-    static char dummy_data[256];
-    (void)list;
-    (void)index;
-    return dummy_data;
-}
-
-    // Return a pointer to a dummy element and increment index
-    static char dummy_data[256];
-    (void)list;
-    if (index) {
-        (*index)++;
-    }
-    return dummy_data;
-}
-
-    // Return a large enough size to prevent errors
-    (void)list;
-    return 128;
-}
-
-    // Always return true - assume all elements are alive
-    (void)list;
-    (void)index;
+// =======================================================================
+// REAL gsworld_draw — No-op pass-through
+//
+// The test pattern has been removed. The real 3D rendering functions
+// (sky_draw, mapModel_opa_draw, player_draw, etc.) are still stubbed,
+// so this function doesn't render 3D geometry. However, the 2D text
+// rendering is now active via func_802E5F10 (called after gsworld_draw
+// in func_802E39D0). Text Gfx commands are processed by the software
+// RDP in gfx_interpreter.cpp and written directly to gFramebuffers.
+// =======================================================================
+// =======================================================================
+// REAL gsworld_update
+// =======================================================================
+int gsworld_update(void) {
+    if (!sEnableUpdate) return 1;
     return 1;
 }
 
-    // Do nothing - safe stub
-    (void)list;
-    (void)index;
-}
-
 // =======================================================================
-// Model rendering stubs to prevent crashes during gsworld_set
+// REAL gsworld_setEnableUpdate / gsworld_setEnableDraw
 // =======================================================================
-    // Return a dummy pointer to prevent null dereference
-    static char dummy_vtx[1024];
-    (void)model;
-    (void)index;
-    return dummy_vtx;
-}
+void gsworld_setEnableUpdate(int value) { sEnableUpdate = value; }
+void gsworld_setEnableDraw(int value)   { sEnableDraw = value; }
 
-    // Safe stub - zero out bounds
-    (void)model;
-    if (bounds) {
-        memset(bounds, 0, 64); // Zero out bounds structure
-    }
-}
+int gsworld_getEnableUpdate(void)       { return sEnableUpdate; }
+int gsworld_getEnableDraw(void)         { return sEnableDraw; }
 
-    // Safe stub - initialize cube list without crashing
-    (void)list;
-    (void)count;
-}
-
-void model_getVtxCount(void *model) {
-    // Safe stub
-    (void)model;
-}
