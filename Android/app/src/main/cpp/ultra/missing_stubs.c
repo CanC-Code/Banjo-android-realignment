@@ -398,6 +398,8 @@ void func_802E4214(s32 map_id) {
     clearScoreStates();
     D_8037E8E0.game_mode = GAME_MODE_2_UNKNOWN;
     D_8037E8E0.unk8 = 0.0f;
+    time_setDeltaReal_sec(0.0f);
+    time_setDeltaReal_frames(0);
     LOGI("BKA-STUBS: func_802E4214 - loading level data for map %d", map_id);
     func_803216D0(map_id);
     func_8030AFA0(map_id);
