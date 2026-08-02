@@ -17,7 +17,6 @@
 //   the real implementations above when --allow-multiple-definition is set.
 
 // Forward declarations for print/font stubs
-void print_init(void);
 void print_getLettersFromFont(void* arg0, void* arg1);
 void func_802E5F38(void);
 void func_802E5F10(void);
@@ -215,11 +214,8 @@ void func_802E67C4(void) {}
 void func_802E53EC4(void *a, void *b) { (void)a; (void)b; }
 void printbuffer_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
 void printbuffer_defrag(void) {}
-void depthbuffer_enable(int a) { (void)a; }
-void modelRender_init(void) {}
 void modelRender_free(void) {}
 void modelRender_defrag(void) {}
-void viewport_reset(void) {}
 void viewport_setNearAndFar(float a, float b) { (void)a; (void)b; }
 void viewport_setPosition_f3(float a, float b, float c) { (void)a; (void)b; (void)c; }
 void viewport_setRotation_f3(float a, float b, float c) { (void)a; (void)b; (void)c; }
@@ -282,21 +278,14 @@ int player_isDead(void) { return 0; }
 void mapSavestate_apply(int a) { (void)a; }
 void mapSavestate_save(int a) { (void)a; }
 int gsworld_get_map(void) { return 0; }
-void sns_save_and_update_global_data(void) {}
 void func_8030D86C(void) {}
 void func_80322764(void) {}
-void timedFuncQueue_init(void) {}
 void func_802F9CD8(void) {}
 void func_8031B62C(void) {}
-void defragManager_init(void) {}
-void animCache_init(void) {}
-void rand_reset(void) {}
-void scissorBox_setDefault(void) {}
 void func_80253FE8(void) {}
 void time_reset(void) {}
 void func_8033DC04(void) {}
 void clearScoreStates(void) {}
-void savedata_init(void) {}
 void func_802E3800(void) {}
 void func_8033DC10(void) {}
 void func_80324C58(void) {}
