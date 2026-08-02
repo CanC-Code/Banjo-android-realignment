@@ -27,6 +27,10 @@ void gsworld_draw(Gfx** gdl, Mtx **mptr, Vtx **vptr) {
     if (D_8037E8E0.game_mode == 0) {
         drawRectangle2D(gdl, 0, 0, gFramebufferWidth, gFramebufferHeight, 0, 0, 0);
         func_802BBD2C(&sp44, &sp40);
+    if (D_8037E8E0.game_mode == GAME_MODE_2_UNKNOWN) {
+        drawRectangle2D(gdl, 0, 0, gFramebufferWidth, gFramebufferHeight, 0, 0, 0);
+        return;
+    }
         viewport_setNearAndFar(sp44, sp40);
         viewport_setRenderViewportAndPerspectiveMatrix(gdl, mptr);
         return;
