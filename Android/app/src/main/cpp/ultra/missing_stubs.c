@@ -297,7 +297,6 @@ void time_reset(void) {}
 void func_8033DC04(void) {}
 void clearScoreStates(void) {}
 void savedata_init(void) {}
-void func_802E3854(void) {}
 void func_802E3800(void) {}
 void func_8033DC10(void) {}
 void func_80324C58(void) {}
@@ -318,9 +317,6 @@ void func_8030AFD8(int a) { (void)a; }
 
 // =======================================================================
 // =======================================================================
-void game_setMode(s32 next_mode, s32 arg1);
-void gsworld_set(s32 map, s32 exit, s32 reload);
-void gsworld_load(s32 map_id);
 void gsworld_setEnableUpdate(int value);
 void gsworld_setEnableDraw(int value);
 int  gsworld_getEnableUpdate(void);
@@ -361,14 +357,6 @@ struct game_state_s D_8037E8E0;
 // =======================================================================
 // REAL game_setMode — Game Mode Transition
 // =======================================================================
-void game_setMode(s32 next_mode, s32 arg1) {
-    LOGI("BKA-STUBS: game_setMode - mode %d (arg1=%d)", next_mode, arg1);
-    D_8037E8E0.game_mode = next_mode;
-    if (next_mode == GAME_MODE_3_NORMAL) {
-        gsworld_setEnableUpdate(1);
-        gsworld_setEnableDraw(1);
-    }
-}
 
 // =======================================================================
 // gsworld state
@@ -379,19 +367,10 @@ static int sEnableDraw   = 1;
 // =======================================================================
 // REAL gsworld_set
 // =======================================================================
-void gsworld_set(s32 map, s32 exit, s32 reload) {
-    LOGI("BKA-STUBS: gsworld_set - map=%d exit=%d reload=%d", map, exit, reload);
-    sEnableUpdate = 1;
-    sEnableDraw = 1;
-    if (!reload) gsworld_load(map);
-}
 
 // =======================================================================
 // REAL gsworld_load
 // =======================================================================
-void gsworld_load(s32 map_id) {
-    LOGI("BKA-STUBS: gsworld_load - loading map %d", map_id);
-}
 
 // =======================================================================
 // REAL gsworld_draw — No-op pass-through
