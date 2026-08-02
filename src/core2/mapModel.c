@@ -581,6 +581,7 @@ void mapModel_free(void){
 }
 
 enum asset_e mapModel_getOpaModelId(void){
+    if (mapModel.description == NULL) return 0;
     return mapModel.description->opa_model_id;
 }
 
