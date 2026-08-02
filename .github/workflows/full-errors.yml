@@ -1,6 +1,8 @@
-name: Compile Debug APK from static-build (collect all errors)
+name: Build & Verify
 
 on:
+  push:
+    branches: [static-build]
   workflow_dispatch:
 
 jobs:
@@ -32,43 +34,39 @@ jobs:
           rm -rf Android/app/.cxx
           rm -rf Android/app/build
 
-      - name: 🔧 Configure CMake (create build directory)
-        run: |
-          cd Android
-          gradle configureCMakeDebug[arm64-v8a] \
-            -Pandroid.externalNativeBuild.cmake.arguments="-DEXCLUDE_GAME_SRC=OFF"
-
-      - name: 💥 Build native code with keep-going (capture all errors)
-        continue-on-error: true   # don't stop the workflow on failure
-        run: |
-          BUILD_DIR="Android/app/.cxx/Debug/p2y5e6n2/arm64-v8a"
-          NINJA="$ANDROID_SDK_ROOT/cmake/3.22.1/bin/ninja"
-          $NINJA -C "$BUILD_DIR" bkawrapper -k 0 2>&1 | \
-            grep "error:" | sort -u > all_errors.txt
-          echo "Total unique error lines: $(wc -l < all_errors.txt)"
-          cat all_errors.txt
-
-      - name: 📤 Upload error log
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-errors
-          path: all_errors.txt
-
-      - name: 🐘 Build APK (will succeed only if native build passed)
-        continue-on-error: true
+      - name: 🔨 Build APK
+        id: build
         run: |
           cd Android
           gradle assembleDebug \
             -Pandroid.externalNativeBuild.cmake.arguments="-DEXCLUDE_GAME_SRC=OFF" \
-            --stacktrace
+            --stacktrace 2>&1 | tee ../build.log
+          echo "EXIT_CODE=${PIPESTATUS[0]}" >> $GITHUB_OUTPUT
 
-      - name: 📦 Upload APK
+      - name: ✅ Build Succeeded
+        if: steps.build.outputs.EXIT_CODE == '0'
+        run: |
+          echo "### 🎉 Build Passed!" >> $GITHUB_STEP_SUMMARY
+          echo "The APK compiled successfully with no errors." >> $GITHUB_STEP_SUMMARY
+
+      - name: ❌ Build Failed — Show Errors
+        if: steps.build.outputs.EXIT_CODE != '0'
+        run: |
+          echo "### ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -E "error:|FAILED:|BUILD FAILED" build.log | tail -n 50 >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: 📤 Upload Build Log
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: bka-verification-apk
-          path: |
-            Android/app/build/outputs/apk/debug/*.apk
-        # This step runs even if the previous steps failed,
-        # but will only find an APK if the build succeeded.
+          name: build-log
+          path: build.log
+
+      - name: 📦 Upload APK
+        if: steps.build.outputs.EXIT_CODE == '0'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bka-debug-apk
+          path: Android/app/build/outputs/apk/debug/*.apk
