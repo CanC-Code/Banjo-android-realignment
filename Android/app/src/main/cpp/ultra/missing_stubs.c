@@ -49,7 +49,7 @@ void osInvalDCache(void *vaddr, int32_t nbytes)       { (void)vaddr; (void)nbyte
 void osWriteBackDCacheAll(void)                       {}
 void __osInitialize_autodetect(void)                  {}
 void __osCleanupThread(void) {}
-uint32_t osGetCount(void)              { return 0; }
+uint32_t osGetCount(void)              { static uint32_t counter = 0; return counter += 1000; }
 uint32_t __osGetSR(void)               { return 0; }
 uint32_t ___osGetSR(void)              { return 0; }
 void     __osSetSR(uint32_t sr)        { (void)sr; }
