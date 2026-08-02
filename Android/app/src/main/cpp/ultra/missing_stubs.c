@@ -436,3 +436,33 @@ void freelist_freeElement(void *list, int index) {
     (void)list;
     (void)index;
 }
+
+// =======================================================================
+// Model rendering stubs to prevent crashes during gsworld_set
+// =======================================================================
+void *model_getVtxList(void *model, int index) {
+    // Return a dummy pointer to prevent null dereference
+    static char dummy_vtx[1024];
+    (void)model;
+    (void)index;
+    return dummy_vtx;
+}
+
+void mapModel_getCubeBounds(void *model, void *bounds) {
+    // Safe stub - zero out bounds
+    (void)model;
+    if (bounds) {
+        memset(bounds, 0, 64); // Zero out bounds structure
+    }
+}
+
+void cubeList_init(void *list, int count) {
+    // Safe stub - initialize cube list without crashing
+    (void)list;
+    (void)count;
+}
+
+void model_getVtxCount(void *model) {
+    // Safe stub
+    (void)model;
+}
