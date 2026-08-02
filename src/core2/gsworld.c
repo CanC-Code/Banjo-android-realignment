@@ -10,14 +10,7 @@
 /* .data */
 extern u8 D_80370250 = 0;
 
-/* .bss */
-struct {
-    s32 unk0;
-    s32 map;
-    s32 exit;
-}D_8037E8E0;
-s32 D_803835DC;
-u32 D_8037E8E0.game_mode;
+extern struct { s32 unk0; s32 game_mode; f32 unk8; s32 unkC; f32 unk10; u8 transition; u8 map; u8 exit; u8 unk17; u8 unk18; u8 unk19; u8 unk1A; u8 unk1B; u8 unk1C; } D_8037E8E0;
 
 /* public */
 void func_80335110(s32);
