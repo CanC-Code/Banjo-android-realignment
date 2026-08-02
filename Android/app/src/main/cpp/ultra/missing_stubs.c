@@ -337,3 +337,25 @@ void gsworld_setEnableUpdate(int value) { sEnableUpdate = value; }
 void gsworld_setEnableDraw(int value)   { sEnableDraw = value; }
 int gsworld_getEnableUpdate(void)       { return sEnableUpdate; }
 int gsworld_getEnableDraw(void)         { return sEnableDraw; }
+
+// =======================================================================
+// Memory management stubs for AnimTextureListCache and freelist
+// =======================================================================
+void AnimTextureListCache_init(void) {
+    // Safe stub - prevents crash from uninitialized freelist
+}
+
+void AnimTextureListCache_free(void) {
+    // Safe stub
+}
+
+void freelist_clear(void *ptr) {
+    // Safe stub - prevents crash from invalid memory access
+    (void)ptr;
+}
+
+void *freelist_new(size_t size) {
+    // Return NULL or a dummy pointer
+    (void)size;
+    return NULL;
+}
