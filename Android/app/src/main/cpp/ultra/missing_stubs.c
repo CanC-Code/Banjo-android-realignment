@@ -466,25 +466,3 @@ void model_getVtxCount(void *model) {
     // Safe stub
     (void)model;
 }
-
-// =======================================================================
-// Model rendering stubs to prevent crashes during gsworld_set
-// =======================================================================
-void *model_getVtxList(void *model, int index) {
-    static char dummy_vtx[1024];
-    (void)model;
-    (void)index;
-    return dummy_vtx;
-}
-
-void mapModel_getCubeBounds(void *model, void *bounds) {
-    (void)model;
-    if (bounds) {
-        memset(bounds, 0, 64);
-    }
-}
-
-void cubeList_init(void *list, int count) {
-    (void)list;
-    (void)count;
-}
