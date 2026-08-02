@@ -20,6 +20,7 @@
 #include "n64_types.h"
 #include "bka_safe_base.h"
 #include "rarezip.h"
+extern OSMesgQueue D_8027FBC8;
 #include "gfx_interpreter.h"   // <-- ADDED: F3DEX display list → framebuffer rasterizer
 
 // -------------------------------------------------------------------------
@@ -442,6 +443,7 @@ void osSpTaskStartGo(OSTask *tp) {
         // Signal completion so Thread 5 continues
         HLE_TriggerN64Event(1); // OS_EVENT_SP
         HLE_TriggerN64Event(3); // OS_EVENT_DP
+        osSendMesg(&D_8027FBC8, NULL, OS_MESG_NOBLOCK);
     } else if (tp->t.type == M_AUDTASK) {
         HLE_TriggerN64Event(1); // OS_EVENT_SP
     }
