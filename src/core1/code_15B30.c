@@ -40,8 +40,6 @@ void func_8025357C(void) {
 // ---------------------------------------------------------------------------
 // STUB: Do not create the graphics task manager thread.
 // ---------------------------------------------------------------------------
-void func_80247560(void) {
-}
 
 // ---------------------------------------------------------------------------
 // STUB: Do not enqueue a graphics task. The original N64 RDP task is not
