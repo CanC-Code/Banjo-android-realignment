@@ -21,7 +21,7 @@ extern u32 D_8027BF2C;
 extern u32 D_8027BF30;
 
 void overlay_load(
-    s32 overlay_id, u32 ram_start, u32 ram_end, u32 rom_start, u32 rom_end, 
+    s32 overlay_id, u32 ram_start, u32 ram_end, u32 rom_start, u32 rom_end,
     u32 code_start, u32 code_end, u32 data_start, u32 data_end, u32 bss_start, u32 bss_end
 ){
     u8 *sp34;
@@ -53,28 +53,16 @@ void overlay_load(
         sp34 = &D_8002D500;
     }
 
-    // DIAGNOSTIC: decompression temporarily bypassed to isolate crash.
-    // The compressed data is read from ROM, but we skip the actual
-    // decompression and just zero out the target area.
-    LOGI("BKA: overlay_load bypass decompress for overlay %d, size=%d",
+    LOGI("BKA: overlay_load decompress overlay %d, size=%d",
          overlay_id, rom_end - rom_start);
 
     piMgr_read(sp34, rom_start, rom_end - rom_start);
 
-    // Bypass decompression — zero the overlay memory for now.
-    memset(ram_start_ptr, 0, ram_end - ram_start);
-
-    // Fake the CRC values so the game doesn't reject the overlay.
-    sp2C = 0;
-    sp30 = 0;
-    D_8027BF2C = 0;
-    D_8027BF30 = 0;
-
-    // Original decompression calls are commented out:
-    // rarezip_uncompress(&sp34, &ram_start_ptr);
-    // sp2C = D_8027BF2C;
-    // sp30 = D_8027BF30;
-    // rarezip_uncompress(&sp34, &ram_start_ptr);
+    // Decompress the overlay
+    rarezip_uncompress(&sp34, &ram_start_ptr);
+    sp2C = D_8027BF2C;
+    sp30 = D_8027BF30;
+    rarezip_uncompress(&sp34, &ram_start_ptr);
 
     if(bss_start){
         bzero(bss_start_ptr, bss_end - bss_start);
