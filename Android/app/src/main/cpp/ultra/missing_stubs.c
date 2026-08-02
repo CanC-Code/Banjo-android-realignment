@@ -210,7 +210,6 @@ void itemPrint_defrag(void) {}
 void func_80253208(void *a, int b, int c, int d, int e, void *f) { (void)a; (void)b; (void)c; (void)d; (void)e; (void)f; }
 void zBuffer_set(void *a)                           { (void)a; }
 void func_802476EC(void *a)                         { (void)a; }
-void func_80246670(void *a)                         { (void)a; }
 void func_802E67AC(void) {}
 void func_802E67C4(void) {}
 void func_802E53EC4(void *a, void *b) { (void)a; (void)b; }
