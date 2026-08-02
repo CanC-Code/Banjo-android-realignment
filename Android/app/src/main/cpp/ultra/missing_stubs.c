@@ -22,6 +22,16 @@ void print_getLettersFromFont(void* arg0, void* arg1);
 void func_802E5F38(void);
 void func_802E5F10(void);
 
+// gsworld state getters/setters forward declarations
+
+void gsworld_setEnableUpdate(int value);
+
+void gsworld_setEnableDraw(int value);
+
+int gsworld_getEnableUpdate(void);
+
+int gsworld_getEnableDraw(void);
+
 #include <string.h>
 #include <stdint.h>
 #include <stddef.h>
