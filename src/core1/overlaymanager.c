@@ -1,3 +1,6 @@
+#include <android/log.h>
+#define LOG_TAG "BKA_OVERLAY_MGR"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO, LOG_TAG, __VA_ARGS__)
 #include <ultra64.h>
 #include "bka_safe_base.h"          // for BKA_TRANSLATE_ADDR
 #include "core1/core1.h"
@@ -225,13 +228,16 @@ n64_bool overlayManagerisOverlayLoaded(int overlay_id){
 }
 
 n64_bool overlayManagerload(enum overlay_e overlay_id){
+    LOGI("BKA_OVERLAY_MGR: overlayManagerload called with overlay_id=%d", overlay_id);
     s32 rom_addr;
 
     if(overlay_id == 0)
         return FALSE;
+        LOGI("BKA_OVERLAY_MGR: overlayManagerload returning FALSE (overlay_id=0)");
 
     if(overlay_id == overlayMgrLoadedId)
         return FALSE;
+        LOGI("BKA_OVERLAY_MGR: overlayManagerload returning FALSE (overlay_id=0)");
 
     overlayMgrLoadedId = overlay_id;
     rom_addr = (s32)(overlayAddressMap + overlay_id);
@@ -250,6 +256,7 @@ n64_bool overlayManagerload(enum overlay_e overlay_id){
         ((OverlayAddressMap*)rom_addr)->bss_end
     );
     return TRUE;
+    LOGI("BKA_OVERLAY_MGR: overlayManagerload returning TRUE for overlay_id=%d", overlay_id);
 }
 
 s32 overlayManagerclearLoadedId(void){
