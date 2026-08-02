@@ -586,8 +586,6 @@ enum asset_e mapModel_getOpaModelId(void){
 
 void func_8030A078(void) {
     if (gsworld_get_map() == 0) return;
-    description = _mapModel_mapIdToDescription(gsworld_get_map());
-    if (description == NULL) return;
     BKMeshList *sp24;
     MapModelDescription *description;
 
