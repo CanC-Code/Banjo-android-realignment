@@ -241,6 +241,8 @@ f32 func_80308FDC(f32 arg0[3], u32 arg1) {
 
 void mapModel_opa_draw(Gfx **gfx, Mtx **mtx, Vtx **vtx) {
     if (mapModel.description == NULL) return;
+    if (mapModel.model_bin_opa == NULL) return;
+    if (mapModel.description == NULL) return;
     s32 temp_a0;
 
     if (func_80320708() && levelSpecificFlags_validateCRC2() && dummy_func_80320248()) {
