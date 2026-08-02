@@ -24,7 +24,6 @@ void gsworld_draw(Gfx** gdl, Mtx **mptr, Vtx **vptr) {
     f32 sp44;
     f32 sp40;
 
-    static int drawCount = 0; if (drawCount++ < 5) LOGI("BKA_DRAW: gsworld_draw called, enableDraw=%d, game_mode=%d", gsworld_getEnableDraw(), D_8037E8E0.game_mode);
     if (gsworld_getEnableDraw() == 0) {
         drawRectangle2D(gdl, 0, 0, gFramebufferWidth, gFramebufferHeight, 0, 0, 0);
         func_802BBD2C(&sp44, &sp40);
