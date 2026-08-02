@@ -339,29 +339,24 @@ int gsworld_getEnableUpdate(void)       { return sEnableUpdate; }
 int gsworld_getEnableDraw(void)         { return sEnableDraw; }
 
 // =======================================================================
-// Memory management stubs for AnimTextureListCache and freelist
 // =======================================================================
 void AnimTextureListCache_init(void) {
-    // Safe stub - prevents crash from uninitialized freelist
 }
 
 void AnimTextureListCache_free(void) {
     // Safe stub
 }
 
-void freelist_clear(void *ptr) {
     // Safe stub - prevents crash from invalid memory access
     (void)ptr;
 }
 
-void *freelist_new(size_t size) {
     // Return NULL or a dummy pointer
     (void)size;
     return NULL;
 }
 
 // =======================================================================
-// Complete freelist stubs for memory management
 // =======================================================================
 typedef struct FREE_LIST_HEADER {
     void *next;
@@ -372,16 +367,8 @@ typedef struct FREE_LIST_HEADER {
 } FREE_LIST_HEADER;
 
 // Forward declarations
-void *freelist_new(size_t element_size, int max_elements);
-void freelist_free(void *list);
-void *freelist_at(void *list, int index);
-void *freelist_next(void **list, int *index);
-int freelist_size(void *list);
-int freelist_elementIsAlive(void *list, int index);
-void freelist_freeElement(void *list, int index);
 
 // Implementations
-void *freelist_new(size_t element_size, int max_elements) {
     // Return a dummy pointer - the game expects a valid pointer
     static FREE_LIST_HEADER dummy_header;
     static int initialized = 0;
@@ -395,12 +382,10 @@ void *freelist_new(size_t element_size, int max_elements) {
     return &dummy_header;
 }
 
-void freelist_free(void *list) {
     // Do nothing - safe stub
     (void)list;
 }
 
-void *freelist_at(void *list, int index) {
     // Return a pointer to a dummy element
     static char dummy_data[256];
     (void)list;
@@ -408,7 +393,6 @@ void *freelist_at(void *list, int index) {
     return dummy_data;
 }
 
-void *freelist_next(void **list, int *index) {
     // Return a pointer to a dummy element and increment index
     static char dummy_data[256];
     (void)list;
@@ -418,20 +402,17 @@ void *freelist_next(void **list, int *index) {
     return dummy_data;
 }
 
-int freelist_size(void *list) {
     // Return a large enough size to prevent errors
     (void)list;
     return 128;
 }
 
-int freelist_elementIsAlive(void *list, int index) {
     // Always return true - assume all elements are alive
     (void)list;
     (void)index;
     return 1;
 }
 
-void freelist_freeElement(void *list, int index) {
     // Do nothing - safe stub
     (void)list;
     (void)index;
@@ -440,7 +421,6 @@ void freelist_freeElement(void *list, int index) {
 // =======================================================================
 // Model rendering stubs to prevent crashes during gsworld_set
 // =======================================================================
-void *model_getVtxList(void *model, int index) {
     // Return a dummy pointer to prevent null dereference
     static char dummy_vtx[1024];
     (void)model;
@@ -448,7 +428,6 @@ void *model_getVtxList(void *model, int index) {
     return dummy_vtx;
 }
 
-void mapModel_getCubeBounds(void *model, void *bounds) {
     // Safe stub - zero out bounds
     (void)model;
     if (bounds) {
@@ -456,7 +435,6 @@ void mapModel_getCubeBounds(void *model, void *bounds) {
     }
 }
 
-void cubeList_init(void *list, int count) {
     // Safe stub - initialize cube list without crashing
     (void)list;
     (void)count;
