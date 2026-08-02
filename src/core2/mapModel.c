@@ -594,6 +594,7 @@ void func_8030A078(void) {
     mapModel.env_blue = 0xFF;
     mapModel.env_red = 0xFF;
 
+    if (description == NULL) return;
     description = _mapModel_mapIdToDescription(gsworld_get_map());;
     mapModel.description = description;
     mapModel.scale = (f32) description->scale;
