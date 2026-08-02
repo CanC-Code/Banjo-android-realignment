@@ -46,16 +46,20 @@ jobs:
       - name: ✅ Build Succeeded
         if: steps.build.outputs.EXIT_CODE == '0'
         run: |
-          echo "### 🎉 Build Passed!" >> $GITHUB_STEP_SUMMARY
-          echo "The APK compiled successfully with no errors." >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### 🎉 Build Passed!"
+            echo "The APK compiled successfully with no errors."
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: ❌ Build Failed — Show Errors
         if: steps.build.outputs.EXIT_CODE != '0'
         run: |
-          echo "### ❌ Build Failed" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          grep -E "error:|FAILED:|BUILD FAILED" build.log | tail -n 50 >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
+          {
+            echo "### ❌ Build Failed"
+            echo '```'
+            grep -E "^[^[]*error:|^.*FAILED:|BUILD FAILED" build.log | sed 's/.*error:/error:/' | tail -n 60
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
 
       - name: 📤 Upload Build Log
         if: always()
