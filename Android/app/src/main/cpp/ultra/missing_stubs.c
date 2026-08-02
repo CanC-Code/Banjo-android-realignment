@@ -17,6 +17,7 @@
 //   the real implementations above when --allow-multiple-definition is set.
 
 // Forward declarations for print/font stubs
+void print_init(void);
 void print_getLettersFromFont(void* arg0, void* arg1);
 void func_802E5F38(void);
 void func_802E5F10(void);
@@ -214,8 +215,11 @@ void func_802E67C4(void) {}
 void func_802E53EC4(void *a, void *b) { (void)a; (void)b; }
 void printbuffer_draw(void *a, void *b, void *c) { (void)a; (void)b; (void)c; }
 void printbuffer_defrag(void) {}
+void depthbuffer_enable(int a) { (void)a; }
+void modelRender_init(void) {}
 void modelRender_free(void) {}
 void modelRender_defrag(void) {}
+void viewport_reset(void) {}
 void viewport_setNearAndFar(float a, float b) { (void)a; (void)b; }
 void viewport_setPosition_f3(float a, float b, float c) { (void)a; (void)b; (void)c; }
 void viewport_setRotation_f3(float a, float b, float c) { (void)a; (void)b; (void)c; }
@@ -278,14 +282,22 @@ int player_isDead(void) { return 0; }
 void mapSavestate_apply(int a) { (void)a; }
 void mapSavestate_save(int a) { (void)a; }
 int gsworld_get_map(void) { return 0; }
+void sns_save_and_update_global_data(void) {}
 void func_8030D86C(void) {}
 void func_80322764(void) {}
+void timedFuncQueue_init(void) {}
 void func_802F9CD8(void) {}
 void func_8031B62C(void) {}
+void defragManager_init(void) {}
+void animCache_init(void) {}
+void rand_reset(void) {}
+void scissorBox_setDefault(void) {}
 void func_80253FE8(void) {}
 void time_reset(void) {}
 void func_8033DC04(void) {}
 void clearScoreStates(void) {}
+void savedata_init(void) {}
+void func_802E3854(void) {}
 void func_802E3800(void) {}
 void func_8033DC10(void) {}
 void func_80324C58(void) {}
@@ -303,85 +315,4 @@ int map_getLevel(int a) { (void)a; return 0; }
 int level_get(void) { return 0; }
 void func_80321854(void) {}
 void func_8030AFD8(int a) { (void)a; }
-
-// =======================================================================
-// =======================================================================
-void gsworld_setEnableUpdate(int value);
-void gsworld_setEnableDraw(int value);
-int  gsworld_getEnableUpdate(void);
-int  gsworld_getEnableDraw(void);
-
-// =======================================================================
-// D_8037E8E0 game state struct
-// =======================================================================
-struct game_state_s {
-    s32 unk0;
-    s32 game_mode;
-    f32 unk8;
-    s32 unkC;
-    f32 unk10;
-    u8 transition;
-    u8 map;
-    u8 exit;
-    u8 unk17;
-    u8 unk18;
-    u8 unk19;
-    u8 unk1A;
-    u8 unk1B;
-    u8 unk1C;
-};
-
-struct game_state_s D_8037E8E0;
-
-#define TRANSITION_0_NONE   0
-#define GAME_MODE_2_UNKNOWN 2
-#define GAME_MODE_3_NORMAL  3
-
-// =======================================================================
-// =======================================================================
-// =======================================================================
-
-// =======================================================================
-// REAL game_setMode — Game Mode Transition
-// =======================================================================
-
-// =======================================================================
-// gsworld state
-// =======================================================================
-static int sEnableUpdate = 1;
-static int sEnableDraw   = 1;
-
-// =======================================================================
-// REAL gsworld_set
-// =======================================================================
-
-// =======================================================================
-// REAL gsworld_load
-// =======================================================================
-
-// =======================================================================
-// REAL gsworld_draw — No-op pass-through
-//
-// The test pattern has been removed. The real 3D rendering functions
-// (sky_draw, mapModel_opa_draw, player_draw, etc.) are still stubbed,
-// so this function doesn't render 3D geometry. However, the 2D text
-// rendering is now active via func_802E5F10 (called after gsworld_draw
-// in func_802E39D0). Text Gfx commands are processed by the software
-// RDP in gfx_interpreter.cpp and written directly to gFramebuffers.
-// =======================================================================
-// =======================================================================
-// REAL gsworld_update
-// =======================================================================
-int gsworld_update(void) {
-    if (!sEnableUpdate) return 1;
-    return 1;
-
-// =======================================================================
-// REAL gsworld_setEnableUpdate / gsworld_setEnableDraw
-// =======================================================================
-void gsworld_setEnableUpdate(int value) { sEnableUpdate = value; }
-void gsworld_setEnableDraw(int value)   { sEnableDraw = value; }
-
-int gsworld_getEnableUpdate(void)       { return sEnableUpdate; }
-int gsworld_getEnableDraw(void)         { return sEnableDraw; }
 
