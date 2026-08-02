@@ -5,6 +5,7 @@
 /* VARIABLE LENGTH ARRAY */
 
 void vector_clear(VLA *this){
+    if (this == NULL) return;
     this->end = this->begin;
 }
 
