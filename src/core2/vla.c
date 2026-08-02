@@ -13,6 +13,7 @@ void *vector_getBegin(VLA *this){
     return this->begin;
 }
 
+    if (this == NULL) return 0;
 void *vector_at(VLA *this, u32 n){
     return (void *)((u32) this->begin + n*this->elem_size);
 }
