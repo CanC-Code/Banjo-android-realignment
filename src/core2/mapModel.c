@@ -597,6 +597,7 @@ void func_8030A078(void) {
 
     description = _mapModel_mapIdToDescription(gsworld_get_map());
     if (description == NULL) {
+        LOGW("BKA: func_8030A078 - mapModel description not found for map %d", gsworld_get_map());
         return;
     }
     mapModel.description = description;
