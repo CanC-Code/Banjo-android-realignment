@@ -587,17 +587,15 @@ enum asset_e mapModel_getOpaModelId(void){
     if (mapModel.description == NULL) return 0;
     return mapModel.description->opa_model_id;
 }
-
 void func_8030A078(void) {
-    if (gsworld_get_map() == 0) return;
     BKMeshList *sp24;
     MapModelDescription *description;
 
     mapModel.env_blue = 0xFF;
+    mapModel.env_green = 0xFF;
     mapModel.env_red = 0xFF;
 
-    if (description == NULL) return;
-    description = _mapModel_mapIdToDescription(gsworld_get_map());;
+    description = _mapModel_mapIdToDescription(gsworld_get_map());
     mapModel.description = description;
     mapModel.scale = (f32) description->scale;
     mapModel.model_bin_opa = (BKModelBin *)assetcache_get(mapModel.description->opa_model_id);
