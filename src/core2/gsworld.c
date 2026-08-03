@@ -367,6 +367,9 @@ void gsworld_load(enum map_e map_id) {
 
     func_80254008();
     fp = file_openMap(map_id); //LevelSetupFile_Open
+    if (fp == NULL) {
+        return;
+    }
     while (file_isNextByteExpected(fp, 0) == 0) {
         if (file_isNextByteExpected(fp, 2)) {
             
