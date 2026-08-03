@@ -61,7 +61,7 @@ void *freelist_next(FLA **this_ptr, s32 *arg1) {
         }
     }
     i = *first_ptr;
-    next_ptr = (s16*)((s32)first_ptr + (i * this->elem_size));
+    next_ptr = (s16*)((uintptr_t)first_ptr + (i * this->elem_size));
     *arg1 = i;
     *first_ptr = *next_ptr;
     return (void *) next_ptr;

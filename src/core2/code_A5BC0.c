@@ -358,15 +358,15 @@ void func_8032D510(Cube *cube, Gfx **gfx, Mtx **mtx, Vtx **vtx){
     iOffset = 0;
     for(i = 0; i < cube->prop2Cnt; i++){//L8032D5A0
         iOffset = i * 0xC;
-        iProp = (Prop *)((s32)cube->prop2Ptr + iOffset);
-        tmp_v0.word = *(u32 *)BKA_TRANSLATE_ADDR(((s32)iProp + 0x8));
+        iProp = (Prop *)((uintptr_t)cube->prop2Ptr + iOffset);
+        tmp_v0.word = *(u32 *)BKA_TRANSLATE_ADDR(((uintptr_t)iProp + 0x8));
         if(!tmp_v0.unk4){
         
         }else{
             if(!tmp_v0.unk1){
                 func_8032CD60(iProp);
             }
-            tmp_v0.word = *(u32 *)BKA_TRANSLATE_ADDR(((s32)iProp + 0x8));
+            tmp_v0.word = *(u32 *)BKA_TRANSLATE_ADDR(((uintptr_t)iProp + 0x8));
             if(tmp_v0.unk0){//actorProp;
                 if(iProp->actorProp.marker->unk40_22){
                     markerPtr = (ActorMarker **)vector_pushBackNew(&D_80383550);
@@ -1666,13 +1666,13 @@ s32 codeA5BC0_getPositionAndSelectorOrRadius(NodeProp *arg0, s32 arg1[3]){
 // is used to set global timer time?
 void codeA5BC0_setNodePropUnkC(NodeProp *arg0, s32 arg1){
     // writes unkC_31 / unkC_22
-    *(s32*)BKA_TRANSLATE_ADDR(((s32)arg0 + 0xC)) = arg1;
+    *(s32*)BKA_TRANSLATE_ADDR(((uintptr_t)arg0 + 0xC)) = arg1;
 }
 
 // is used to retrieve global timer time?
 s32 codeA5BC0_getNodePropUnkC(NodeProp *arg0){
     // reads unkC_31 / unkC_22
-    return *(s32*)BKA_TRANSLATE_ADDR(((s32)arg0 + 0xC));
+    return *(s32*)BKA_TRANSLATE_ADDR(((uintptr_t)arg0 + 0xC));
 }
 
 void func_80330FCC(ActorMarker *marker, s32 arg1[3]){

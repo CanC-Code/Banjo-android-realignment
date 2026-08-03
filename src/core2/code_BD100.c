@@ -146,7 +146,7 @@ void func_80344424(BKSpriteDisplayData *arg0, s32 frame, n64_bool mirrored, f32 
     }
     mlMtxApply(*mtx);
     gSPMatrix((*gfx)++, (*mtx)++, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    temp_a3 = (BKSpriteFrameDisplayData *)((s32)arg0 + sizeof(BKSpriteDisplayData) + frame*sizeof(BKSpriteFrameDisplayData));
+    temp_a3 = (BKSpriteFrameDisplayData *)((uintptr_t)arg0 + sizeof(BKSpriteDisplayData) + frame*sizeof(BKSpriteFrameDisplayData));
     gSPSegment((*gfx)++, 1, osVirtualToPhysical(temp_a3->vtx));
     gSPDisplayList((*gfx)++, temp_a3->gfx);
     gSPPopMatrix((*gfx)++, G_MTX_MODELVIEW);
@@ -193,7 +193,7 @@ void func_80344720(BKSpriteDisplayData *arg0, s32 frame, n64_bool mirrored, f32 
     mlMtxScale_xyz((mirrored) ? -scale[0] : scale[0], scale[1], scale[2]);
     mlMtxApply(*mtx);
     gSPMatrix((*gfx)++, (*mtx)++, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    temp_a3 = (BKSpriteFrameDisplayData *)((s32)arg0 + sizeof(BKSpriteDisplayData) + frame*sizeof(BKSpriteFrameDisplayData));
+    temp_a3 = (BKSpriteFrameDisplayData *)((uintptr_t)arg0 + sizeof(BKSpriteDisplayData) + frame*sizeof(BKSpriteFrameDisplayData));
     gSPSegment((*gfx)++, 1, osVirtualToPhysical(temp_a3->vtx));
     gSPDisplayList((*gfx)++, temp_a3->gfx);
     gSPPopMatrix((*gfx)++, G_MTX_MODELVIEW);
@@ -230,7 +230,7 @@ BKSpriteDisplayData * func_80344A1C(BKSprite *arg0){
     for(i = 0; i < arg0->frameCnt; i++){//L80344A88
         s1 = ALIGN(s1, 0x10);
         s6 = (BKSpriteDisplayData *)n64_realloc(s6, header_size + s1 + 0x12C0);
-        vtx_start = (Vtx *)((s32)s6 + header_size + s1);
+        vtx_start = (Vtx *)((uintptr_t)s6 + header_size + s1);
         gfx_start = (Gfx *)(vtx_start + 200);
         vtx_end = vtx_start;
         gfx_end = gfx_start;
@@ -246,8 +246,8 @@ BKSpriteDisplayData * func_80344A1C(BKSprite *arg0){
     v1 = &s6->frame[0];
     s1 = 0;\
     for(i = 0; i < arg0->frameCnt; i++, v1++){//L80344B94
-        v1->vtx = (Vtx *)(s1 + ((s32)s6 + header_size));
-        v1->gfx = (Gfx *)((s32)v1->vtx + frame_vtx_size[i]);
+        v1->vtx = (Vtx *)(s1 + ((uintptr_t)s6 + header_size));
+        v1->gfx = (Gfx *)((uintptr_t)v1->vtx + frame_vtx_size[i]);
         s1 += ALIGN(frame_vtx_size[i] + frame_gfx_size[i], 0x10);
     }//L80344BE0
     return s6;

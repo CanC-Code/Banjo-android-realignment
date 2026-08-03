@@ -109,7 +109,7 @@ void func_8034BFF8(ActorMarker *marker) {
             } else if ((phi_s1->uid_0 >= 0x384) && (phi_s1->uid_0 < 0x3E8)) {
                 func_8034BED0(marker, phi_s1->uid_0, 8, phi_s1->uid_0 - 0x384);
             }
-            phi_s1 = (BKMesh *)((s32)phi_s1 + phi_s1->vtxCount_2*sizeof(s16) + sizeof(BKMesh));
+            phi_s1 = (BKMesh *)((uintptr_t)phi_s1 + phi_s1->vtxCount_2*sizeof(s16) + sizeof(BKMesh));
         }
     }
 }

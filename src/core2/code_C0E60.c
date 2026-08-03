@@ -162,7 +162,7 @@ void func_80348044(Gfx **gfx, BKSprite* sprite, s32 frame, s32 tmem, s32 rtile, 
         texture_block = (BKSpriteTextureBlock *)BKA_TRANSLATE_ADDR((palette_addr + 0x200));
         D_80386098 = 0;
         for(var_a0 = 0; var_a0 < chunk_count; var_a0++) {
-            texture_block = (s32)texture_block + (texture_block->w * texture_block->h) + sizeof(BKSpriteTextureBlock);
+            texture_block = (uintptr_t)texture_block + (texture_block->w * texture_block->h) + sizeof(BKSpriteTextureBlock);
         }
         *texture_x = texture_block->x;
         *texture_y = texture_block->y;

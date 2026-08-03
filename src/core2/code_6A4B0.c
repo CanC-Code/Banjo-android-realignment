@@ -131,7 +131,7 @@ void func_802F1934(Struct_Core2_6A4B0_2 * arg0, s32 arg1){
     arg0->tmem_raw_ptr = n64_malloc(gFramebufferWidth*gFramebufferHeight*sizeof(u16) + 0x10);
     arg0->tmem_ptr = arg0->tmem_raw_ptr;
     while(((s32)arg0->tmem_ptr & 0x10) == 0){
-        arg0->tmem_ptr = (u16*)((s32)arg0->tmem_ptr + 1);
+        arg0->tmem_ptr = (u16*)((uintptr_t)arg0->tmem_ptr + 1);
     }
     func_80253010(arg0->tmem_ptr, gFramebuffers[arg1], gFramebufferWidth*gFramebufferHeight*sizeof(u16));
     osWriteBackDCacheAll();

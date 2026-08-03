@@ -327,7 +327,7 @@ static n64_bool __gcquiz_func_803192A4(enum ff_question_type_e q_type, s32 q_ind
     char_iter += 2*code94620_func_8031B5B0(); // SKIP
     phi_v1 = *(char_iter++); // NEXT
     phi_v1 += (*(char_iter++) << 8);
-    char_iter = (char *)((s32)sD_803830E0->unkC + phi_v1);
+    char_iter = (char *)((uintptr_t)sD_803830E0->unkC + phi_v1);
     str_cnt = *(char_iter++); // NEXT char_iter = 5
     
     for(phi_a1 = 0; phi_a1 < 4; phi_a1++){

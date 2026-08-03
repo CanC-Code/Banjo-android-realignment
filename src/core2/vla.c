@@ -47,7 +47,7 @@ void *vector_pushBackNew(VLA **thisPtr){
         *thisPtr = this; 
     }
     retVal = this->end;
-    this->end = (void *)((s32)this->end + this->elem_size);
+    this->end = (void *)((uintptr_t)this->end + this->elem_size);
     return retVal;
 }
 
@@ -59,9 +59,9 @@ void *vector_insertNew(VLA **thisPtr, s32 indx){
     this = *thisPtr;
     i = ((s32)this->end - (s32)this->begin)/this->elem_size;
     while(indx < --i){
-        n64_memcpy((void *)((s32)this->begin + (i)*this->elem_size), (void *)((s32)this->begin + (i -1)*this->elem_size), this->elem_size);
+        n64_memcpy((void *)((uintptr_t)this->begin + (i)*this->elem_size), (void *)((uintptr_t)this->begin + (i -1)*this->elem_size), this->elem_size);
     }
-    return (void *)((s32)this->begin +  indx*this->elem_size);
+    return (void *)((uintptr_t)this->begin + indx*this->elem_size);
 }
 
 void vector_free(VLA *this){
@@ -92,7 +92,7 @@ void vector_popBack_n(VLA *this, u32 n){
 }
 
 void vector_assign(VLA *this, s32 indx, void* value){
-    n64_memcpy((void*)((s32)this->begin + indx * this->elem_size), value, this->elem_size);
+    n64_memcpy((void*)((uintptr_t)this->begin + indx * this->elem_size), value, this->elem_size);
 }
 
 VLA * vector_defrag(VLA *this){
@@ -103,7 +103,7 @@ VLA * vector_defrag(VLA *this){
    oldMemSize = (s32) this->mem_end - (s32)this->begin;
    this = (VLA *)defrag(this);
    this->begin = &this->data;
-   this->end = (void *)((s32)this->begin + oldSize);
+   this->end = (void *)((uintptr_t)this->begin + oldSize);
    this->mem_end = (void *)((s32)this->begin + oldMemSize);
    return this;
 }

@@ -80,8 +80,8 @@ BKModelBin *propModelList_getModelIfActive(s32 arg0){
 BKSpriteDisplayData *propModelList_getSpriteDisplayList(s32 arg0)
 {
     
-    if (((PropSpriteData *)((s32)sPropSpriteList + arg0*sizeof(PropSpriteData)))->sprite == 0){
-        ((PropSpriteData *)((s32)sPropSpriteList + arg0*sizeof(PropSpriteData)))->sprite = codeB3A80_getSprite(arg0 + SPRITE_ASSET_OFFSET, &((PropSpriteData *)((s32)sPropSpriteList + arg0*sizeof(PropSpriteData)))->display);
+    if (((PropSpriteData *)((uintptr_t)sPropSpriteList + arg0*sizeof(PropSpriteData)))->sprite == 0){
+        ((PropSpriteData *)((uintptr_t)sPropSpriteList + arg0*sizeof(PropSpriteData)))->sprite = codeB3A80_getSprite(arg0 + SPRITE_ASSET_OFFSET, &((PropSpriteData *)((uintptr_t)sPropSpriteList + arg0*sizeof(PropSpriteData)))->display);
     }
     sPropSpriteList[arg0].timestamp = globalTimer_getTime();
     return sPropSpriteList[arg0].display;
@@ -230,7 +230,7 @@ void propModelList_refresh(void) {
             temp_t7 = sprite_entry - sPropSpriteList;
             codeB3A80_releaseSprite(&sprite_entry->sprite, &sprite_entry->display);
             phi_s2 = temp_t7 *sizeof(PropSpriteData);
-            *(BKSprite **)((s32)sPropSpriteList + phi_s2) = codeB3A80_getSprite(temp_t7 + SPRITE_ASSET_OFFSET,  (BKSpriteDisplayData **)((s32)sPropSpriteList + phi_s2 + 4));
+            *(BKSprite **)((uintptr_t)sPropSpriteList + phi_s2) = codeB3A80_getSprite(temp_t7 + SPRITE_ASSET_OFFSET,  (BKSpriteDisplayData **)((uintptr_t)sPropSpriteList + phi_s2 + 4));
         }
     }
     
