@@ -207,7 +207,7 @@ BKModelBin *func_803257B4(ActorMarker *marker) {
     actor = marker_getActor(marker);
     if ((actor->unk174 == 0.0f) || (actor->unk178 == 0.0f)) {
         model_bin = (BKModelBin *) assetcache_get(marker->modelId);
-        vtx_list = (BKVertexList *)((s32)model_bin + model_bin->vtx_list_offset_10);
+        vtx_list = (BKVertexList *)((uintptr_t)model_bin + model_bin->vtx_list_offset_10);
         actor->unk174 = (f32) vtx_list->local_norm * actor->scale;
         actor->unk178 = (f32) vtx_list->global_norm * actor->scale;
         assetcache_release(model_bin);

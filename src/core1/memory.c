@@ -669,7 +669,7 @@ void *defrag(void *this){
     prev_block = new_block->prev;
     func_80253010(new_block, this_block, size);
     //create new empty block at end of new_block;
-    new_empty = (EmptyHeapBlock *)((s32)new_block + size);
+    new_empty = (EmptyHeapBlock *)((uintptr_t)new_block + size);
     new_empty->hdr.prev = new_block;
     new_empty->hdr.next = new_block->next;
     new_block->next = &new_empty->hdr;
@@ -685,7 +685,7 @@ void *defrag(void *this){
     if(new_block);
 
     _heap_defragEmptyBlock(new_empty); //combine new_empty with any surrounding empty blocks
-    return  (void *)((s32)new_block + sizeof(HeapHeader));
+    return  (void *)((uintptr_t)new_block + sizeof(HeapHeader));
 }
 
 void *defrag_asset(void *arg0){

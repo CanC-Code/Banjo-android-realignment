@@ -25,7 +25,7 @@ void func_80344090(BKSpriteDisplayData *self, s32 frame, Gfx **gfx) {
     BKSpriteFrameDisplayData *temp_a1;
 
     func_80349AD0();
-    temp_a1 = (BKSpriteFrameDisplayData *)((s32)self + sizeof(BKSpriteDisplayData) + frame*sizeof(BKSpriteFrameDisplayData));
+    temp_a1 = (BKSpriteFrameDisplayData *)((uintptr_t)self + sizeof(BKSpriteDisplayData) + frame*sizeof(BKSpriteFrameDisplayData));
     gSPSegment((*gfx)++, 1, osVirtualToPhysical(temp_a1->vtx));
     gSPDisplayList((*gfx)++, temp_a1->gfx);
 }
@@ -86,7 +86,7 @@ void func_80344138(BKSpriteDisplayData *self, s32 frame, s32 mirrored, f32 posit
     }
     mlMtxApply(*mtx);
     gSPMatrix((*gfx)++, (*mtx)++, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-    temp_a3 = (BKSpriteFrameDisplayData *)((s32)self + sizeof(BKSpriteDisplayData) + frame*sizeof(BKSpriteFrameDisplayData));
+    temp_a3 = (BKSpriteFrameDisplayData *)((uintptr_t)self + sizeof(BKSpriteDisplayData) + frame*sizeof(BKSpriteFrameDisplayData));
     gSPSegment((*gfx)++, 1, osVirtualToPhysical(temp_a3->vtx));
     gSPDisplayList((*gfx)++, temp_a3->gfx);
     gSPPopMatrix((*gfx)++, G_MTX_MODELVIEW);
@@ -239,7 +239,7 @@ BKSpriteDisplayData * func_80344A1C(BKSprite *arg0){
         frame_vtx_size[i] = ALIGN(sizeof(Vtx)*(vtx_end - vtx_start), 0x10);
         frame_gfx_size[i] = sizeof(Gfx)*(gfx_end - gfx_start);
         s1 += frame_vtx_size[i] + frame_gfx_size[i];
-        n64_memcpy((void *)((s32)vtx_start + frame_vtx_size[i]), gfx_start, frame_gfx_size[i]);
+        n64_memcpy((void *)((uintptr_t)vtx_start + frame_vtx_size[i]), gfx_start, frame_gfx_size[i]);
         s6 = n64_realloc(s6, header_size + s1);
     }//L80344B6C
     osWritebackDCache(s6, header_size + s1);
