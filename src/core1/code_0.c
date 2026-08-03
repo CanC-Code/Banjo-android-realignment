@@ -137,7 +137,7 @@ void core1_init(void) {
     // ml_init();              // may block — needs HLE math
     // gctransition_reset();   // may block — depends on graphicsCache
 
-    D_8027A130 = 3;             // set game state to "game running"
+    D_8027A130 = 0;             // match original: 0 before first func_8023DA9C call
     gGlobalTimer = 0;
     func_8023DA9C(3);           // calls func_802E4214(gBootMap) to init world
     LOGI("BKA: core1_init DONE");
