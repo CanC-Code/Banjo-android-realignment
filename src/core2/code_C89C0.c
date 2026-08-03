@@ -292,9 +292,9 @@ void func_803506DC(void){
     s32 sp1C = D_80386150.unk8;
     s32 sp18 = D_80386150.unk14;
     D_80386150.unk8 = (Struct_core2_C89C0_1 *)defrag(sp1C);
-    D_80386150.unkC = ((s32)D_80386150.unkC - (s32)sp1C) + (s32)D_80386150.unk8;
-    D_80386150.unk10 = ((s32)D_80386150.unk10 - (s32)sp1C) + (s32)D_80386150.unk8;
+    D_80386150.unkC = ((uintptr_t)D_80386150.unkC - (uintptr_t)sp1C) + (uintptr_t)D_80386150.unk8;
+    D_80386150.unk10 = ((uintptr_t)D_80386150.unk10 - (uintptr_t)sp1C) + (uintptr_t)D_80386150.unk8;
     D_80386150.unk14 = (Struct_core2_C89C0_0 *)defrag(D_80386150.unk14);
-    D_80386150.unk18 = ((s32)D_80386150.unk18 - (s32)sp18) + (s32)D_80386150.unk14;
-    D_80386150.unk1C = ((s32)D_80386150.unk1C - (s32)sp18) + (s32)D_80386150.unk14;
+    D_80386150.unk18 = ((uintptr_t)D_80386150.unk18 - (uintptr_t)sp18) + (uintptr_t)D_80386150.unk14;
+    D_80386150.unk1C = ((uintptr_t)D_80386150.unk1C - (uintptr_t)sp18) + (uintptr_t)D_80386150.unk14;
 }
