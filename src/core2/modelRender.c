@@ -719,7 +719,7 @@ void func_803384A8(Gfx **gfx, Mtx **mtx, void *arg2){
         mlMtxTranslate(-cmd->unkC[0], -cmd->unkC[1], -cmd->unkC[2]);
         mlMtxApply(*mtx);
         gSPMatrix((*gfx)++, (*mtx)++, G_MTX_PUSH | G_MTX_LOAD | G_MTX_MODELVIEW);
-        func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk8));
+        func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk8));
         mlMtxPop();
         gSPPopMatrix((*gfx)++, G_MTX_MODELVIEW);
     }
@@ -749,7 +749,7 @@ void func_803385BC(Gfx **gfx, Mtx **mtx, void *arg2){
             D_80383C64 = f14;
             if(f14 < 0.0f){
                 if(cmd->unk22)
-                    func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk22));
+                    func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk22));
             }
         }
     }
@@ -757,17 +757,17 @@ void func_803385BC(Gfx **gfx, Mtx **mtx, void *arg2){
         D_80383C64 = f14;
         if(0.0f <= f14){
             if(cmd->unk22)
-                func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk22));
+                func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk22));
 
             if(cmd->unk24)
-                func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk24));
+                func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk24));
         }
         else{
             if(cmd->unk24)
-                func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk24));
+                func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk24));
 
             if(cmd->unk22)
-                func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk22));
+                func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk22));
         }
     }
 }
@@ -840,7 +840,7 @@ void func_80338970(Gfx **gfx, Mtx **mtx, void *arg2){
 //Cmd6_???
 void func_80338AC4(Gfx **gfx, Mtx **mtx, void *arg2){
     GeoCmd6 *cmd = (GeoCmd6 *)arg2;
-    func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk8));
+    func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk8));
 }
 
 //Cmd7_LOAD_DL???
@@ -859,7 +859,7 @@ void func_80338B50(Gfx **gfx, Mtx **mtx, void *arg2){
         mlMtx_apply_vec3f(D_80383C98, cmd->unk10);
         dist = gu_sqrtf(D_80383C98[0]*D_80383C98[0] + D_80383C98[1]*D_80383C98[1] + D_80383C98[2]*D_80383C98[2]);
         if(cmd->min_C < dist && dist <= cmd->max_8){
-            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->subgeo_offset_1C));
+            func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->subgeo_offset_1C));
         }
     }
 }
@@ -939,7 +939,7 @@ void func_80338DCC(Gfx ** gfx, Mtx ** mtx, void *arg2){
         sp20[1] = (f32)cmd->unkE[1] * modelRenderScale;
         sp20[2] = (f32)cmd->unkE[2] * modelRenderScale;
         if(viewport_isBoundingBoxInFrustum(sp2C, sp20)){
-            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk14));
+            func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk14));
         }
     }
 }
@@ -956,7 +956,7 @@ void func_80338EB8(Gfx ** gfx, Mtx ** mtx, void *arg2){
         sp34[2] = (f32)cmd->unk8[2] * modelRenderScale;
         sp30 = (f32)cmd->unkE*modelRenderScale;
         if(viewport_func_8024DB50(sp34, sp30) && cmd->unk10){
-            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk10));
+            func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk10));
         }
     }
     else{
@@ -978,7 +978,7 @@ void func_80338EB8(Gfx ** gfx, Mtx ** mtx, void *arg2){
         sp34[1] += modelRenderCameraPosition[1];
         sp34[2] += modelRenderCameraPosition[2];
         if(viewport_func_8024DB50(sp34, sp30) && cmd->unk10){
-            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk10));
+            func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk10));
         }
 
     }
@@ -993,7 +993,7 @@ void func_8033909C(Gfx ** gfx, Mtx ** mtx, void *arg2){
         || (tmp_v0 && (cmd->unkB & 2)) 
     ){
         if(cmd->unk8 != 0)
-            func_80339124(gfx, mtx, (BKGeoList*)((s32)cmd + cmd->unk8));
+            func_80339124(gfx, mtx, (BKGeoList*)((uintptr_t)cmd + cmd->unk8));
     }
 
 }
@@ -1004,7 +1004,7 @@ void func_80339124(Gfx ** gfx, Mtx ** mtx, BKGeoList *geo_list){
         D_80370994[geo_list->cmd_0](gfx, mtx, geo_list);
         if(geo_list->size_4 == 0)
             return;
-        geo_list = (BKGeoList*)((s32)geo_list + geo_list->size_4);
+        geo_list = (BKGeoList*)((uintptr_t)geo_list + geo_list->size_4);
     }while(1);
 }
 
@@ -1080,7 +1080,7 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
     }
 
     if(model_bin){
-        verts = modelRendervertexList ? modelRendervertexList : (BKVertexList *)((s32)model_bin + model_bin->vtx_list_offset_10);
+        verts = modelRendervertexList ? modelRendervertexList : (BKVertexList *)((uintptr_t)model_bin + model_bin->vtx_list_offset_10);
         spD0 = verts->global_norm;
         spD4 = verts->local_norm;
     }
@@ -1112,10 +1112,10 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
         model_bin = assetcache_get(D_803837C8.model_id);
     }
     modelRenderModelBin = model_bin;
-    modelRenderDisplayList = modelRenderDisplayList ? modelRenderDisplayList : (BKGfxList *)((s32)modelRenderModelBin + modelRenderModelBin->gfx_list_offset_C),
-    modelRenderTextureList = modelRenderTextureList ? modelRenderTextureList : (BKTextureList *)((s32)modelRenderModelBin + modelRenderModelBin->texture_list_offset_8),
-    modelRendervertexList = modelRendervertexList ? modelRendervertexList : (BKVertexList *)((s32)modelRenderModelBin + modelRenderModelBin->vtx_list_offset_10),
-    D_8038372C = (modelRenderModelBin->unk20 == NULL) ? NULL : (BKModelUnk20List *)((u8*)model_bin + model_bin->unk20);
+    modelRenderDisplayList = modelRenderDisplayList ? modelRenderDisplayList : (BKGfxList *)((uintptr_t)modelRenderModelBin + modelRenderModelBin->gfx_list_offset_C),
+    modelRenderTextureList = modelRenderTextureList ? modelRenderTextureList : (BKTextureList *)((uintptr_t)modelRenderModelBin + modelRenderModelBin->texture_list_offset_8),
+    modelRendervertexList = modelRendervertexList ? modelRendervertexList : (BKVertexList *)((uintptr_t)modelRenderModelBin + modelRenderModelBin->vtx_list_offset_10),
+    D_8038372C = (modelRenderModelBin->unk20 == NULL) ? NULL : (BKModelUnk20List *)((uintptr_t)model_bin + model_bin->unk20);
 
     if(D_80383710){
         tmp_f0 = D_80383708 - 500.0f;
@@ -1248,7 +1248,7 @@ BKModelBin *modelRender_draw(Gfx **gfx, Mtx **mtx, f32 position[3], f32 rotation
     }
 
     if(model_bin->unk28 != NULL && D_8038371C != NULL){
-        func_802E6BD0((s32)modelRenderModelBin + modelRenderModelBin->unk28, modelRendervertexList, D_8038371C);
+        func_802E6BD0((uintptr_t)modelRenderModelBin + modelRenderModelBin->unk28, modelRendervertexList, D_8038371C);
     }
 
     mlMtxIdent();
@@ -1317,7 +1317,7 @@ BKCollisionList *model_getCollisionList(BKModelBin *arg0){
     if(arg0->collision_list_offset_1C == 0)
         return NULL;
 
-    return (BKCollisionList *)((s32)arg0 + arg0->collision_list_offset_1C);
+    return (BKCollisionList *)((uintptr_t)arg0 + arg0->collision_list_offset_1C);
 }
 
 BKEffectsList *func_8033A0B0(BKModelBin *arg0){
@@ -1343,7 +1343,7 @@ s32 func_8033A0F0(s32 arg0){
 }
 
 BKTextureList *model_getTextureList(BKModelBin *model_bin){
-    return (BKTextureList *)((s32)model_bin + model_bin->texture_list_offset_8);
+    return (BKTextureList *)((uintptr_t)model_bin + model_bin->texture_list_offset_8);
 }
 
 AnimTexture *model_getAnimTextureList(BKModelBin *model_bin){
@@ -1355,11 +1355,11 @@ AnimTexture *model_getAnimTextureList(BKModelBin *model_bin){
 BKModelUnk14List *func_8033A12C(BKModelBin *this){
     if(this->unk14 == 0)
         return 0;
-    return (BKModelUnk14List *)((s32)this + this->unk14);
+    return (BKModelUnk14List *)((uintptr_t)this + this->unk14);
 }
 
 BKVertexList *model_getVtxList(BKModelBin *arg0){
-    return (BKVertexList *)((s32)arg0 + arg0->vtx_list_offset_10);
+    return (BKVertexList *)((uintptr_t)arg0 + arg0->vtx_list_offset_10);
 }
 
 BKModelUnk20List *func_8033A154(BKModelBin *arg0){
