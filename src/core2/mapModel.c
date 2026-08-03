@@ -602,6 +602,14 @@ void func_8030A078(void) {
     mapModel.description = description;
     mapModel.scale = (f32) description->scale;
     mapModel.model_bin_opa = (BKModelBin *)assetcache_get(mapModel.description->opa_model_id);
+    if (mapModel.model_bin_opa == NULL) {
+        mapModel.collision_opa = NULL;
+        mapModel.model_bin_xlu = NULL;
+        mapModel.collision_xlu = NULL;
+        mapModel.model_opa = NULL;
+        mapModel.model_xlu = NULL;
+        return;
+    }
     mapModel.collision_opa = model_getCollisionList(mapModel.model_bin_opa);
     mapModel.unk20 = 0;
     if (mapModel.description->xlu_model_id != 0) {
