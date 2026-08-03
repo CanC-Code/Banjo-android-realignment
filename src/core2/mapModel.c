@@ -596,6 +596,9 @@ void func_8030A078(void) {
     mapModel.env_red = 0xFF;
 
     description = _mapModel_mapIdToDescription(gsworld_get_map());
+    if (description == NULL) {
+        return;
+    }
     mapModel.description = description;
     mapModel.scale = (f32) description->scale;
     mapModel.model_bin_opa = (BKModelBin *)assetcache_get(mapModel.description->opa_model_id);
