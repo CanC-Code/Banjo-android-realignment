@@ -407,6 +407,11 @@ struct5Bs *func_803097A0(void){
 
 
 void mapModel_getCubeBounds(s32 min[3], s32 max[3]) {
+    if (mapModel.model_bin_opa == NULL || mapModel.description == NULL) {
+        min[0] = min[1] = min[2] = 0;
+        max[0] = max[1] = max[2] = 0;
+        return;
+    }
     vtxList_getBounds_s32(model_getVtxList(mapModel.model_bin_opa), min, max);
     coords_scale(min, max, 1000);
     min[0] = min[0] + mapModel.description->unk6[0];
